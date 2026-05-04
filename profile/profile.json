@@ -1,0 +1,40 @@
+{
+  "name": "Hassan",
+  "title": "Backend & AI Developer",
+  "skills": [
+    "Python",
+    "FastAPI",
+    "AWS EC2, S3, IAM, VPC",
+    "Docker",
+    "GitHub Actions",
+    "Linux administration",
+    "AI workflows",
+    "LangGraph",
+    "Gemini API",
+    "ChromaDB"
+  ],
+  "projects": [
+    {
+      "name": "Reqify",
+      "description": "AI-powered CLI tool that extracts structured requirements from messy client briefs using Gemini API, tool use, and rolling summary memory",
+      "tech": ["Python", "Gemini API", "LangGraph concepts"]
+    }
+  ],
+  "experience": [
+    "Built AI-powered CLI tools using raw LLM APIs",
+    "Completed hands-on Linux fundamentals on AWS EC2",
+    "Deployed and managed Nginx, Node.js, PM2 on EC2",
+    "Implemented tool use and memory patterns in AI workflows"
+  ],
+  "niches": [
+    "AI automation",
+    "Backend development", 
+    "DevOps automation",
+    "LLM-powered tools"
+  ],
+  "rates": {
+    "hourly_min": 15,
+    "hourly_max": 40,
+    "fixed_min": 100
+  }
+}
