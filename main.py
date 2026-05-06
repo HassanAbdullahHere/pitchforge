@@ -5,7 +5,7 @@ from state import PitchforgeState
 from nodes.analyzer import collect_job_input, analyze_job
 from nodes.retriever import retrieve_profile
 from nodes.scorer import score_fit, should_continue
-import json
+from nodes.generator import generate_proposal
 
 job_text = collect_job_input()
 
@@ -34,9 +34,15 @@ state.update(retrieve_profile(state))
 # Node 3
 state.update(score_fit(state))
 
-# Conditional check
+# Conditional edge — only continue if fit_score is above threshold
 decision = should_continue(state)
 if decision == "low_fit":
-    print(f"\n✗ Low fit score ({state['fit_score']}/100) — not recommended to apply.")
+    print(f"\n✗ Low fit ({state['fit_score']}/100) — not recommended.")
 else:
-    print(f"\n✓ Good fit ({state['fit_score']}/100) — continuing to proposal generation...")
+    print(f"\n✓ Good fit ({state['fit_score']}/100) — generating proposal...")
+
+    # Node 4
+    state.update(generate_proposal(state))
+
+    print("\n--- PROPOSAL DRAFT ---\n")
+    print(state["proposal_draft"])
