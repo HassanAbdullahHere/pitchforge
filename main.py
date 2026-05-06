@@ -2,15 +2,15 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from state import PitchforgeState
-from nodes.analyzer import analyze_job
+from nodes.analyzer import collect_job_input, analyze_job
+import json
 
-# Test Node 1 in isolation
-test_state: PitchforgeState = {
-    "job_posting": """
-    Looking for a Python developer to build an AI chatbot for our e-commerce store.
-    The bot should answer customer questions, track orders, and handle returns.
-    Budget: $500-800. Timeline: 2 weeks. Need someone with FastAPI and LLM experience.
-    """,
+# Collect input from CLI
+job_text = collect_job_input()
+
+# Build initial state
+state: PitchforgeState = {
+    "job_posting": job_text,
     "job_analysis": {},
     "profile_matches": [],
     "client_info": None,
@@ -25,6 +25,7 @@ test_state: PitchforgeState = {
     "human_approved": False
 }
 
-result = analyze_job(test_state)
-import json
+# Run Node 1
+result = analyze_job(state)
+print("\n--- JOB ANALYSIS ---")
 print(json.dumps(result["job_analysis"], indent=2))

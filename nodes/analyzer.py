@@ -1,83 +1,92 @@
-import httpx
-from bs4 import BeautifulSoup
+import os
+import json
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.messages import HumanMessage
 from state import PitchforgeState
-import json
-import os
 
 llm = ChatGoogleGenerativeAI(
     model="gemini-2.5-flash",
     google_api_key=os.getenv("GEMINI_API_KEY")
 )
 
-def fetch_job_posting(source: str) -> str:
-    """Fetch job text from URL or return raw text as-is"""
-    if source.startswith("http"):
-        try:
-            response = httpx.get(source, timeout=10, follow_redirects=True)
-            soup = BeautifulSoup(response.text, "html.parser")
-            # Remove scripts and styles
-            for tag in soup(["script", "style", "nav", "footer"]):
-                tag.decompose()
-            return soup.get_text(separator="\n", strip=True)[:5000]
-        except Exception as e:
-            return f"Failed to fetch URL: {e}"
-    return source
+def collect_job_input() -> str:
+    """
+    Collecting job details from user via CLI.
+    Returns a single formatted string — easy to send to Gemini.
+    """
+    print("\n" + "="*50)
+    print("PITCHFORGE — Job Details")
+    print("="*50)
+
+    title = input("\nJob title: ").strip()
+    description = input("Job description (paste and press Enter): ").strip()
+    budget = input("Budget (e.g. $500-800 or 'not mentioned'): ").strip()
+    timeline = input("Timeline (e.g. '2 weeks' or 'not mentioned'): ").strip()
+    level = input("Experience level required (entry/intermediate/expert): ").strip()
+    platform = input("Platform (Upwork/Freelancer/other): ").strip()
+
+    return f"""
+Job Title: {title}
+Description: {description}
+Budget: {budget}
+Timeline: {timeline}
+Experience Level: {level}
+Platform: {platform}
+"""
 
 def analyze_job(state: PitchforgeState) -> dict:
-    """Node 1 — fetch and analyze the job posting"""
+    """
+    Node 1 — Analyze the job posting.
 
-    print("\n[Node 1] Fetching and analyzing job posting...")
+    Reads: state["job_posting"]
+    Writes: state["job_analysis"]
+    """
+    print("\n[Node 1] Analyzing job posting...")
 
-    # Fetch content
-    raw_text = fetch_job_posting(state["job_posting"])
-
-    # Ask Gemini to extract structured info
     prompt = f"""
-Analyze this job posting and extract structured information.
-Return ONLY valid JSON with these exact keys:
+Analyze this job posting and return ONLY valid JSON.
+No explanation. No markdown. Just the JSON object.
 
 {{
   "title": "job title",
   "skills_required": ["skill1", "skill2"],
-  "scope": "brief description of project scope",
-  "budget": "budget if mentioned or unknown",
+  "scope": "one sentence describing the project",
+  "budget": "budget as stated",
+  "timeline": "timeline as stated",
   "client_type": "individual/startup/agency/enterprise/unknown",
   "experience_level": "entry/intermediate/expert",
-  "project_duration": "duration if mentioned or unknown",
-  "client_identifiable": true or false,
-  "client_name": "company or client name if found or null"
+  "client_identifiable": false
 }}
 
 Job posting:
-{raw_text}
+{state["job_posting"]}
 """
 
     response = llm.invoke([HumanMessage(content=prompt)])
 
     try:
-        # Clean and parse JSON
         raw = response.content.strip()
-        if raw.startswith("```"):
+        # Strip markdown code fences if Gemini adds them
+        if "```" in raw:
             raw = raw.split("```")[1]
             if raw.startswith("json"):
                 raw = raw[4:]
         job_analysis = json.loads(raw.strip())
+
     except Exception:
-        # Fallback if JSON parsing fails
+        # If JSON parsing fails, store raw text as fallback
         job_analysis = {
             "title": "Unknown",
             "skills_required": [],
-            "scope": raw_text[:200],
+            "scope": state["job_posting"][:200],
             "budget": "unknown",
+            "timeline": "unknown",
             "client_type": "unknown",
             "experience_level": "unknown",
-            "project_duration": "unknown",
-            "client_identifiable": False,
-            "client_name": None
+            "client_identifiable": False
         }
 
-    print(f"[Node 1] Analysis complete — Job: {job_analysis.get('title')}")
+    print(f"[Node 1] Done — {job_analysis.get('title')}")
 
+    # Return only what changed in state
     return {"job_analysis": job_analysis}
