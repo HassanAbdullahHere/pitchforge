@@ -3,12 +3,11 @@ load_dotenv()
 
 from state import PitchforgeState
 from nodes.analyzer import collect_job_input, analyze_job
+from nodes.retriever import retrieve_profile
 import json
 
-# Collect input from CLI
 job_text = collect_job_input()
 
-# Build initial state
 state: PitchforgeState = {
     "job_posting": job_text,
     "job_analysis": {},
@@ -25,7 +24,12 @@ state: PitchforgeState = {
     "human_approved": False
 }
 
-# Run Node 1
-result = analyze_job(state)
-print("\n--- JOB ANALYSIS ---")
-print(json.dumps(result["job_analysis"], indent=2))
+# Node 1
+state.update(analyze_job(state))
+
+# Node 2
+state.update(retrieve_profile(state))
+
+print("\n--- PROFILE MATCHES ---")
+for i, match in enumerate(state["profile_matches"]):
+    print(f"\n{i+1}. {match}")
