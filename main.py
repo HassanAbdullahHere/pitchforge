@@ -4,6 +4,7 @@ load_dotenv()
 from state import PitchforgeState
 from nodes.analyzer import collect_job_input, analyze_job
 from nodes.retriever import retrieve_profile
+from nodes.scorer import score_fit, should_continue
 import json
 
 job_text = collect_job_input()
@@ -30,6 +31,12 @@ state.update(analyze_job(state))
 # Node 2
 state.update(retrieve_profile(state))
 
-print("\n--- PROFILE MATCHES ---")
-for i, match in enumerate(state["profile_matches"]):
-    print(f"\n{i+1}. {match}")
+# Node 3
+state.update(score_fit(state))
+
+# Conditional check
+decision = should_continue(state)
+if decision == "low_fit":
+    print(f"\n✗ Low fit score ({state['fit_score']}/100) — not recommended to apply.")
+else:
+    print(f"\n✓ Good fit ({state['fit_score']}/100) — continuing to proposal generation...")
