@@ -2,7 +2,7 @@ import os
 import json
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.messages import HumanMessage
-from state import PitchforgeState
+from pitchforge.state import PitchforgeState
 
 llm = ChatGoogleGenerativeAI(
     model="gemini-2.5-flash",
@@ -83,7 +83,9 @@ Scoring guide:
 
     return {
         "fit_score": fit_score,
-        "suggested_price": suggested_price
+        "suggested_price": suggested_price,
+        "matched_skills": result.get("matched_skills", []),
+        "missing_skills": result.get("missing_skills", []),
     }
 
 def should_continue(state: PitchforgeState) -> str:

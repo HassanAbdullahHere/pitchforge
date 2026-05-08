@@ -1,7 +1,7 @@
 import os
 import chromadb
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
-from state import PitchforgeState
+from pitchforge.state import PitchforgeState
 
 
 embeddings = GoogleGenerativeAIEmbeddings(

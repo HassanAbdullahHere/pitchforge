@@ -1,5 +1,5 @@
 from langgraph.types import interrupt
-from state import PitchforgeState
+from pitchforge.state import PitchforgeState
 
 
 def human_fit_checkpoint(state: PitchforgeState) -> dict:

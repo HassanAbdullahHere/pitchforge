@@ -1,13 +1,13 @@
 from langgraph.graph import StateGraph, END
 from langgraph.checkpoint.memory import MemorySaver
-from state import PitchforgeState
-from nodes.analyzer import analyze_job
-from nodes.retriever import retrieve_profile
-from nodes.scorer import score_fit
-from nodes.fit_checkpoint import human_fit_checkpoint
-from nodes.generator import generate_proposal
-from nodes.critic import critique_proposal
-from nodes.human_checkpoint import human_proposal_checkpoint
+from pitchforge.state import PitchforgeState
+from pitchforge.nodes.analyzer import analyze_job
+from pitchforge.nodes.retriever import retrieve_profile
+from pitchforge.nodes.scorer import score_fit
+from pitchforge.nodes.fit_checkpoint import human_fit_checkpoint
+from pitchforge.nodes.generator import generate_proposal
+from pitchforge.nodes.critic import critique_proposal
+from pitchforge.nodes.human_checkpoint import human_proposal_checkpoint
 
 
 def route_fit(state: PitchforgeState) -> str:

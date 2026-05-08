@@ -1,8 +1,8 @@
 from dotenv import load_dotenv
 load_dotenv()
 
-from nodes.analyzer import collect_job_input
-from graph import pitchforge_graph
+from pitchforge.nodes.analyzer import collect_job_input
+from pitchforge.graph import pitchforge_graph
 from langgraph.types import Command
 
 
@@ -20,6 +20,8 @@ def main():
         "quality_score": 0,
         "fit_score": 0,
         "suggested_price": "",
+        "matched_skills": [],
+        "missing_skills": [],
         "clarifying_questions": [],
         "final_proposal": "",
         "should_apply": False,

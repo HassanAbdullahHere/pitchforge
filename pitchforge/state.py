@@ -20,6 +20,8 @@ class PitchforgeState(TypedDict):
     # Output
     fit_score: int                # how well job matches your profile
     suggested_price: str          # pricing recommendation
+    matched_skills: list          # skills from scorer that match the job
+    missing_skills: list          # skills the job requires that are absent
     clarifying_questions: list    # questions to ask the client
     final_proposal: str           # approved final proposal
 
