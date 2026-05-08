@@ -46,8 +46,7 @@ Evaluate strictly against these 6 criteria:
 2. Evidence — does it use real experience from the profile as proof?
 3. Structure — has hook, fit, approach, experience, and closing?
 4. Tone — human and conversational, not templated or sycophantic?
-5. Length — is it under 300 words?
-6. Price — is the suggested price mentioned naturally?
+5. Price — is the suggested price mentioned naturally?
 
 Respond with ONLY valid JSON in this exact format:
 {{
@@ -58,7 +57,6 @@ Respond with ONLY valid JSON in this exact format:
     "evidence": <0-20>,
     "structure": <0-20>,
     "tone": <0-20>,
-    "length": <0-10>,
     "price": <0-10>
   }},
   "feedback": "<specific issues to fix — mention exact lines or phrases that are weak. If PASS, say what works well.>"

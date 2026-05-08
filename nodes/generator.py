@@ -38,9 +38,12 @@ Fix these issues in the new draft. Don't repeat the same mistakes.
 """
 
     prompt = f"""
-You are writing an Upwork proposal for a freelancer.
-Write in first person, professional but conversational tone.
-Sound like a real human — not a template.
+You are writing an Upwork proposal for a freelancer named Hassan.
+
+TONE: Confident, direct, and human. Write like a senior professional reaching out —
+not eager, not salesy. Short sentences. No filler. No corporate speak.
+Avoid: "I am passionate about", "I would love to help", "I am the perfect fit",
+"look no further", or any variation of these clichés.
 
 JOB DETAILS:
 Title: {job.get('title')}
@@ -57,15 +60,18 @@ SUGGESTED PRICE: {state['suggested_price']}
 
 {revision_context}
 
-Write a proposal with this structure:
-1. Opening hook — reference something specific about the job (not generic)
-2. Why I'm the right fit — use specific experience from the profile above as evidence
-3. My approach — briefly how I would tackle this project
-4. Relevant experience — mention specific projects or skills that match
-5. Closing — include suggested price, invite them to discuss
+Write a proposal with this exact structure:
 
-Keep it under 300 words. Be specific. Avoid clichés like 
-"I am passionate about" or "I would love to help".
+1. Greeting like a human
+2. Opening hook — one sentence that references something specific about THIS job
+   (not generic praise, not "I saw your posting")
+3. Relevant experience — 2-3 sentences of specific past work or skills that directly
+   match what they need; cite real projects or technologies from the profile
+4. Approach — 2-3 sentences on how you would tackle this project specifically
+5. Closing — state the suggested price naturally in a sentence, then one short line
+   inviting them to chat (no exclamation marks)
+
+Keep it under 400-500 words. Every sentence must earn its place.
 """
 
     response = llm.invoke([HumanMessage(content=prompt)])
