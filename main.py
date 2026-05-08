@@ -1,49 +1,52 @@
 from dotenv import load_dotenv
 load_dotenv()
 
-from state import PitchforgeState
-from nodes.analyzer import collect_job_input, analyze_job
-from nodes.retriever import retrieve_profile
-from nodes.scorer import score_fit
-from nodes.fit_checkpoint import human_fit_checkpoint
-from nodes.generator import generate_proposal
+from nodes.analyzer import collect_job_input
+from graph import pitchforge_graph
+from langgraph.types import Command
 
-job_text = collect_job_input()
 
-state: PitchforgeState = {
-    "job_posting": job_text,
-    "job_analysis": {},
-    "profile_matches": [],
-    "client_info": None,
-    "proposal_draft": "",
-    "critic_feedback": "",
-    "iteration_count": 0,
-    "quality_score": 0,
-    "fit_score": 0,
-    "suggested_price": "",
-    "clarifying_questions": [],
-    "final_proposal": "",
-    "should_apply": False,
-    "human_approved": False
-}
+def main():
+    job_posting = collect_job_input()
 
-# Node 1
-state.update(analyze_job(state))
+    initial_state = {
+        "job_posting": job_posting,
+        "job_analysis": {},
+        "profile_matches": [],
+        "client_info": None,
+        "proposal_draft": "",
+        "critic_feedback": "",
+        "iteration_count": 0,
+        "quality_score": 0,
+        "fit_score": 0,
+        "suggested_price": "",
+        "clarifying_questions": [],
+        "final_proposal": "",
+        "should_apply": False,
+        "human_approved": False,
+    }
 
-# Node 2
-state.update(retrieve_profile(state))
+    config = {"configurable": {"thread_id": "pitchforge-1"}}
 
-# Node 3
-state.update(score_fit(state))
+    pitchforge_graph.invoke(initial_state, config=config)
 
-# Node 3.5 — Human checkpoint
-state.update(human_fit_checkpoint(state))
+    while True:
+        graph_state = pitchforge_graph.get_state(config)
+        if not graph_state.next:
+            break
 
-if not state["should_apply"]:
-    exit(0)
+        answer = "n"
+        for task in graph_state.tasks:
+            if task.interrupts:
+                prompt = task.interrupts[0].value.get("prompt", "Continue? [y/N]: ")
+                try:
+                    answer = input(f"\n{prompt}").strip().lower()
+                except (EOFError, KeyboardInterrupt):
+                    answer = "n"
+                break
 
-# Node 4
-state.update(generate_proposal(state))
+        pitchforge_graph.invoke(Command(resume=answer), config=config)
 
-print("\n--- PROPOSAL DRAFT ---\n")
-print(state["proposal_draft"])
+
+if __name__ == "__main__":
+    main()

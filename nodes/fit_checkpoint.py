@@ -1,4 +1,6 @@
+from langgraph.types import interrupt
 from state import PitchforgeState
+
 
 def human_fit_checkpoint(state: PitchforgeState) -> dict:
     """
@@ -30,18 +32,20 @@ def human_fit_checkpoint(state: PitchforgeState) -> dict:
 
     if fit_score < 40:
         print("Score too low — cancelling.")
-        should_apply = False
+        return {"should_apply": False}
+
+    answer = interrupt({
+        "fit_score": fit_score,
+        "recommendation": recommendation,
+        "suggested_price": state["suggested_price"],
+        "prompt": "Generate proposal? [y/N]: ",
+    })
+
+    should_apply = str(answer).strip().lower() == "y"
+
+    if should_apply:
+        print("Proceeding to proposal generation...")
     else:
-        try:
-            answer = input("\nGenerate proposal? [y/N]: ").strip().lower()
-        except (EOFError, KeyboardInterrupt):
-            answer = "n"
-
-        should_apply = answer == "y"
-
-        if should_apply:
-            print("Proceeding to proposal generation...")
-        else:
-            print("Cancelled.")
+        print("Cancelled.")
 
     return {"should_apply": should_apply}
