@@ -4,7 +4,8 @@ load_dotenv()
 from state import PitchforgeState
 from nodes.analyzer import collect_job_input, analyze_job
 from nodes.retriever import retrieve_profile
-from nodes.scorer import score_fit, should_continue
+from nodes.scorer import score_fit
+from nodes.fit_checkpoint import human_fit_checkpoint
 from nodes.generator import generate_proposal
 
 job_text = collect_job_input()
@@ -22,6 +23,7 @@ state: PitchforgeState = {
     "suggested_price": "",
     "clarifying_questions": [],
     "final_proposal": "",
+    "should_apply": False,
     "human_approved": False
 }
 
@@ -34,15 +36,14 @@ state.update(retrieve_profile(state))
 # Node 3
 state.update(score_fit(state))
 
-# Conditional edge — only continue if fit_score is above threshold
-decision = should_continue(state)
-if decision == "low_fit":
-    print(f"\n✗ Low fit ({state['fit_score']}/100) — not recommended.")
-else:
-    print(f"\n✓ Good fit ({state['fit_score']}/100) — generating proposal...")
+# Node 3.5 — Human checkpoint
+state.update(human_fit_checkpoint(state))
 
-    # Node 4
-    state.update(generate_proposal(state))
+if not state["should_apply"]:
+    exit(0)
 
-    print("\n--- PROPOSAL DRAFT ---\n")
-    print(state["proposal_draft"])
+# Node 4
+state.update(generate_proposal(state))
+
+print("\n--- PROPOSAL DRAFT ---\n")
+print(state["proposal_draft"])
