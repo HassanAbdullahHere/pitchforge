@@ -24,4 +24,5 @@ class PitchforgeState(TypedDict):
     final_proposal: str           # approved final proposal
 
     # Control
+    should_apply: bool            # Human decision after seeing fit score
     human_approved: bool          # has human approved the draft
