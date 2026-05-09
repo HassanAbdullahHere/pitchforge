@@ -57,6 +57,8 @@ def run_analysis(job_input: dict) -> dict:
         "final_proposal": "",
         "should_apply": False,
         "human_approved": False,
+        "human_feedback": "",
+        "is_human_revision": False,
     }
 
     pitchforge_graph.invoke(initial_state, config=config)
@@ -87,6 +89,27 @@ def run_generation(thread_id: str, should_apply: bool) -> dict:
     answer = "y" if should_apply else "n"
 
     pitchforge_graph.invoke(Command(resume=answer), config=config)
+
+    snapshot = pitchforge_graph.get_state(config)
+    values = snapshot.values
+
+    return {
+        "proposal_draft": values.get("proposal_draft", ""),
+        "quality_score": values.get("quality_score", 0),
+        "critic_feedback": values.get("critic_feedback") or None,
+        "iteration_count": values.get("iteration_count", 0),
+    }
+
+
+def run_revise(thread_id: str, feedback: str) -> dict:
+    """
+    Resumes from the human_checkpoint interrupt with rejection feedback.
+    The feedback text IS the resume value — human_checkpoint treats any non-"y"
+    response as feedback and routes to generator for one revision pass.
+    """
+    config = _config(thread_id)
+
+    pitchforge_graph.invoke(Command(resume=feedback), config=config)
 
     snapshot = pitchforge_graph.get_state(config)
     values = snapshot.values
