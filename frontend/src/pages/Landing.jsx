@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react'
+import { useNavigate } from 'react-router-dom'
 
 const SPARKS = Array.from({ length: 18 }, (_, i) => ({
   id: i,
@@ -12,6 +13,7 @@ const SPARKS = Array.from({ length: 18 }, (_, i) => ({
 const HEADLINE_WORDS = ['Forge', 'Proposals', 'That', 'Win.']
 
 export default function Landing() {
+  const navigate = useNavigate()
   const glowRef = useRef(null)
 
   useEffect(() => {
@@ -37,6 +39,7 @@ export default function Landing() {
         {/* Background layers */}
         <div className="bg-grid" />
         <div className="bg-vignette" />
+        <div className="bg-grain" />
 
         {/* Forge sparks */}
         <div className="sparks" aria-hidden="true">
@@ -111,7 +114,7 @@ export default function Landing() {
           </p>
 
           <div className="cta-wrapper">
-            <button className="cta-btn" onClick={() => {}}>
+            <button className="cta-btn" onClick={() => navigate('/new')}>
               <span className="cta-btn-text">Get Started</span>
               <span className="cta-btn-arrow">→</span>
               <span className="cta-btn-glow" />
@@ -205,6 +208,17 @@ const css = `
     inset: 0;
     background: radial-gradient(ellipse 100% 90% at 50% 50%, transparent 30%, #0a0908 100%);
     pointer-events: none;
+  }
+
+  .bg-grain {
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    background-size: 200px 200px;
+    opacity: 0.03;
+    mix-blend-mode: screen;
+    pointer-events: none;
+    z-index: 3;
   }
 
   /* ── Sparks ── */
@@ -639,5 +653,62 @@ const css = `
   @keyframes fade-up {
     from { opacity: 0; transform: translateY(16px); }
     to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* ── Mobile ── */
+  @media (max-width: 640px) {
+    .nav {
+      padding: 1.25rem 1.25rem;
+    }
+    .nav-wordmark { font-size: 1.2rem; }
+    .nav-github-icon { width: 16px; height: 16px; }
+
+    .hero {
+      padding: 1.5rem 1.25rem 3rem;
+    }
+
+    .eyebrow {
+      font-size: 0.6rem;
+      letter-spacing: 0.18em;
+      margin-bottom: 1.6rem;
+      gap: 0.6rem;
+    }
+    .eyebrow-line { width: 24px; }
+
+    .headline {
+      font-size: clamp(3rem, 14vw, 4.5rem);
+      gap: 0.15em;
+      margin-bottom: 1.6rem;
+    }
+
+    .subtitle {
+      font-size: clamp(1rem, 4.5vw, 1.2rem);
+      margin-bottom: 2.2rem;
+      padding: 0 0.5rem;
+    }
+
+    .cta-btn {
+      padding: 0.85rem 2rem;
+      font-size: 0.78rem;
+    }
+
+    .process-strip {
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 0.6rem 0;
+      margin-top: 2rem;
+    }
+    .process-connector { width: 24px; margin: 0 0.5rem; }
+    .process-label { font-size: 0.72rem; }
+
+    .forge-mark { padding: 1.25rem; }
+    .forge-mark-line { width: 36px; }
+
+    .headline-halo {
+      width: 320px;
+      height: 160px;
+    }
+
+    .deco-line--1, .deco-line--2, .deco-line--3 { display: none; }
   }
 `
