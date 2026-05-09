@@ -26,6 +26,8 @@ def main():
         "final_proposal": "",
         "should_apply": False,
         "human_approved": False,
+        "human_feedback": "",
+        "is_human_revision": False,
     }
 
     config = {"configurable": {"thread_id": "pitchforge-1"}}

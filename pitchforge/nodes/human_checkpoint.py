@@ -28,14 +28,18 @@ def human_proposal_checkpoint(state: PitchforgeState) -> dict:
     answer = interrupt({
         "proposal_draft": draft,
         "quality_score": quality_score,
-        "prompt": "Approve this proposal? [y/N]: ",
+        "prompt": "Approve? Enter 'y' to approve, or type feedback to request changes: ",
     })
 
-    human_approved = str(answer).strip().lower() == "y"
+    answer_str = str(answer).strip()
 
-    if human_approved:
+    if answer_str.lower() == "y":
         print("Proposal approved — compiling final output...")
-    else:
-        print("Proposal rejected — ending pipeline.")
+        return {"human_approved": True}
 
-    return {"human_approved": human_approved}
+    print(f"Revision requested — routing back to generator...")
+    return {
+        "human_approved": False,
+        "human_feedback": answer_str,
+        "is_human_revision": True,
+    }

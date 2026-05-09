@@ -15,9 +15,13 @@ def route_fit(state: PitchforgeState) -> str:
 
 
 def route_critic(state: PitchforgeState) -> str:
-    if state["quality_score"] >= 70 or state["iteration_count"] >= 3:
+    if state.get("is_human_revision") or state["quality_score"] >= 70 or state["iteration_count"] >= 3:
         return "human_checkpoint"
     return "generator"
+
+
+def route_human(state: PitchforgeState) -> str:
+    return END if state["human_approved"] else "generator"
 
 
 builder = StateGraph(PitchforgeState)
@@ -37,6 +41,6 @@ builder.add_edge("scorer", "fit_checkpoint")
 builder.add_conditional_edges("fit_checkpoint", route_fit)
 builder.add_edge("generator", "critic")
 builder.add_conditional_edges("critic", route_critic)
-builder.add_edge("human_checkpoint", END)
+builder.add_conditional_edges("human_checkpoint", route_human)
 
 pitchforge_graph = builder.compile(checkpointer=MemorySaver())

@@ -23,13 +23,15 @@ def generate_proposal(state: PitchforgeState) -> dict:
     job = state["job_analysis"]
     profile = "\n".join(state["profile_matches"])
     critic_feedback = state["critic_feedback"]
+    human_feedback = state.get("human_feedback", "")
 
-    # If this is a revision — include critic feedback in prompt
-    # This is what makes the loop intelligent
-    # First pass: generate fresh
-    # Subsequent passes: fix specific weaknesses
     revision_context = ""
-    if critic_feedback:
+    if human_feedback:
+        revision_context = f"""
+HUMAN REVIEWER REQUESTED CHANGES — apply these precisely:
+{human_feedback}
+"""
+    elif critic_feedback:
         revision_context = f"""
 PREVIOUS DRAFT WAS REJECTED. Specific feedback to address:
 {critic_feedback}
@@ -68,10 +70,10 @@ Write a proposal with this exact structure:
 3. Relevant experience — 2-3 sentences of specific past work or skills that directly
    match what they need; cite real projects or technologies from the profile
 4. Approach — 2-3 sentences on how you would tackle this project specifically
-5. Closing — state the suggested price naturally in a sentence, then one short line
+5. Closing — state the suggested price naturally, then end with a call to action,
    inviting them to chat (no exclamation marks)
 
-Keep it under 400-500 words. Every sentence must earn its place.
+Keep it between 400-500 words. Every sentence must earn its place.
 """
 
     response = llm.invoke([HumanMessage(content=prompt)])

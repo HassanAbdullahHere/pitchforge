@@ -1,5 +1,6 @@
 import os
 import json
+import re
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.messages import HumanMessage
 from pitchforge.state import PitchforgeState
@@ -75,6 +76,13 @@ Be harsh. Generic phrases, missing price, or unproven claims are automatic point
         if raw.startswith("json"):
             raw = raw[4:]
         raw = raw.strip()
+
+    # Escape literal control chars inside JSON string values (LLM sometimes emits raw newlines)
+    raw = re.sub(
+        r'"((?:[^"\\]|\\.)*)"',
+        lambda m: '"' + m.group(1).replace('\n', '\\n').replace('\r', '\\r').replace('\t', '\\t') + '"',
+        raw,
+    )
 
     result = json.loads(raw)
 

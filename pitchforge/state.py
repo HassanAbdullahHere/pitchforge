@@ -28,3 +28,5 @@ class PitchforgeState(TypedDict):
     # Control
     should_apply: bool            # Human decision after seeing fit score
     human_approved: bool          # has human approved the draft
+    human_feedback: str           # rejection feedback from human reviewer
+    is_human_revision: bool       # True after first human rejection; caps critic loop at 1 pass
