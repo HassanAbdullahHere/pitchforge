@@ -131,11 +131,8 @@ def run_finalize(thread_id: str) -> dict:
     """
     config = _config(thread_id)
 
-    pitchforge_graph.invoke(Command(resume="y"), config=config)
-
-    snapshot = pitchforge_graph.get_state(config)
-    values = snapshot.values
+    final_state = pitchforge_graph.invoke(Command(resume="y"), config=config)
 
     return {
-        "final_proposal": values.get("final_proposal", values.get("proposal_draft", "")),
+        "final_proposal": final_state.get("final_proposal") or final_state.get("proposal_draft", ""),
     }
