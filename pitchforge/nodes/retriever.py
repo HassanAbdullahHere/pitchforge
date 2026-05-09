@@ -1,17 +1,25 @@
 import os
+from pathlib import Path
 import chromadb
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
 from pitchforge.state import PitchforgeState
 
+_CHROMA_PATH = str(Path(__file__).parent.parent / "chromadb")
 
 embeddings = GoogleGenerativeAIEmbeddings(
     model="gemini-embedding-2-preview",
     google_api_key=os.getenv("GEMINI_API_KEY")
 )
 
-# Connect to the same local ChromaDB we indexed
-client = chromadb.PersistentClient(path="./chromadb")
-collection = client.get_collection("freelancer_profile")
+_client = None
+_collection = None
+
+def _get_collection():
+    global _client, _collection
+    if _collection is None:
+        _client = chromadb.PersistentClient(path=_CHROMA_PATH)
+        _collection = _client.get_collection("freelancer_profile")
+    return _collection
 
 def retrieve_profile(state: PitchforgeState) -> dict:
     """
@@ -33,9 +41,7 @@ def retrieve_profile(state: PitchforgeState) -> dict:
     # Convert query to vector
     query_vector = embeddings.embed_query(query)
 
-    # Query ChromaDB — returns top 4 most semantically similar chunks
-    # n_results=4 is the sweet spot — enough context, not too noisy
-    results = collection.query(
+    results = _get_collection().query(
         query_embeddings=[query_vector],
         n_results=4
     )

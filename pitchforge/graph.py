@@ -8,6 +8,7 @@ from pitchforge.nodes.fit_checkpoint import human_fit_checkpoint
 from pitchforge.nodes.generator import generate_proposal
 from pitchforge.nodes.critic import critique_proposal
 from pitchforge.nodes.human_checkpoint import human_proposal_checkpoint
+from pitchforge.nodes.compiler import compile_final
 
 
 def route_fit(state: PitchforgeState) -> str:
@@ -21,7 +22,7 @@ def route_critic(state: PitchforgeState) -> str:
 
 
 def route_human(state: PitchforgeState) -> str:
-    return END if state["human_approved"] else "generator"
+    return "compiler" if state["human_approved"] else "generator"
 
 
 builder = StateGraph(PitchforgeState)
@@ -33,6 +34,7 @@ builder.add_node("fit_checkpoint", human_fit_checkpoint)
 builder.add_node("generator", generate_proposal)
 builder.add_node("critic", critique_proposal)
 builder.add_node("human_checkpoint", human_proposal_checkpoint)
+builder.add_node("compiler", compile_final)
 
 builder.set_entry_point("analyzer")
 builder.add_edge("analyzer", "retriever")
@@ -42,5 +44,6 @@ builder.add_conditional_edges("fit_checkpoint", route_fit)
 builder.add_edge("generator", "critic")
 builder.add_conditional_edges("critic", route_critic)
 builder.add_conditional_edges("human_checkpoint", route_human)
+builder.add_edge("compiler", END)
 
 pitchforge_graph = builder.compile(checkpointer=MemorySaver())
