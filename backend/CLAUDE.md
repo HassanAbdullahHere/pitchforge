@@ -17,22 +17,41 @@ backend/
 ---
 
 ## Runner Functions (runner.py)
-| Function | Trigger | Returns |
+All functions are **async generators** that yield SSE frames (`str`). The graph is invoked via `astream_events(version="v2")` — no sync `invoke()` calls.
+
+| Function | Trigger | SSE events emitted |
 |----------|---------|---------|
-| `run_analysis(job_input)` | New thread, graph runs to fit_checkpoint interrupt | fit report (fit_score, suggested_price, matched_skills, missing_skills, job_analysis) |
-| `run_generation(thread_id, should_apply)` | Resumes fit_checkpoint with y/n, runs to human_checkpoint | proposal draft + quality_score |
-| `run_revise(thread_id, feedback)` | Resumes human_checkpoint with feedback text, one revision pass | updated draft + quality_score |
-| `run_finalize(thread_id)` | Resumes human_checkpoint with "y", runs to END | final_proposal |
+| `stream_analysis(job_input)` | New thread, streams to fit_checkpoint interrupt | `node_start`, `node_complete`, `interrupt` (fit_checkpoint), `done` |
+| `stream_generation(thread_id, should_apply)` | Resumes fit_checkpoint, streams to human_checkpoint | `node_start`, `node_complete`, `token`, `done` |
+| `stream_revise(thread_id, instruction)` | Resumes human_checkpoint with feedback, one revision pass | `node_start`, `node_complete`, `token`, `done` |
+| `stream_finalize(thread_id)` | Resumes human_checkpoint with "y", streams to END | `node_start`, `node_complete`, `done` |
+
+### SSE Frame Format
+```
+event: <event_name>\ndata: <json_payload>\n\n
+```
+Helper: `_sse(event, data) -> str`
+
+### Key Helpers
+- `GRAPH_NODES` — set of node names to watch for `on_chain_start`/`on_chain_end`
+- `NODE_LABELS` — human-readable labels per node
+- `create_thread_id()` — generates a UUID-based thread ID
+- `_config(thread_id)` — builds LangGraph `{"configurable": {"thread_id": ...}}`
+- Interrupt detection: `astream_events` ends naturally when graph hits `interrupt()` → read state with `await aget_state(config)`
 
 ---
 
-## API Endpoints (proposals.py) — ⬜ todo
+## API Endpoints (proposals.py)
+All endpoints return `StreamingResponse` with `media_type="text/event-stream"`.
+
 | Method | Path | Handler |
 |--------|------|---------|
-| POST | `/proposals/analyze` | `run_analysis` |
-| POST | `/proposals/generate` | `run_generation` |
-| POST | `/proposals/revise` | `run_revise` |
-| POST | `/proposals/finalize` | `run_finalize` |
+| POST | `/proposal/analyze` | `stream_analysis` |
+| POST | `/proposal/generate` | `stream_generation` |
+| POST | `/proposal/revise` | `stream_revise` |
+| POST | `/proposal/finalize` | `stream_finalize` |
+
+SSE headers on all responses: `Cache-Control: no-cache`, `X-Accel-Buffering: no`
 
 ---
 
@@ -46,4 +65,4 @@ backend/
 1. `runner.py` is the only file that invokes the LangGraph graph — no graph calls in routers or main
 2. Routers call runner functions and handle HTTP concerns only
 3. All request/response shapes live in `schemas.py`
-4. Run with: `uvicorn app.main:app --reload` from `backend/`
+4. Run with: `uv run uvicorn app.main:app --reload` from `backend/` (must use `uv run`, not bare `uvicorn`)

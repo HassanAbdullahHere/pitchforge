@@ -72,8 +72,21 @@ export default function JobDetails() {
   const handleSubmit = (e) => {
     e.preventDefault()
     const errs = {}
-    if (!form.title.trim()) errs.title = true
-    if (!form.description.trim()) errs.description = true
+
+    const title = form.title.trim()
+    if (!title) errs.title = 'Job title is required'
+    else if (title.length < 5) errs.title = 'Job title must be at least 5 characters'
+    else if (title.length > 150) errs.title = 'Job title is too long'
+
+    const desc = form.description.trim()
+    if (!desc) errs.description = 'Paste the full job posting'
+    else if (desc.length < 150) errs.description = 'Paste the full job posting — at least 150 characters'
+
+    if (form.budget.trim() && (isNaN(Number(form.budget)) || Number(form.budget) <= 0))
+      errs.budget = 'Enter a valid budget amount'
+
+    if (form.timeline.trim() && (isNaN(Number(form.timeline)) || Number(form.timeline) <= 0))
+      errs.timeline = 'Enter a valid timeline'
 
     if (Object.keys(errs).length) {
       setErrors(errs)
@@ -83,8 +96,7 @@ export default function JobDetails() {
     }
 
     setErrors({})
-    // TODO: call POST /api/proposals/analyze with form data
-    console.log('Submitting:', form)
+    navigate('/analyze', { state: { form } })
   }
 
   return (
@@ -144,7 +156,7 @@ export default function JobDetails() {
                 value={form.title}
                 onChange={(e) => { set('title', e.target.value); setErrors((err) => ({ ...err, title: false })) }}
               />
-              {errors.title && <span className="field-err-msg">Required</span>}
+              {errors.title && <span className="field-err-msg">{errors.title}</span>}
             </div>
 
             {/* Platform */}
@@ -175,7 +187,7 @@ export default function JobDetails() {
 
             {/* Budget + Timeline */}
             <div className="field-row">
-              <div className="field">
+              <div className={`field${errors.budget ? ' field--error' : ''}`}>
                 <label className="field-label">Budget</label>
                 <div className="input-wheel-row">
                   <input
@@ -183,7 +195,7 @@ export default function JobDetails() {
                     type="text"
                     placeholder={form.budgetType === 'Per Hour' ? 'e.g. $40' : 'e.g. $500'}
                     value={form.budget}
-                    onChange={(e) => set('budget', e.target.value)}
+                    onChange={(e) => { set('budget', e.target.value); setErrors((err) => ({ ...err, budget: undefined })) }}
                   />
                   <Wheel
                     options={['Fixed', 'Per Hour']}
@@ -191,8 +203,9 @@ export default function JobDetails() {
                     onChange={(v) => set('budgetType', v)}
                   />
                 </div>
+                {errors.budget && <span className="field-err-msg">{errors.budget}</span>}
               </div>
-              <div className="field">
+              <div className={`field${errors.timeline ? ' field--error' : ''}`}>
                 <label className="field-label">Timeline</label>
                 <div className="input-wheel-row">
                   <input
@@ -200,7 +213,7 @@ export default function JobDetails() {
                     type="text"
                     placeholder="e.g. 2"
                     value={form.timeline}
-                    onChange={(e) => set('timeline', e.target.value)}
+                    onChange={(e) => { set('timeline', e.target.value); setErrors((err) => ({ ...err, timeline: undefined })) }}
                   />
                   <Wheel
                     options={['Weeks', 'Months']}
@@ -208,6 +221,7 @@ export default function JobDetails() {
                     onChange={(v) => set('timelineUnit', v)}
                   />
                 </div>
+                {errors.timeline && <span className="field-err-msg">{errors.timeline}</span>}
               </div>
             </div>
 
@@ -245,7 +259,7 @@ export default function JobDetails() {
                 value={form.description}
                 onChange={(e) => { set('description', e.target.value); setErrors((err) => ({ ...err, description: false })) }}
               />
-              {errors.description && <span className="field-err-msg">Required — paste the job posting</span>}
+              {errors.description && <span className="field-err-msg">{errors.description}</span>}
             </div>
           </div>
 

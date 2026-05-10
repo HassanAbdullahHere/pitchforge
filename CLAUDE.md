@@ -85,11 +85,15 @@ class PitchforgeState(TypedDict):
 | Status | Item |
 |--------|------|
 | ✅ | Nodes 1–6 (analyzer, retriever, scorer, fit_checkpoint, generator, critic, human_checkpoint) |
+| ✅ | Node 7 — final compiler |
 | ✅ | graph.py — full StateGraph wiring |
-| ✅ | backend runner.py + schemas.py |
-| ⬜ | Node 7 — final compiler |
-| ⬜ | backend routers/proposals.py + main.py |
-| ⬜ | Frontend pages beyond landing |
+| ✅ | backend runner.py — async SSE streaming via `astream_events` |
+| ✅ | backend schemas.py |
+| ✅ | backend routers/proposals.py + main.py |
+| ✅ | Frontend: Landing page (`/`) |
+| ✅ | Frontend: Job Details form (`/new`) — with enhanced validation |
+| ✅ | Frontend: Analysis Pipeline page (`/analyze`) — animated pipeline + fit score result |
+| ⬜ | Frontend: Generate Proposal page (`/generate`) — token streaming + approve/revise flow |
 
 ---
 
@@ -101,8 +105,8 @@ cd pitchforge && uv run setup_rag.py
 # LangGraph pipeline (direct)
 cd pitchforge && uv run main.py
 
-# FastAPI backend
-cd backend && uvicorn app.main:app --reload
+# FastAPI backend (must use uv)
+cd backend && uv run uvicorn app.main:app --reload
 
 # Frontend dev server
 cd frontend && npm run dev

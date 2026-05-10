@@ -16,14 +16,45 @@ frontend/
     ├── main.jsx
     ├── App.jsx           # BrowserRouter + Routes
     └── pages/
-        └── Landing.jsx   # Entry page — hero, sparks, process strip, CTA
+        ├── Landing.jsx           # Entry page — hero, sparks, process strip, CTA
+        ├── JobDetails.jsx        # Job form with enhanced validation → navigates to /analyze
+        └── AnalyzePipeline.jsx   # SSE streaming pipeline animation + fit score result card
 ```
 
 ## Pages
 | Route | File | Status |
 |-------|------|--------|
 | `/` | `pages/Landing.jsx` | ✅ done |
-| `/app` | *(todo)* | ⬜ job input + proposal flow |
+| `/new` | `pages/JobDetails.jsx` | ✅ done — validated form, passes `{ form }` state to `/analyze` |
+| `/analyze` | `pages/AnalyzePipeline.jsx` | ✅ done — animated pipeline + fit score + Generate/Cancel |
+| `/generate` | *(todo)* | ⬜ token-streaming proposal + approve/revise flow |
+
+## SSE Consumption Pattern
+Backend uses POST endpoints, so `EventSource` (GET-only) cannot be used. All streaming pages use:
+```javascript
+const res = await fetch('/api/proposal/...', { method: 'POST', body: JSON.stringify(payload), signal: ctrl.signal })
+const reader = res.body.getReader()
+const dec = new TextDecoder()
+let buf = ''
+while (true) {
+  const { done, value } = await reader.read()
+  if (done) break
+  buf += dec.decode(value, { stream: true })
+  const frames = buf.split('\n\n')
+  buf = frames.pop()   // keep incomplete last frame
+  for (const frame of frames) { /* parse event + data lines */ }
+}
+```
+
+## JobDetails Validation Rules
+| Field | Rule |
+|-------|------|
+| `title` | required, 5–150 chars |
+| `description` | required, min 150 chars |
+| `budget` | optional — if non-empty must be a positive number |
+| `timeline` | optional — if non-empty must be a positive number |
+
+Budget and timeline values are combined with their unit dropdowns before sending to the API (e.g. `"500 USD"`, `"2 weeks"`).
 
 ## Design System
 All defined as CSS custom properties in `Landing.jsx` (and future pages):
