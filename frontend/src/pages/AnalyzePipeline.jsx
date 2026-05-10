@@ -9,6 +9,7 @@ const NODES = [
 ]
 
 const INIT_STATES = Object.fromEntries(NODES.map(n => [n.key, 'idle']))
+const CIRC = 2 * Math.PI * 70
 
 export default function AnalyzePipeline() {
   const navigate = useNavigate()
@@ -20,6 +21,8 @@ export default function AnalyzePipeline() {
   const [fitData, setFitData] = useState(null)
   const [statusText, setStatusText] = useState('Connecting to pipeline…')
   const [errorMsg, setErrorMsg] = useState(null)
+  const [displayScore, setDisplayScore] = useState(0)
+  const [meterOffset, setMeterOffset] = useState(CIRC)
 
   useEffect(() => {
     if (!form) { navigate('/new', { replace: true }); return }
@@ -91,6 +94,23 @@ export default function AnalyzePipeline() {
     return () => ctrl.abort()
   }, [])
 
+  useEffect(() => {
+    if (!fitData) return
+    const target = fitData.fit_score
+    const duration = 1600
+    const start = performance.now()
+    let rafId
+    const tick = now => {
+      const t = Math.min((now - start) / duration, 1)
+      const eased = 1 - Math.pow(1 - t, 3)
+      setDisplayScore(Math.round(eased * target))
+      setMeterOffset(CIRC - CIRC * (eased * target / 100))
+      if (t < 1) rafId = requestAnimationFrame(tick)
+    }
+    rafId = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(rafId)
+  }, [fitData])
+
   const scoreColor = s => s >= 70 ? '#c9a84c' : s >= 40 ? '#e8793a' : '#c0392b'
   const badgeClass = s => s >= 70 ? 'badge--green' : s >= 40 ? 'badge--amber' : 'badge--red'
 
@@ -161,21 +181,55 @@ export default function AnalyzePipeline() {
 
               {/* Score gauge */}
               <div className="score-block">
-                <div className="score-top">
-                  <span className="score-label">Fit Score</span>
-                  <span className="score-num" style={{ color: scoreColor(fitData.fit_score) }}>
-                    {fitData.fit_score}
-                    <span className="score-denom">/100</span>
-                  </span>
-                </div>
-                <div className="score-track">
-                  <div
-                    className="score-fill"
-                    style={{
-                      width: `${Math.max(2, fitData.fit_score)}%`,
-                      background: scoreColor(fitData.fit_score),
-                    }}
-                  />
+                <span className="score-label">Fit Score</span>
+                <div
+                  className="score-meter-wrap"
+                  style={{ filter: `drop-shadow(0 0 22px ${scoreColor(fitData.fit_score)}55)` }}
+                >
+                  <svg width="200" height="200" viewBox="0 0 200 200">
+                    {/* background track */}
+                    <circle cx="100" cy="100" r="70" fill="none" stroke="rgba(201,168,76,0.08)" strokeWidth="7" />
+                    {/* tick marks */}
+                    {Array.from({ length: 10 }).map((_, i) => {
+                      const angle = (i / 10) * 2 * Math.PI - Math.PI / 2
+                      const inner = 78, outer = 84
+                      return (
+                        <line key={i}
+                          x1={100 + inner * Math.cos(angle)} y1={100 + inner * Math.sin(angle)}
+                          x2={100 + outer * Math.cos(angle)} y2={100 + outer * Math.sin(angle)}
+                          stroke="rgba(201,168,76,0.2)" strokeWidth="1"
+                        />
+                      )
+                    })}
+                    {/* animated arc */}
+                    <circle
+                      cx="100" cy="100" r="70"
+                      fill="none"
+                      stroke={scoreColor(fitData.fit_score)}
+                      strokeWidth="7"
+                      strokeLinecap="round"
+                      strokeDasharray={CIRC}
+                      strokeDashoffset={meterOffset}
+                      style={{ transform: 'rotate(-90deg)', transformOrigin: '100px 100px' }}
+                    />
+                    {/* score number */}
+                    <text
+                      x="100" y="94"
+                      textAnchor="middle" dominantBaseline="middle"
+                      fill={scoreColor(fitData.fit_score)}
+                      style={{ fontFamily: "'Cormorant Garamond', Georgia, serif", fontSize: '52px', fontWeight: 600 }}
+                    >
+                      {displayScore}
+                    </text>
+                    <text
+                      x="100" y="120"
+                      textAnchor="middle"
+                      fill="rgba(245,240,232,0.35)"
+                      style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '9px', letterSpacing: '2px' }}
+                    >
+                      OUT OF 100
+                    </text>
+                  </svg>
                 </div>
                 <span className={`badge ${badgeClass(fitData.fit_score)}`}>
                   {fitData.recommendation}
@@ -503,33 +557,19 @@ const css = `
 
   /* ── Score ── */
   .score-block {
-    display: flex; flex-direction: column; gap: 1rem;
+    display: flex; flex-direction: column;
+    align-items: center; gap: 1.25rem;
     padding-bottom: 2rem;
     border-bottom: 1px solid rgba(201,168,76,0.1);
-  }
-  .score-top {
-    display: flex; align-items: baseline; justify-content: space-between;
   }
   .score-label {
     font-family: var(--font-mono); font-size: 0.7rem;
     letter-spacing: 0.16em; text-transform: uppercase;
     color: var(--ivory-dim);
+    align-self: flex-start;
   }
-  .score-num {
-    font-family: var(--font-display); font-size: 3.5rem;
-    font-weight: 600; line-height: 1;
-  }
-  .score-denom {
-    font-size: 1.2rem; font-weight: 300; color: var(--ivory-dim);
-    margin-left: 0.2rem;
-  }
-  .score-track {
-    height: 3px; background: rgba(201,168,76,0.12); border-radius: 2px;
-    overflow: hidden;
-  }
-  .score-fill {
-    height: 100%; border-radius: 2px;
-    transition: width 1.2s cubic-bezier(0.16, 1, 0.3, 1);
+  .score-meter-wrap {
+    transition: filter 0.6s ease;
   }
 
   .badge {
