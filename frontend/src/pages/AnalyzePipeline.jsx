@@ -214,7 +214,7 @@ export default function AnalyzePipeline() {
                     />
                     {/* score number */}
                     <text
-                      x="100" y="94"
+                      x="100" y="88"
                       textAnchor="middle" dominantBaseline="middle"
                       fill={scoreColor(fitData.fit_score)}
                       style={{ fontFamily: "'Cormorant Garamond', Georgia, serif", fontSize: '52px', fontWeight: 600 }}
@@ -222,7 +222,7 @@ export default function AnalyzePipeline() {
                       {displayScore}
                     </text>
                     <text
-                      x="100" y="120"
+                      x="100" y="122"
                       textAnchor="middle"
                       fill="rgba(245,240,232,0.35)"
                       style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '9px', letterSpacing: '2px' }}
