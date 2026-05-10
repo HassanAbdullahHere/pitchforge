@@ -126,9 +126,17 @@ async def stream_generation(thread_id: str, should_apply: bool) -> AsyncGenerato
             elif kind == "on_chain_end" and name in GRAPH_NODES:
                 yield _sse("node_complete", {"node": name})
             elif kind == "on_chat_model_stream":
-                chunk = event["data"].get("chunk")
-                if chunk and chunk.content:
-                    yield _sse("token", {"token": chunk.content})
+                node = event.get("metadata", {}).get("langgraph_node")
+                if node == "generator":
+                    chunk = event["data"].get("chunk")
+                    if chunk and chunk.content:
+                        content = chunk.content
+                        if isinstance(content, str):
+                            yield _sse("token", {"token": content})
+                        elif isinstance(content, list):
+                            for part in content:
+                                if isinstance(part, dict) and part.get("type") == "text":
+                                    yield _sse("token", {"token": part["text"]})
 
     except Exception as e:
         yield _sse("error", {"message": str(e)})
@@ -167,9 +175,17 @@ async def stream_revise(thread_id: str, feedback: str) -> AsyncGenerator[str, No
             elif kind == "on_chain_end" and name in GRAPH_NODES:
                 yield _sse("node_complete", {"node": name})
             elif kind == "on_chat_model_stream":
-                chunk = event["data"].get("chunk")
-                if chunk and chunk.content:
-                    yield _sse("token", {"token": chunk.content})
+                node = event.get("metadata", {}).get("langgraph_node")
+                if node == "generator":
+                    chunk = event["data"].get("chunk")
+                    if chunk and chunk.content:
+                        content = chunk.content
+                        if isinstance(content, str):
+                            yield _sse("token", {"token": content})
+                        elif isinstance(content, list):
+                            for part in content:
+                                if isinstance(part, dict) and part.get("type") == "text":
+                                    yield _sse("token", {"token": part["text"]})
 
     except Exception as e:
         yield _sse("error", {"message": str(e)})
