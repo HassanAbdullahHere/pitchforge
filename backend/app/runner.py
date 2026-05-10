@@ -162,6 +162,9 @@ async def stream_generation(thread_id: str, should_apply: bool) -> AsyncGenerato
 
 async def stream_revise(thread_id: str, feedback: str) -> AsyncGenerator[str, None]:
     config = _config(thread_id)
+    # human_checkpoint is the node being resumed FROM — suppress its completion
+    # so the frontend doesn't show it as ticked at the start of a revision pass
+    skip_first_human_complete = True
 
     try:
         async for event in pitchforge_graph.astream_events(
@@ -173,6 +176,9 @@ async def stream_revise(thread_id: str, feedback: str) -> AsyncGenerator[str, No
             if kind == "on_chain_start" and name in GRAPH_NODES:
                 yield _sse("node_start", {"node": name, "label": NODE_LABELS.get(name, name)})
             elif kind == "on_chain_end" and name in GRAPH_NODES:
+                if name == "human_checkpoint" and skip_first_human_complete:
+                    skip_first_human_complete = False
+                    continue
                 yield _sse("node_complete", {"node": name})
             elif kind == "on_chat_model_stream":
                 node = event.get("metadata", {}).get("langgraph_node")

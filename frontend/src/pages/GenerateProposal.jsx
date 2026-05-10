@@ -46,6 +46,8 @@ export default function GenerateProposal() {
   const navigate = useNavigate()
   const { state } = useLocation()
   const threadId = state?.threadId
+  const fitData  = state?.fitData
+  const form     = state?.form
 
   const [phase, setPhase] = useState('generating')
   const [nodeStates, setNodeStates] = useState(INIT_NODES)
@@ -166,6 +168,17 @@ export default function GenerateProposal() {
     })
   }
 
+  const downloadTxt = () => {
+    const slug = (form?.title || 'proposal').toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 40)
+    const blob = new Blob([finalProposal], { type: 'text/plain' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `${slug}.txt`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
   const qualityColor = s => s >= 70 ? 'var(--gold)' : s >= 40 ? 'var(--fire)' : '#e74c3c'
   const qualityBadgeClass = s => s >= 70 ? 'badge--green' : s >= 40 ? 'badge--amber' : 'badge--red'
   const qualityLabel = s => s >= 70 ? 'High Quality' : s >= 40 ? 'Good Draft' : 'Needs Work'
@@ -243,81 +256,118 @@ export default function GenerateProposal() {
 
           {/* ── REVIEWING / REVISING ── */}
           {(phase === 'reviewing' || phase === 'revising') && (
-            <div className="review-layout">
-              <div className="review-header">
-                <div>
-                  <p className="result-eyebrow">Proposal Ready</p>
-                  <h1 className="result-title">Review Your Draft</h1>
+            <div className="gen-layout">
+
+              {/* Pipeline panel — shows current stage */}
+              <div className="pipeline-panel">
+                <p className="panel-eyebrow">Pipeline</p>
+                <div className="pipeline-vert">
+                  {NODES.map((node, i) => {
+                    const s = nodeStates[node.key]
+                    return (
+                      <div key={node.key} className="pipeline-row">
+                        {i > 0 && (
+                          <div className={`conn-v${s === 'active' ? ' conn-v--active' : s === 'done' ? ' conn-v--done' : ''}`} />
+                        )}
+                        <div className="pip-item">
+                          <div className={`node node--${s}`}>
+                            {s === 'done'   && <span className="node-icon">✓</span>}
+                            {s === 'active' && <span className="node-pulse" />}
+                            {s === 'idle'   && <span className="node-idle" />}
+                          </div>
+                          <div className="node-labels">
+                            <span className="node-main">{node.label}</span>
+                            <span className="node-sub">{node.sub}</span>
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })}
                 </div>
-                {quality && (
-                  <div className="quality-block">
-                    <span className="quality-num" style={{ color: qualityColor(quality.score) }}>
-                      {quality.score}
-                    </span>
-                    <div className="quality-meta">
-                      <span className="quality-lbl">quality score</span>
-                      <span className={`badge ${qualityBadgeClass(quality.score)}`}>
-                        {qualityLabel(quality.score)}
+                <p className="pipeline-status">
+                  {phase === 'revising' ? 'Awaiting instructions…' : 'Awaiting your review'}
+                </p>
+              </div>
+
+              {/* Review content */}
+              <div className="review-layout">
+                <div className="review-header">
+                  <div>
+                    <p className="result-eyebrow">Proposal Ready</p>
+                    <h1 className="result-title">Review Your Draft</h1>
+                  </div>
+                  {quality && (
+                    <div className="quality-block">
+                      <span className="quality-num" style={{ color: qualityColor(quality.score) }}>
+                        {quality.score}
                       </span>
+                      <div className="quality-meta">
+                        <span className="quality-lbl">quality score</span>
+                        <span className={`badge ${qualityBadgeClass(quality.score)}`}>
+                          {qualityLabel(quality.score)}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div className="proposal-card">
+                  <pre className="proposal-text">{proposalText}</pre>
+                </div>
+
+                {quality?.feedback && (
+                  <div className="feedback-section">
+                    <button className="feedback-toggle" onClick={() => setFeedbackOpen(o => !o)}>
+                      <span>AI Critique</span>
+                      <span className={`chevron${feedbackOpen ? ' chevron--open' : ''}`}>▾</span>
+                    </button>
+                    {feedbackOpen && <p className="feedback-body">{quality.feedback}</p>}
+                  </div>
+                )}
+
+                {phase === 'revising' && (
+                  <div className="revision-panel">
+                    <p className="revision-lbl">Describe your changes</p>
+                    <textarea
+                      className="revision-input"
+                      placeholder="e.g. Make the opening stronger, add a closing question, emphasize React experience…"
+                      value={revisionInput}
+                      onChange={e => setRevisionInput(e.target.value)}
+                      rows={4}
+                      autoFocus
+                    />
+                    <div className="rev-actions">
+                      <button className="secondary-btn" onClick={() => setPhase('reviewing')}>
+                        Cancel
+                      </button>
+                      <button
+                        className="primary-btn"
+                        onClick={submitRevision}
+                        disabled={!revisionInput.trim()}
+                      >
+                        <span className="primary-btn-text">Submit Revision</span>
+                        <span className="primary-btn-arrow">→</span>
+                        <span className="primary-btn-glow" />
+                      </button>
                     </div>
                   </div>
                 )}
-              </div>
 
-              <div className="proposal-card">
-                <pre className="proposal-text">{proposalText}</pre>
-              </div>
-
-              {quality?.feedback && (
-                <div className="feedback-section">
-                  <button className="feedback-toggle" onClick={() => setFeedbackOpen(o => !o)}>
-                    <span>AI Critique</span>
-                    <span className={`chevron${feedbackOpen ? ' chevron--open' : ''}`}>▾</span>
-                  </button>
-                  {feedbackOpen && <p className="feedback-body">{quality.feedback}</p>}
-                </div>
-              )}
-
-              {phase === 'revising' && (
-                <div className="revision-panel">
-                  <p className="revision-lbl">Describe your changes</p>
-                  <textarea
-                    className="revision-input"
-                    placeholder="e.g. Make the opening stronger, add a closing question, emphasize React experience…"
-                    value={revisionInput}
-                    onChange={e => setRevisionInput(e.target.value)}
-                    rows={4}
-                    autoFocus
-                  />
-                  <div className="rev-actions">
-                    <button className="secondary-btn" onClick={() => setPhase('reviewing')}>
-                      Cancel
+                {phase === 'reviewing' && (
+                  <div className="review-actions">
+                    <button className="revision-btn" onClick={() => setPhase('revising')}>
+                      <span className="revision-btn-icon">✎</span>
+                      <span>Request Revision</span>
                     </button>
-                    <button
-                      className="primary-btn"
-                      onClick={submitRevision}
-                      disabled={!revisionInput.trim()}
-                    >
-                      <span className="primary-btn-text">Submit Revision</span>
+                    <button className="primary-btn" onClick={doFinalize}>
+                      <span className="primary-btn-text">Approve Proposal</span>
                       <span className="primary-btn-arrow">→</span>
                       <span className="primary-btn-glow" />
                     </button>
                   </div>
-                </div>
-              )}
+                )}
+              </div>
 
-              {phase === 'reviewing' && (
-                <div className="review-actions">
-                  <button className="secondary-btn" onClick={() => setPhase('revising')}>
-                    Request Revision
-                  </button>
-                  <button className="primary-btn" onClick={doFinalize}>
-                    <span className="primary-btn-text">Approve Proposal</span>
-                    <span className="primary-btn-arrow">→</span>
-                    <span className="primary-btn-glow" />
-                  </button>
-                </div>
-              )}
             </div>
           )}
 
@@ -336,17 +386,55 @@ export default function GenerateProposal() {
                 <p className="result-eyebrow">Complete</p>
                 <h1 className="result-title">Your Proposal</h1>
               </div>
-              <div className="proposal-card final-card">
+
+              {/* Job meta card */}
+              <div className="job-meta-card">
+                {form?.title && (
+                  <div className="job-meta-field">
+                    <span className="job-meta-label">Job</span>
+                    <span className="job-meta-value">{form.title}</span>
+                  </div>
+                )}
+                <div className="job-meta-divider" />
+                {fitData?.suggested_price && (
+                  <div className="job-meta-field">
+                    <span className="job-meta-label">Suggested Rate</span>
+                    <span className="job-meta-price">{fitData.suggested_price}</span>
+                  </div>
+                )}
+                {quality && (
+                  <div className="job-meta-field">
+                    <span className="job-meta-label">Quality Score</span>
+                    <div className="job-meta-score-row">
+                      <span className="job-meta-score-num" style={{ color: qualityColor(quality.score) }}>
+                        {quality.score}
+                      </span>
+                      <span className={`badge ${qualityBadgeClass(quality.score)}`}>
+                        {qualityLabel(quality.score)}
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Proposal */}
+              <div className="final-proposal-card">
                 <pre className="proposal-text">{finalProposal}</pre>
               </div>
+
               <div className="final-actions">
                 <button className="secondary-btn" onClick={() => navigate('/new')}>
-                  ← Start New Proposal
+                  ← New Proposal
                 </button>
-                <button className="primary-btn" onClick={copyToClipboard}>
-                  <span className="primary-btn-text">{copied ? 'Copied!' : 'Copy to Clipboard'}</span>
-                  <span className="primary-btn-glow" />
-                </button>
+                <div className="final-action-group">
+                  <button className="secondary-btn" onClick={downloadTxt}>
+                    ↓ Download .txt
+                  </button>
+                  <button className="primary-btn" onClick={copyToClipboard}>
+                    <span className="primary-btn-text">{copied ? 'Copied!' : 'Copy to Clipboard'}</span>
+                    <span className="primary-btn-glow" />
+                  </button>
+                </div>
               </div>
             </div>
           )}
@@ -590,6 +678,7 @@ const css = `
     gap: 1.75rem;
     overflow-y: auto;
     animation: fade-up 0.6s ease both;
+    min-width: 0;
   }
   .review-layout::-webkit-scrollbar { width: 4px; }
   .review-layout::-webkit-scrollbar-track { background: transparent; }
@@ -744,11 +833,64 @@ const css = `
   .final-layout::-webkit-scrollbar-thumb { background: rgba(201,168,76,0.15); border-radius: 2px; }
 
   .final-header { width: 100%; max-width: 780px; }
-  .final-card { max-height: 60vh; }
+
+  /* Job metadata card */
+  .job-meta-card {
+    width: 100%; max-width: 780px;
+    border: 1px solid rgba(201,168,76,0.12);
+    background: rgba(201,168,76,0.02);
+    display: flex; flex-wrap: wrap; align-items: center; gap: 0;
+  }
+  .job-meta-field {
+    flex: 1; min-width: 180px;
+    display: flex; flex-direction: column; gap: 0.4rem;
+    padding: 1.1rem 1.5rem;
+  }
+  .job-meta-divider {
+    width: 1px; align-self: stretch;
+    background: rgba(201,168,76,0.1);
+    flex-shrink: 0;
+  }
+  .job-meta-label {
+    font-family: var(--font-mono); font-size: 0.58rem;
+    letter-spacing: 0.18em; text-transform: uppercase;
+    color: var(--ivory-dim); opacity: 0.6;
+  }
+  .job-meta-value {
+    font-family: var(--font-display); font-size: 1.05rem;
+    color: var(--ivory); font-weight: 300; line-height: 1.3;
+  }
+  .job-meta-price {
+    font-family: var(--font-display); font-size: 1.3rem;
+    color: var(--gold); font-weight: 400;
+  }
+  .job-meta-score-row {
+    display: flex; align-items: center; gap: 0.75rem;
+  }
+  .job-meta-score-num {
+    font-family: var(--font-display); font-size: 1.6rem;
+    font-weight: 600; line-height: 1;
+  }
+
+  /* Final proposal */
+  .final-proposal-card {
+    width: 100%; max-width: 780px;
+    border: 1px solid rgba(201,168,76,0.1);
+    max-height: 52vh; overflow-y: auto;
+    padding: 2rem 2.25rem;
+    background: rgba(255,255,255,0.01);
+  }
+  .final-proposal-card::-webkit-scrollbar { width: 4px; }
+  .final-proposal-card::-webkit-scrollbar-track { background: transparent; }
+  .final-proposal-card::-webkit-scrollbar-thumb { background: rgba(201,168,76,0.2); border-radius: 2px; }
+
   .final-actions {
     width: 100%; max-width: 780px;
     display: flex; align-items: center; justify-content: space-between; gap: 1rem;
     flex-wrap: wrap;
+  }
+  .final-action-group {
+    display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;
   }
 
   /* ══════════════════════════════
@@ -790,6 +932,22 @@ const css = `
     transition: color 0.2s, border-color 0.2s;
   }
   .secondary-btn:hover { color: var(--ivory); border-color: var(--gold-dim); }
+
+  .revision-btn {
+    display: inline-flex; align-items: center; gap: 0.6rem;
+    font-family: var(--font-mono); font-size: 0.72rem;
+    letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--fire); background: rgba(232,121,58,0.06);
+    border: 1px solid rgba(232,121,58,0.45);
+    padding: 0.85rem 1.5rem; cursor: pointer;
+    clip-path: polygon(8px 0%, 100% 0%, calc(100% - 8px) 100%, 0% 100%);
+    transition: color 0.2s, border-color 0.2s, background 0.2s;
+  }
+  .revision-btn:hover {
+    color: #f09060; border-color: var(--fire);
+    background: rgba(232,121,58,0.12);
+  }
+  .revision-btn-icon { font-size: 0.9rem; }
 
   .primary-btn {
     position: relative; display: inline-flex; align-items: center;
@@ -854,13 +1012,17 @@ const css = `
     .draft-panel .panel-eyebrow { display: none; }
 
     .review-layout,
-    .final-layout { padding: 1.5rem 1.25rem; gap: 1.25rem; }
+    .final-layout { padding: 1.5rem 1.25rem; gap: 1.25rem; min-width: 0; }
     .result-title  { font-size: 2rem; }
     .review-header { flex-direction: column; gap: 1rem; }
     .proposal-card { max-height: 38vh; padding: 1.25rem; }
-    .final-card    { max-height: 45vh; }
+    .final-proposal-card { max-height: 40vh; padding: 1.25rem; }
+    .job-meta-card { flex-direction: column; }
+    .job-meta-divider { width: 100%; height: 1px; align-self: auto; }
+    .job-meta-field { padding: 0.9rem 1.25rem; }
     .review-actions,
     .final-actions { flex-direction: column-reverse; align-items: stretch; }
+    .final-action-group { flex-direction: column-reverse; align-items: stretch; }
     .rev-actions   { flex-direction: column-reverse; align-items: stretch; }
     .secondary-btn { text-align: center; }
     .primary-btn   { justify-content: center; }

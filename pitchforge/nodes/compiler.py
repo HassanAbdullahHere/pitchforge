@@ -15,10 +15,10 @@ def compile_final(state: PitchforgeState) -> dict:
     price = state.get("suggested_price", "")
 
     header = (
-        f"=== FINAL PROPOSAL ===\n"
+        f"=== PROPOSAL ===\n"
         f"Job: {job.get('title', 'N/A')}\n"
         f"Suggested Price: {price}\n"
-        f"{'=' * 22}\n\n"
+        f"{'=' * 24}\n\n"
     )
 
     final_proposal = header + draft

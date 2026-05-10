@@ -277,7 +277,7 @@ export default function AnalyzePipeline() {
                 </button>
                 <button
                   className="primary-btn"
-                  onClick={() => navigate('/generate', { state: { threadId: fitData.thread_id } })}
+                  onClick={() => navigate('/generate', { state: { threadId: fitData.thread_id, fitData, form } })}
                 >
                   <span className="primary-btn-text">Generate Proposal</span>
                   <span className="primary-btn-arrow">→</span>
