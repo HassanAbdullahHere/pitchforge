@@ -23,6 +23,7 @@ PitchForge/
 | LLM | Gemini 2.5 Flash |
 | Embeddings | Google gemini-embedding-2-preview |
 | Vector store | ChromaDB (local, persistent) |
+| Retrieval | Hybrid BM25 + ChromaDB vector, RRF fusion, FlashRank re-ranking |
 | LLM wrapper | LangChain Google GenAI |
 | Backend | FastAPI |
 | Frontend | React 18 + Vite |
@@ -93,7 +94,7 @@ class PitchforgeState(TypedDict):
 | ✅ | Frontend: Landing page (`/`) |
 | ✅ | Frontend: Job Details form (`/new`) — with enhanced validation |
 | ✅ | Frontend: Analysis Pipeline page (`/analyze`) — animated pipeline + fit score result |
-| ⬜ | Frontend: Generate Proposal page (`/generate`) — token streaming + approve/revise flow |
+| ✅ | Frontend: Generate Proposal page (`/generate`) — token streaming + approve/revise flow |
 
 ---
 

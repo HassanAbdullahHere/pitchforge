@@ -18,7 +18,8 @@ frontend/
     └── pages/
         ├── Landing.jsx           # Entry page — hero, sparks, process strip, CTA
         ├── JobDetails.jsx        # Job form with enhanced validation → navigates to /analyze
-        └── AnalyzePipeline.jsx   # SSE streaming pipeline animation + fit score result card
+        ├── AnalyzePipeline.jsx   # SSE streaming pipeline animation + fit score result card
+        └── GenerateProposal.jsx  # Proposal generation — token streaming + approve/revise flow
 ```
 
 ## Pages
@@ -27,7 +28,7 @@ frontend/
 | `/` | `pages/Landing.jsx` | ✅ done |
 | `/new` | `pages/JobDetails.jsx` | ✅ done — validated form, passes `{ form }` state to `/analyze` |
 | `/analyze` | `pages/AnalyzePipeline.jsx` | ✅ done — animated pipeline + fit score + Generate/Cancel |
-| `/generate` | *(todo)* | ⬜ token-streaming proposal + approve/revise flow |
+| `/generate` | `pages/GenerateProposal.jsx` | ✅ done — token streaming, approve/revise flow |
 
 ## SSE Consumption Pattern
 Backend uses POST endpoints, so `EventSource` (GET-only) cannot be used. All streaming pages use:
