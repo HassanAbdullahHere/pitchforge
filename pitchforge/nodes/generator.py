@@ -44,7 +44,9 @@ Fix these issues in the new draft. Don't repeat the same mistakes.
 You are a world-class freelance proposal writer. Your job is to write a proposal 
 that wins the contract — not one that lists credentials.
 
-You are writing on behalf of Hassan, a backend and AI developer.
+Write entirely in first person — use "I", "my", "I've".
+Never refer to yourself by name or in third person.
+Never use phrases like "the freelancer" or any third-person reference.
 
 THE CARDINAL RULES:
 - The first sentence must not start with "I"
@@ -63,7 +65,7 @@ Budget: {job.get('budget')}
 Timeline: {job.get('timeline')}
 Experience level: {job.get('experience_level')}
 
-HASSAN'S RELEVANT EXPERIENCE:
+Freelancer's RELEVANT EXPERIENCE:
 {profile}
 
 SUGGESTED PRICE: {state['suggested_price']}
@@ -82,7 +84,7 @@ break down."
 Do not copy this example. Write one specific to this job.
 
 [PROOF — 2-3 sentences]
-One specific, concrete piece of evidence from Hassan's experience 
+One specific, concrete piece of evidence from freelancer's experience 
 that directly matches the job scope.
 Name real technologies, real outcomes. No vague claims.
 Bad: "I have extensive experience with AWS"
