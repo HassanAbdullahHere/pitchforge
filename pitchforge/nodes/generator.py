@@ -41,12 +41,19 @@ Fix these issues in the new draft. Don't repeat the same mistakes.
 """
 
     prompt = f"""
-You are writing an Upwork proposal for a freelancer named Hassan.
+You are a world-class freelance proposal writer. Your job is to write a proposal 
+that wins the contract — not one that lists credentials.
 
-TONE: Confident, direct, and human. Write like a senior professional reaching out —
-not eager, not salesy. Short sentences. No filler. No corporate speak.
-Avoid: "I am passionate about", "I would love to help", "I am the perfect fit",
-"look no further", or any variation of these clichés.
+You are writing on behalf of Hassan, a backend and AI developer.
+
+THE CARDINAL RULES:
+- The first sentence must not start with "I"
+- Never restate the job back to the client — they wrote it, they know it
+- Every claim must be backed by specific evidence from the profile
+- No paragraph longer than 3 sentences
+- No exclamation marks anywhere
+- Never apologize for or justify the price — state it once, confidently
+- The proposal must feel written for THIS specific job, not templated
 
 JOB DETAILS:
 Title: {job.get('title')}
@@ -56,25 +63,58 @@ Budget: {job.get('budget')}
 Timeline: {job.get('timeline')}
 Experience level: {job.get('experience_level')}
 
-FREELANCER'S RELEVANT EXPERIENCE:
+HASSAN'S RELEVANT EXPERIENCE:
 {profile}
 
 SUGGESTED PRICE: {state['suggested_price']}
 
 {revision_context}
 
-Write a proposal with this exact structure:
+PROPOSAL STRUCTURE — follow this exactly:
 
-1. Greeting like a human
-2. Opening hook — one sentence that references something specific about THIS job
-   (not generic praise, not "I saw your posting")
-3. Relevant experience — 2-3 sentences of specific past work or skills that directly
-   match what they need; cite real projects or technologies from the profile
-4. Approach — 2-3 sentences on how you would tackle this project specifically
-5. Closing — state the suggested price naturally, then end with a call to action,
-   inviting them to chat (no exclamation marks)
+[HOOK — 1-2 sentences]
+Open with the client's core problem or goal, not your introduction.
+Make them feel you immediately understand what they actually need.
+Example approach: "Getting a FastAPI app production-ready on EC2 
+involves more than just running uvicorn — the Nginx config, 
+process management, and SSL setup are where most deployments 
+break down."
+Do not copy this example. Write one specific to this job.
 
-Keep it between 400-500 words. Every sentence must earn its place.
+[PROOF — 2-3 sentences]
+One specific, concrete piece of evidence from Hassan's experience 
+that directly matches the job scope.
+Name real technologies, real outcomes. No vague claims.
+Bad: "I have extensive experience with AWS"
+Good: "I've deployed and managed Nginx + PM2 on EC2 for Node.js 
+and FastAPI apps, including setting up reverse proxy configs 
+and systemd service files for auto-restart"
+
+[APPROACH — 2-3 sentences]
+How you would tackle THIS specific project.
+Reference the actual stack they mentioned.
+Show you've thought about their situation — not a generic process.
+Include one specific technical detail that signals competence.
+
+[QUESTION — 1 sentence]
+One focused, intelligent question about something genuinely unclear 
+in the job that would affect how you approach it.
+This shows you read carefully and think ahead.
+Bad: "Do you have any questions for me?"
+Good: "Is the app currently running with gunicorn or uvicorn, 
+and do you have a preference for the process manager?"
+
+[CLOSING — 2-3 sentences]
+State the price and timeline once, directly.
+End with a low-friction call to action — suggest a brief call 
+or ask if they want to move forward.
+No "I look forward to hearing from you."
+No "Thank you for your consideration."
+
+TARGET LENGTH: 250-320 words maximum.
+Shorter than this is better than longer.
+Every sentence must either build credibility or move them toward hiring.
+If a sentence does neither — cut it.
 """
 
     response = llm.invoke([HumanMessage(content=prompt)])

@@ -44,19 +44,29 @@ def analyze_job(state: PitchforgeState) -> dict:
     print("\n[Node 1] Analyzing job posting...")
 
     prompt = f"""
-Analyze this job posting and return ONLY valid JSON.
-No explanation. No markdown. Just the JSON object.
+You are a technical recruiter parsing a freelance job posting into structured data.
+
+Extract the following and return ONLY valid JSON. No explanation. No markdown. No code fences.
 
 {{
-  "title": "job title",
-  "skills_required": ["skill1", "skill2"],
-  "scope": "one sentence describing the project",
-  "budget": "budget as stated",
-  "timeline": "timeline as stated",
+  "title": "concise job title, max 8 words",
+  "skills_required": ["normalized skill names — see rules below"],
+  "scope": "one sentence: what needs to be built or done",
+  "budget": "exact budget as stated, or 'not mentioned'",
+  "timeline": "exact timeline as stated, or 'not mentioned'",
   "client_type": "individual/startup/agency/enterprise/unknown",
   "experience_level": "entry/intermediate/expert",
   "client_identifiable": false
 }}
+
+Skill normalization rules — apply these strictly:
+- Strip version numbers: "Python 3.11" → "Python", "Node.js 18" → "Node.js"
+- Keep compound tools as single skills: "Docker Compose" stays "Docker Compose", not "Docker" + "Compose"
+- Normalize casing: "fastapi" → "FastAPI", "aws ec2" → "AWS EC2", "github actions" → "GitHub Actions"
+- Expand abbreviations: "CI/CD" → "CI/CD", "k8s" → "Kubernetes", "PG" → "PostgreSQL"
+- Extract implicit skills: if job mentions "reverse proxy" → add "Nginx", if "process manager" → add "PM2 or systemd"
+- Do not invent skills not mentioned or implied by the posting
+- List only distinct skills — no duplicates
 
 Job posting:
 {state["job_posting"]}

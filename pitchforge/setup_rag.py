@@ -71,6 +71,11 @@ for chunk in chunks:
         embeddings=[vector],
         documents=[chunk["text"]]
     )
-    print(f"  ✓ Indexed: {chunk['id']}")
+    print(f"  + Indexed: {chunk['id']}")
+
+corpus_path = "./chromadb/bm25_corpus.json"
+with open(corpus_path, "w") as f:
+    json.dump(chunks, f, indent=2)
+print(f"BM25 corpus saved: {corpus_path}")
 
 print(f"\nDone — {len(chunks)} chunks indexed into ChromaDB")
