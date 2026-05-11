@@ -1,153 +1,178 @@
 import { useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
+import Logo from '../components/Logo'
 
-const SPARKS = Array.from({ length: 18 }, (_, i) => ({
-  id: i,
-  left: `${8 + Math.random() * 84}%`,
-  delay: `${Math.random() * 6}s`,
-  duration: `${4 + Math.random() * 5}s`,
-  size: `${1.5 + Math.random() * 2.5}px`,
-  opacity: 0.2 + Math.random() * 0.5,
-}))
+const METRICS = [
+  { label: 'Avg Fit Score', value: '82', sub: 'out of 100' },
+  { label: 'Time Saved', value: '40 minutes', sub: 'per proposal' },
+]
 
-const HEADLINE_WORDS = ['Forge', 'Proposals', 'That', 'Win.']
+const STEPS = [
+  { n: '01', label: 'Analyze' },
+  { n: '02', label: 'Score' },
+  { n: '03', label: 'Draft' },
+  { n: '04', label: 'Approve' },
+]
+
+const HOW_IT_WORKS = [
+  {
+    n: '01',
+    title: 'Analyze',
+    body: 'Paste any job posting. The pipeline extracts required skills, infers client budget signals, tone, and what they actually need beyond the listed requirements.',
+  },
+  {
+    n: '02',
+    title: 'Score',
+    body: 'Get a fit score from 0–100. See exactly which skills match your profile and which gaps exist — so you can decide whether to apply before spending any time writing.',
+  },
+  {
+    n: '03',
+    title: 'Draft',
+    body: 'Your proposal is written in plain language, priced relative to your experience, and tuned to the client\'s specific signals. A built-in critic refines it in a loop until quality is high.',
+  },
+  {
+    n: '04',
+    title: 'Approve',
+    body: 'Review the draft, give feedback to refine further, or approve it when it\'s ready. Download as .txt or copy to clipboard and send.',
+  },
+]
 
 export default function Landing() {
   const navigate = useNavigate()
-  const glowRef = useRef(null)
+  const hiwRef = useRef(null)
 
   useEffect(() => {
-    const handleMouseMove = (e) => {
-      if (!glowRef.current) return
-      const x = (e.clientX / window.innerWidth) * 100
-      const y = (e.clientY / window.innerHeight) * 100
-      glowRef.current.style.setProperty('--mx', `${x}%`)
-      glowRef.current.style.setProperty('--my', `${y}%`)
-    }
-    window.addEventListener('mousemove', handleMouseMove)
-    return () => window.removeEventListener('mousemove', handleMouseMove)
+    const el = hiwRef.current
+    if (!el) return
+    const observer = new IntersectionObserver(
+      ([entry]) => { if (entry.isIntersecting) { el.classList.add('in-view'); observer.disconnect() } },
+      { threshold: 0.15 }
+    )
+    observer.observe(el)
+    return () => observer.disconnect()
   }, [])
+
+  const scrollToHIW = () => {
+    document.getElementById('how-it-works')?.scrollIntoView({ behavior: 'smooth' })
+  }
 
   return (
     <>
       <style>{css}</style>
+      <div className="page">
 
-      <div className="landing" ref={glowRef}>
-        {/* Mouse-tracking radial glow */}
-        <div className="glow-cursor" />
+        {/* ── Hero frame (full viewport) ── */}
+        <div className="hero-frame">
 
-        {/* Background layers */}
-        <div className="bg-grid" />
-        <div className="bg-vignette" />
-        <div className="bg-grain" />
-
-        {/* Forge sparks */}
-        <div className="sparks" aria-hidden="true">
-          {SPARKS.map((s) => (
-            <span
-              key={s.id}
-              className="spark"
-              style={{
-                left: s.left,
-                width: s.size,
-                height: s.size,
-                opacity: s.opacity,
-                animationDelay: s.delay,
-                animationDuration: s.duration,
-              }}
-            />
-          ))}
-        </div>
-
-        {/* Decorative lines */}
-        <div className="deco-lines" aria-hidden="true">
-          <span className="deco-line deco-line--1" />
-          <span className="deco-line deco-line--2" />
-          <span className="deco-line deco-line--3" />
-        </div>
-
-        {/* Nav */}
+        {/* ── Navbar ── */}
         <nav className="nav">
-          <span className="nav-wordmark">
-            <span className="nav-wordmark-pitch">Pitch</span>
-            <span className="nav-wordmark-forge">Forge</span>
-          </span>
-          <a
-            className="nav-github"
-            href="https://github.com/HassanAbdullahHere/pitchforge"
-            target="_blank"
-            rel="noreferrer"
-          >
-            <svg className="nav-github-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-              <path d="M12 2C6.477 2 2 6.477 2 12c0 4.418 2.865 8.166 6.839 9.489.5.092.682-.217.682-.482 0-.237-.009-.868-.013-1.703-2.782.604-3.369-1.342-3.369-1.342-.454-1.154-1.11-1.462-1.11-1.462-.908-.62.069-.608.069-.608 1.003.07 1.531 1.03 1.531 1.03.892 1.529 2.341 1.087 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.11-4.555-4.943 0-1.091.39-1.984 1.029-2.683-.103-.253-.446-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.578 9.578 0 0 1 12 6.836a9.59 9.59 0 0 1 2.504.337c1.909-1.294 2.747-1.025 2.747-1.025.546 1.377.202 2.394.1 2.647.64.699 1.028 1.592 1.028 2.683 0 3.842-2.339 4.687-4.566 4.935.359.309.678.919.678 1.852 0 1.336-.012 2.415-.012 2.741 0 .267.18.578.688.48C19.138 20.163 22 16.418 22 12c0-5.523-4.477-10-10-10z"/>
-            </svg>
-            GitHub
-          </a>
+          <Logo />
+          <div className="nav-links">
+            <a
+              className="nav-link"
+              href="https://github.com/HassanAbdullahHere/pitchforge"
+              target="_blank"
+              rel="noreferrer"
+            >
+              GitHub
+            </a>
+            <button className="nav-link nav-link-btn" onClick={scrollToHIW}>How It Works</button>
+          </div>
+          <button className="btn-primary nav-cta" onClick={() => navigate('/new')}>
+            Get Started
+          </button>
         </nav>
 
-        {/* Hero */}
+        {/* ── Hero ── */}
         <main className="hero">
-          <p className="eyebrow">
-            <span className="eyebrow-line" />
-            AI Proposal Intelligence
-            <span className="eyebrow-line" />
-          </p>
+          <div className="hero-left">
+            <div className="badge-pill anim" style={{ '--delay': '0ms' }}>
+              ✦ AI Proposal Intelligence
+            </div>
 
-          <div className="headline-halo" aria-hidden="true" />
+            <h1 className="headline anim" style={{ '--delay': '80ms' }}>
+              Forge Proposals<br />That Win.
+            </h1>
 
-          <h1 className="headline" aria-label="Forge Proposals That Win.">
-            {HEADLINE_WORDS.map((word, i) => (
-              <span
-                key={word}
-                className="headline-word"
-                style={{ animationDelay: `${0.3 + i * 0.18}s` }}
-              >
-                {word}
-              </span>
-            ))}
-          </h1>
+            <p className="subtitle anim" style={{ '--delay': '160ms' }}>
+              Paste a job posting. Walk away with a proposal that sounds like you,
+              scores your fit, prices your work, and wins the client.
+            </p>
 
-          <p className="subtitle">
-            Paste a job posting. Walk away with a proposal that sounds like you,
-            <br className="subtitle-br" />
-            scores your fit, prices your work, and wins the client.
-          </p>
+            <div className="cta-row anim" style={{ '--delay': '240ms' }}>
+              <button className="btn-primary btn-lg" onClick={() => navigate('/new')}>
+                Get Started →
+              </button>
+              <button className="btn-secondary btn-lg" onClick={scrollToHIW}>
+                How It Works
+              </button>
+            </div>
 
-          <div className="cta-wrapper">
-            <button className="cta-btn" onClick={() => navigate('/new')}>
-              <span className="cta-btn-text">Get Started</span>
-              <span className="cta-btn-arrow">→</span>
-              <span className="cta-btn-glow" />
-            </button>
+            <div className="process-strip anim" style={{ '--delay': '320ms' }}>
+              {STEPS.map((step, i) => (
+                <div key={step.n} className="process-step">
+                  <span className="process-n">{step.n}</span>
+                  <span className="process-label">{step.label}</span>
+                  {i < STEPS.length - 1 && (
+                    <span className="process-sep" aria-hidden="true">›</span>
+                  )}
+                </div>
+              ))}
+            </div>
           </div>
 
-          <div className="process-strip" aria-label="How it works">
-            {[
-              { n: '01', label: 'Analyze' },
-              { n: '02', label: 'Score' },
-              { n: '03', label: 'Draft' },
-              { n: '04', label: 'Approve' },
-            ].map((step, i) => (
-              <div key={step.n} className="process-step" style={{ animationDelay: `${1.3 + i * 0.12}s` }}>
-                <span className="process-n">{step.n}</span>
-                <span className="process-label">{step.label}</span>
-                {i < 3 && <span className="process-connector" />}
+          <div className="hero-right">
+            {METRICS.map((m, i) => (
+              <div
+                key={m.label}
+                className="metric-card anim"
+                style={{ '--delay': `${200 + i * 90}ms` }}
+              >
+                <span className="metric-value">{m.value}</span>
+                <span className="metric-label">{m.label}</span>
+                <span className="metric-sub">{m.sub}</span>
               </div>
             ))}
+            <div className="metric-card powered-card anim" style={{ '--delay': '380ms' }}>
+              <span className="powered-label">Powered by</span>
+              <span className="powered-name">Gemini 2.5 Flash</span>
+              <span className="powered-sub">+ LangGraph Pipeline</span>
+            </div>
           </div>
-
-          <p className="disclaimer">
-            Powered by&nbsp;
-            <span className="disclaimer-gemini">Gemini</span>
-          </p>
         </main>
+        </div>{/* end hero-frame */}
 
-        {/* Bottom forge mark */}
-        <div className="forge-mark" aria-hidden="true">
-          <span className="forge-mark-line" />
-          <span className="forge-mark-label">EST. 2025</span>
-          <span className="forge-mark-line" />
-        </div>
+        {/* ── How It Works ── */}
+        <section className="hiw-section" id="how-it-works" ref={hiwRef}>
+          <div className="hiw-inner">
+            <div className="hiw-header">
+              <span className="hiw-overline">Process</span>
+              <h2 className="hiw-title">How It Works</h2>
+              <p className="hiw-sub">Four steps from raw job posting to a proposal ready to send.</p>
+            </div>
+
+            <div className="hiw-grid">
+              {HOW_IT_WORKS.map((step, i) => (
+                <div
+                  key={step.n}
+                  className="hiw-card hiw-anim"
+                  style={{ '--hiw-delay': `${i * 80}ms` }}
+                >
+                  <span className="hiw-n">{step.n}</span>
+                  <h3 className="hiw-card-title">{step.title}</h3>
+                  <p className="hiw-card-body">{step.body}</p>
+                </div>
+              ))}
+            </div>
+
+            <div className="hiw-cta">
+              <button className="btn-primary btn-lg" onClick={() => navigate('/new')}>
+                Try It Now →
+              </button>
+            </div>
+          </div>
+        </section>
+
       </div>
     </>
   )
@@ -155,560 +180,449 @@ export default function Landing() {
 
 const css = `
   :root {
-    --bg:        #0a0908;
-    --gold:      #c9a84c;
-    --gold-dim:  #8a6d2e;
-    --fire:      #e8793a;
-    --ivory:     #f5f0e8;
-    --ivory-dim: #9c9389;
-    --font-display: 'Cormorant Garamond', Georgia, serif;
-    --font-mono:    'JetBrains Mono', 'Courier New', monospace;
+    --text-dark:       rgba(30,36,25,0.85);
+    --text-muted:      rgba(30,36,25,0.45);
+    --text-light:      rgba(255,255,255,0.88);
+    --text-light-muted:rgba(255,255,255,0.4);
+    --glass-light:     rgba(255,255,255,0.68);
+    --glass-light-b:   rgba(255,255,255,0.82);
+    --glass-dark:      rgba(22,26,20,0.75);
+    --glass-dark-b:    rgba(255,255,255,0.09);
+    --accent:          #7ab87a;
+    --accent-bg:       rgba(122,184,122,0.15);
+    --font:            'Instrument Sans', sans-serif;
   }
 
-  .landing {
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  @keyframes hiwFadeUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .anim {
+    opacity: 0;
+    animation: fadeUp 400ms ease forwards;
+    animation-delay: var(--delay, 0ms);
+  }
+
+  /* ── Page wrapper ── */
+  .page {
     position: relative;
-    min-height: 100vh;
-    width: 100%;
-    background: var(--bg);
+    z-index: 1;
     display: flex;
     flex-direction: column;
-    overflow: hidden;
-    --mx: 50%;
-    --my: 50%;
   }
 
-  /* ── Mouse glow ── */
-  .glow-cursor {
-    position: fixed;
-    inset: 0;
-    pointer-events: none;
-    background: radial-gradient(
-      600px circle at var(--mx) var(--my),
-      rgba(201,168,76,0.055) 0%,
-      transparent 70%
-    );
-    z-index: 1;
-    transition: background 0.1s ease;
+  /* ── Hero frame — one full viewport ── */
+  .hero-frame {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
   }
 
-  /* ── Background grid ── */
-  .bg-grid {
-    position: absolute;
-    inset: 0;
-    background-image:
-      linear-gradient(rgba(201,168,76,0.04) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(201,168,76,0.04) 1px, transparent 1px);
-    background-size: 60px 60px;
-    mask-image: radial-gradient(ellipse 80% 60% at 50% 50%, black 20%, transparent 100%);
-    pointer-events: none;
-  }
-
-  .bg-vignette {
-    position: absolute;
-    inset: 0;
-    background: radial-gradient(ellipse 100% 90% at 50% 50%, transparent 30%, #0a0908 100%);
-    pointer-events: none;
-  }
-
-  .bg-grain {
-    position: fixed;
-    inset: 0;
-    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-    background-size: 200px 200px;
-    opacity: 0.03;
-    mix-blend-mode: screen;
-    pointer-events: none;
-    z-index: 3;
-  }
-
-  /* ── Sparks ── */
-  .sparks {
-    position: absolute;
-    inset: 0;
-    pointer-events: none;
-    overflow: hidden;
-  }
-
-  .spark {
-    position: absolute;
-    bottom: -4px;
-    border-radius: 50%;
-    background: var(--gold);
-    box-shadow: 0 0 6px 2px rgba(201,168,76,0.6), 0 0 12px 4px rgba(232,121,58,0.3);
-    animation: rise linear infinite;
-    will-change: transform, opacity;
-  }
-
-  @keyframes rise {
-    0%   { transform: translateY(0)     scale(1);   opacity: var(--op, 0.5); }
-    60%  { opacity: var(--op, 0.4); }
-    85%  { transform: translateY(-80vh) scale(0.4); opacity: 0.1; }
-    100% { transform: translateY(-95vh) scale(0);   opacity: 0; }
-  }
-
-  /* ── Decorative lines ── */
-  .deco-lines {
-    position: absolute;
-    inset: 0;
-    pointer-events: none;
-    overflow: hidden;
-  }
-
-  .deco-line {
-    position: absolute;
-    background: linear-gradient(90deg, transparent, var(--gold-dim), transparent);
-    height: 1px;
-    opacity: 0;
-    animation: line-draw 1.2s ease forwards;
-  }
-
-  .deco-line--1 {
-    width: 340px;
-    top: 18%;
-    left: -20px;
-    transform: rotate(-8deg);
-    animation-delay: 0.6s;
-  }
-
-  .deco-line--2 {
-    width: 220px;
-    bottom: 28%;
-    right: -10px;
-    transform: rotate(6deg);
-    animation-delay: 0.9s;
-  }
-
-  .deco-line--3 {
-    width: 160px;
-    top: 62%;
-    left: 6%;
-    transform: rotate(-3deg);
-    animation-delay: 1.1s;
-  }
-
-  @keyframes line-draw {
-    from { opacity: 0; transform: scaleX(0) rotate(var(--r, -8deg)); }
-    to   { opacity: 1; transform: scaleX(1) rotate(var(--r, -8deg)); }
-  }
-
-  /* ── Nav ── */
+  /* ── Navbar ── */
   .nav {
-    position: relative;
-    z-index: 10;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 2rem 3rem;
-    animation: fade-up 0.8s ease 0.1s both;
-  }
-
-  .nav-wordmark {
-    font-family: var(--font-display);
-    font-size: 1.5rem;
-    font-weight: 500;
-    letter-spacing: 0.06em;
-  }
-
-  .nav-wordmark-pitch { color: var(--ivory); }
-  .nav-wordmark-forge { color: var(--gold); }
-
-  .nav-github {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.45rem;
-    font-family: var(--font-mono);
-    font-size: 0.65rem;
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
-    color: var(--ivory-dim);
-    text-decoration: none;
-    transition: color 0.25s ease;
-  }
-
-  .nav-github:hover {
-    color: var(--gold);
-  }
-
-  .nav-github-icon {
-    width: 20px;
-    height: 20px;
-    flex-shrink: 0;
-  }
-
-  .disclaimer-gemini {
-    color: var(--gold);
-    font-family: var(--font-mono);
-    font-size: 0.68rem;
-    letter-spacing: 0.12em;
-  }
-
-  /* ── Hero ── */
-  .hero {
+    padding: 20px 40px;
     position: relative;
     z-index: 10;
+  }
+
+  .nav-links {
+    display: flex;
+    align-items: center;
+    gap: 28px;
+  }
+
+  .nav-link {
+    font-family: var(--font);
+    font-size: 14px;
+    font-weight: 400;
+    color: rgba(30,36,25,0.65);
+    text-decoration: none;
+    letter-spacing: -0.01em;
+    transition: color 200ms;
+  }
+  .nav-link:hover { color: var(--text-dark); }
+
+  .nav-link-btn {
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+  }
+
+  .nav-cta {
+    padding: 9px 20px;
+    font-size: 13px;
+  }
+
+  /* ── Buttons ── */
+  .btn-primary {
+    border-radius: 100px;
+    background: rgba(26,31,22,0.88);
+    color: rgba(255,255,255,0.92);
+    border: none;
+    padding: 12px 24px;
+    font-family: var(--font);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: transform 200ms;
+    letter-spacing: -0.01em;
+  }
+  .btn-primary:hover { transform: scale(1.02); }
+
+  .btn-secondary {
+    border-radius: 100px;
+    background: rgba(255,255,255,0.55);
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(255,255,255,0.75);
+    color: rgba(30,36,25,0.8);
+    padding: 12px 24px;
+    font-family: var(--font);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: transform 200ms;
+    letter-spacing: -0.01em;
+  }
+  .btn-secondary:hover { transform: scale(1.02); }
+
+  .btn-lg { padding: 14px 28px; font-size: 15px; }
+
+  /* ── Hero layout ── */
+  .hero {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 60px;
+    padding: 60px 40px 80px;
+    max-width: 1200px;
+    margin: 0 auto;
+    width: 100%;
+  }
+
+  .hero-left {
     flex: 1;
     display: flex;
     flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    text-align: center;
-    padding: 2rem 2rem 4rem;
-    gap: 0;
+    gap: 24px;
+    max-width: 560px;
   }
 
-  /* Eyebrow */
-  .eyebrow {
+  .hero-right {
+    flex: 0 0 260px;
     display: flex;
-    align-items: center;
-    gap: 1rem;
-    font-family: var(--font-mono);
-    font-size: 0.7rem;
-    letter-spacing: 0.28em;
-    text-transform: uppercase;
-    color: var(--gold);
-    margin-bottom: 2.2rem;
-    animation: fade-up 0.8s ease 0.2s both;
+    flex-direction: column;
+    gap: 12px;
   }
 
-  .eyebrow-line {
-    display: block;
-    width: 40px;
-    height: 1px;
-    background: linear-gradient(90deg, transparent, var(--gold));
-  }
-
-  .eyebrow-line:last-child {
-    background: linear-gradient(90deg, var(--gold), transparent);
-  }
-
-  /* Headline */
-  .headline {
-    font-family: var(--font-display);
-    font-size: clamp(4.5rem, 10vw, 8.5rem);
-    font-weight: 300;
-    line-height: 1.0;
-    letter-spacing: -0.01em;
-    color: var(--ivory);
-    margin-bottom: 2.2rem;
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
-    gap: 0.25em;
-  }
-
-  .headline-word {
-    display: inline-block;
-    opacity: 0;
-    animation: word-reveal 0.7s cubic-bezier(0.22, 1, 0.36, 1) forwards;
-  }
-
-  .headline-word:nth-child(3) {
-    font-style: italic;
-    color: var(--gold);
-  }
-
-  .headline-word:last-child {
-    color: var(--fire);
-  }
-
-  @keyframes word-reveal {
-    from {
-      opacity: 0;
-      transform: translateY(28px) skewY(2deg);
-      filter: blur(4px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0) skewY(0deg);
-      filter: blur(0);
-    }
-  }
-
-  /* Subtitle */
-  .subtitle {
-    font-family: var(--font-display);
-    font-size: clamp(1.2rem, 2.4vw, 1.6rem);
-    font-weight: 300;
-    color: var(--ivory-dim);
-    line-height: 1.7;
-    max-width: 600px;
-    margin-bottom: 3rem;
-    animation: fade-up 0.9s ease 0.9s both;
-  }
-
-  .subtitle-br { display: none; }
-  @media (min-width: 640px) { .subtitle-br { display: inline; } }
-
-  /* CTA */
-  .cta-wrapper {
-    animation: fade-up 0.9s ease 1.1s both;
-  }
-
-  .cta-btn {
-    position: relative;
+  /* ── Badge pill ── */
+  .badge-pill {
     display: inline-flex;
     align-items: center;
-    gap: 0.75rem;
-    padding: 1rem 2.5rem;
-    font-family: var(--font-mono);
-    font-size: 0.85rem;
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
-    color: var(--ivory);
-    background: transparent;
-    border: 1px solid var(--gold-dim);
-    cursor: pointer;
-    overflow: hidden;
-    transition: color 0.3s ease, border-color 0.3s ease;
-    clip-path: polygon(12px 0%, 100% 0%, calc(100% - 12px) 100%, 0% 100%);
+    gap: 6px;
+    background: rgba(255,255,255,0.55);
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(255,255,255,0.75);
+    border-radius: 100px;
+    padding: 6px 14px;
+    font-family: var(--font);
+    font-size: 12px;
+    font-weight: 500;
+    color: rgba(30,36,25,0.7);
+    letter-spacing: -0.005em;
+    width: fit-content;
   }
 
-  .cta-btn::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background: linear-gradient(135deg, rgba(201,168,76,0.12), rgba(232,121,58,0.08));
-    opacity: 0;
-    transition: opacity 0.3s ease;
+  /* ── Headline ── */
+  .headline {
+    font-family: var(--font);
+    font-size: clamp(2.8rem, 6vw, 4.2rem);
+    font-weight: 700;
+    letter-spacing: -0.035em;
+    line-height: 1.08;
+    color: var(--text-dark);
   }
 
-  .cta-btn:hover {
-    border-color: var(--gold);
-    color: var(--gold);
+  /* ── Subtitle ── */
+  .subtitle {
+    font-family: var(--font);
+    font-size: 16px;
+    font-weight: 400;
+    letter-spacing: -0.01em;
+    line-height: 1.7;
+    color: rgba(30,36,25,0.6);
+    max-width: 480px;
   }
 
-  .cta-btn:hover::before {
-    opacity: 1;
+  /* ── CTA row ── */
+  .cta-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
   }
 
-  .cta-btn:hover .cta-btn-glow {
-    opacity: 1;
-  }
-
-  .cta-btn:hover .cta-btn-arrow {
-    transform: translateX(4px);
-  }
-
-  .cta-btn-text {
-    position: relative;
-    z-index: 1;
-  }
-
-  .cta-btn-arrow {
-    position: relative;
-    z-index: 1;
-    transition: transform 0.3s ease;
-    font-size: 1rem;
-  }
-
-  .cta-btn-glow {
-    position: absolute;
-    inset: -2px;
-    border-radius: 0;
-    background: transparent;
-    box-shadow: 0 0 24px 4px rgba(201,168,76,0.25), 0 0 50px 8px rgba(232,121,58,0.1);
-    opacity: 0;
-    transition: opacity 0.4s ease;
-    pointer-events: none;
-  }
-
-  /* Headline halo */
-  .headline-halo {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    width: 700px;
-    height: 260px;
-    background: radial-gradient(ellipse at center, rgba(201,168,76,0.18) 0%, transparent 70%);
-    filter: blur(60px);
-    pointer-events: none;
-    opacity: 0;
-    animation: fade-in-slow 2s ease 0.8s forwards;
-    z-index: 0;
-  }
-
-  @keyframes fade-in-slow {
-    to { opacity: 1; }
-  }
-
-  /* Process strip */
+  /* ── Process strip ── */
   .process-strip {
     display: flex;
     align-items: center;
     gap: 0;
-    margin-top: 2.8rem;
-    margin-bottom: 0.2rem;
-    animation: none;
+    padding-top: 8px;
+    flex-wrap: wrap;
   }
 
   .process-step {
     display: flex;
     align-items: center;
-    gap: 0;
-    opacity: 0;
-    animation: fade-up 0.6s ease forwards;
+    gap: 6px;
   }
 
   .process-n {
-    font-family: var(--font-mono);
-    font-size: 0.7rem;
-    color: var(--gold-dim);
-    letter-spacing: 0.1em;
-    margin-right: 0.5rem;
-    line-height: 1;
+    font-family: var(--font);
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: rgba(30,36,25,0.38);
   }
 
   .process-label {
-    font-family: var(--font-mono);
-    font-size: 0.82rem;
-    letter-spacing: 0.18em;
-    text-transform: uppercase;
-    color: var(--ivory-dim);
-    transition: color 0.25s ease;
+    font-family: var(--font);
+    font-size: 13px;
+    font-weight: 900;
+    letter-spacing: -0.01em;
+    color: rgba(12, 12, 11, 0.38);
   }
 
-  .process-step:hover .process-label {
-    color: var(--gold);
+  .process-sep {
+    font-size: 14px;
+    color: rgba(30,36,25,0.18);
+    margin: 0 10px;
   }
 
-  .process-connector {
-    display: block;
-    width: 48px;
-    height: 1px;
-    margin: 0 1rem;
-    background: repeating-linear-gradient(
-      90deg,
-      var(--gold-dim) 0px,
-      var(--gold-dim) 3px,
-      transparent 3px,
-      transparent 7px
-    );
-    opacity: 0.5;
-  }
-
-  /* CTA ambient pulse */
-  .cta-btn::after {
-    content: '';
-    position: absolute;
-    inset: -1px;
-    border: 1px solid var(--gold);
-    opacity: 0;
-    animation: ring-pulse 2.5s ease-out 1.8s infinite;
-    pointer-events: none;
-    clip-path: polygon(12px 0%, 100% 0%, calc(100% - 12px) 100%, 0% 100%);
-  }
-
-  .cta-btn:hover::after {
-    animation: none;
-  }
-
-  @keyframes ring-pulse {
-    0%   { opacity: 0.35; transform: scale(1); }
-    70%  { opacity: 0;    transform: scale(1.12); }
-    100% { opacity: 0;    transform: scale(1.12); }
-  }
-
-  /* Disclaimer */
-  .disclaimer {
-    font-family: var(--font-mono);
-    font-size: 0.62rem;
-    letter-spacing: 0.14em;
-    color: #4a4540;
-    margin-top: 1.6rem;
-    animation: fade-up 0.8s ease 1.4s both;
-  }
-
-  /* ── Forge mark (bottom) ── */
-  .forge-mark {
-    position: relative;
-    z-index: 10;
+  /* ── Metric cards (dark glass) ── */
+  .metric-card {
+    background: var(--glass-dark);
+    backdrop-filter: blur(24px);
+    border: 1px solid var(--glass-dark-b);
+    border-radius: 20px;
+    padding: 20px 22px;
     display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .metric-value {
+    font-family: var(--font);
+    font-size: 28px;
+    font-weight: 700;
+    letter-spacing: -0.035em;
+    color: var(--text-light);
+    line-height: 1.1;
+  }
+
+  .metric-label {
+    font-family: var(--font);
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text-light-muted);
+    margin-top: 4px;
+  }
+
+  .metric-sub {
+    font-family: var(--font);
+    font-size: 12px;
+    font-weight: 400;
+    letter-spacing: -0.01em;
+    color: rgba(255,255,255,0.25);
+  }
+
+  .powered-card {
+    border-color: rgba(122,184,122,0.18);
+  }
+
+  .powered-label {
+    font-family: var(--font);
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text-light-muted);
+  }
+
+  .powered-name {
+    font-family: var(--font);
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    color: var(--accent);
+    margin-top: 4px;
+  }
+
+  .powered-sub {
+    font-family: var(--font);
+    font-size: 12px;
+    font-weight: 400;
+    letter-spacing: -0.01em;
+    color: rgba(255,255,255,0.25);
+  }
+
+  /* ── How It Works section ── */
+  .hiw-section {
+    position: relative;
+    z-index: 1;
+    padding: 80px 40px 100px;
+  }
+
+  .hiw-inner {
+    max-width: 1000px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
     align-items: center;
-    justify-content: center;
-    gap: 1.2rem;
-    padding: 1.5rem 3rem;
-    animation: fade-up 0.8s ease 1.5s both;
+    gap: 48px;
   }
 
-  .forge-mark-line {
-    display: block;
-    width: 60px;
-    height: 1px;
-    background: linear-gradient(90deg, transparent, #3a3530);
+  .hiw-header {
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
   }
 
-  .forge-mark-line:last-child {
-    background: linear-gradient(90deg, #3a3530, transparent);
+  .hiw-overline {
+    font-family: var(--font);
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--accent);
   }
 
-  .forge-mark-label {
-    font-family: var(--font-mono);
-    font-size: 0.58rem;
-    letter-spacing: 0.24em;
-    color: #3a3530;
+  .hiw-title {
+    font-family: var(--font);
+    font-size: clamp(1.8rem, 4vw, 2.6rem);
+    font-weight: 700;
+    letter-spacing: -0.035em;
+    line-height: 1.1;
+    color: var(--text-dark);
   }
 
-  /* ── Shared keyframes ── */
-  @keyframes fade-up {
-    from { opacity: 0; transform: translateY(16px); }
-    to   { opacity: 1; transform: translateY(0); }
+  .hiw-sub {
+    font-family: var(--font);
+    font-size: 15px;
+    font-weight: 400;
+    letter-spacing: -0.01em;
+    color: rgba(30,36,25,0.5);
+    max-width: 420px;
+    line-height: 1.6;
+  }
+
+  /* ── HIW cards grid ── */
+  .hiw-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+    width: 100%;
+  }
+
+  .hiw-card {
+    background: var(--glass-light);
+    backdrop-filter: blur(24px);
+    border: 1px solid var(--glass-light-b);
+    border-radius: 20px;
+    padding: 28px 28px 32px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    opacity: 0;
+  }
+
+  .hiw-anim {
+    animation: hiwFadeUp 480ms ease forwards;
+    animation-delay: var(--hiw-delay, 0ms);
+    animation-play-state: paused;
+  }
+
+  .hiw-section:hover .hiw-anim,
+  .hiw-section.in-view .hiw-anim {
+    animation-play-state: running;
+  }
+
+  .hiw-n {
+    font-family: var(--font);
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--accent);
+  }
+
+  .hiw-card-title {
+    font-family: var(--font);
+    font-size: 18px;
+    font-weight: 700;
+    letter-spacing: -0.025em;
+    color: var(--text-dark);
+    line-height: 1.2;
+  }
+
+  .hiw-card-body {
+    font-family: var(--font);
+    font-size: 14px;
+    font-weight: 400;
+    letter-spacing: -0.01em;
+    line-height: 1.65;
+    color: rgba(30,36,25,0.6);
+  }
+
+  .hiw-cta {
+    padding-top: 8px;
   }
 
   /* ── Mobile ── */
-  @media (max-width: 640px) {
-    .nav {
-      padding: 1.25rem 1.25rem;
-    }
-    .nav-wordmark { font-size: 1.2rem; }
-    .nav-github-icon { width: 16px; height: 16px; }
+  @media (max-width: 768px) {
+    .nav { padding: 16px 20px; }
+    .nav-links { display: none; }
 
     .hero {
-      padding: 1.5rem 1.25rem 3rem;
+      flex-direction: column;
+      gap: 40px;
+      padding: 40px 20px 60px;
     }
 
-    .eyebrow {
-      font-size: 0.6rem;
-      letter-spacing: 0.18em;
-      margin-bottom: 1.6rem;
-      gap: 0.6rem;
-    }
-    .eyebrow-line { width: 24px; }
-
-    .headline {
-      font-size: clamp(3rem, 14vw, 4.5rem);
-      gap: 0.15em;
-      margin-bottom: 1.6rem;
-    }
-
-    .subtitle {
-      font-size: clamp(1rem, 4.5vw, 1.2rem);
-      margin-bottom: 2.2rem;
-      padding: 0 0.5rem;
-    }
-
-    .cta-btn {
-      padding: 0.85rem 2rem;
-      font-size: 0.78rem;
-    }
-
-    .process-strip {
+    .hero-right {
+      flex-direction: row;
       flex-wrap: wrap;
-      justify-content: center;
-      gap: 0.6rem 0;
-      margin-top: 2rem;
-    }
-    .process-connector { width: 24px; margin: 0 0.5rem; }
-    .process-label { font-size: 0.72rem; }
-
-    .forge-mark { padding: 1.25rem; }
-    .forge-mark-line { width: 36px; }
-
-    .headline-halo {
-      width: 320px;
-      height: 160px;
+      flex: unset;
+      width: 100%;
+      gap: 10px;
     }
 
-    .deco-line--1, .deco-line--2, .deco-line--3 { display: none; }
+    .metric-card {
+      flex: 1;
+      min-width: 140px;
+    }
+
+    .headline { font-size: clamp(2.2rem, 10vw, 2.8rem); }
+
+    .hiw-section { padding: 60px 20px 80px; }
+
+    .hiw-grid {
+      grid-template-columns: 1fr;
+    }
   }
 `

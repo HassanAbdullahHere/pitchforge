@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
+import Logo from '../components/Logo'
 
 const NODES = [
   { key: 'generator',        label: 'Drafting',   sub: 'proposal' },
@@ -49,15 +50,15 @@ export default function GenerateProposal() {
   const fitData  = state?.fitData
   const form     = state?.form
 
-  const [phase, setPhase] = useState('generating')
-  const [nodeStates, setNodeStates] = useState(INIT_NODES)
+  const [phase, setPhase]               = useState('generating')
+  const [nodeStates, setNodeStates]     = useState(INIT_NODES)
   const [proposalText, setProposalText] = useState('')
-  const [statusText, setStatusText] = useState('Initializing generator…')
-  const [quality, setQuality] = useState(null)
+  const [statusText, setStatusText]     = useState('Initializing generator…')
+  const [quality, setQuality]           = useState(null)
   const [finalProposal, setFinalProposal] = useState('')
   const [revisionInput, setRevisionInput] = useState('')
-  const [errorMsg, setErrorMsg] = useState(null)
-  const [copied, setCopied] = useState(false)
+  const [errorMsg, setErrorMsg]         = useState(null)
+  const [copied, setCopied]             = useState(false)
   const [feedbackOpen, setFeedbackOpen] = useState(false)
 
   const ctrlRef = useRef(null)
@@ -179,71 +180,87 @@ export default function GenerateProposal() {
     URL.revokeObjectURL(url)
   }
 
-  const qualityColor = s => s >= 70 ? 'var(--gold)' : s >= 40 ? 'var(--fire)' : '#e74c3c'
-  const qualityBadgeClass = s => s >= 70 ? 'badge--green' : s >= 40 ? 'badge--amber' : 'badge--red'
+  const qualityColor = s => s >= 70 ? '#7ab87a' : s >= 40 ? '#d4a855' : '#e74c3c'
+  const qualityBadgeStyle = s => s >= 70
+    ? { background: 'rgba(122,184,122,0.15)', color: 'rgba(160,220,160,0.85)', border: '1px solid rgba(122,184,122,0.2)' }
+    : s >= 40
+    ? { background: 'rgba(212,168,85,0.12)', color: 'rgba(212,168,85,0.9)', border: '1px solid rgba(212,168,85,0.25)' }
+    : { background: 'rgba(192,57,43,0.12)', color: '#e74c3c', border: '1px solid rgba(192,57,43,0.3)' }
   const qualityLabel = s => s >= 70 ? 'High Quality' : s >= 40 ? 'Good Draft' : 'Needs Work'
 
   return (
     <>
       <style>{css}</style>
-      <div className="gp-page">
-        <div className="bg-grid" />
-        <div className="bg-vignette" />
-        <div className="bg-grain" />
+      <div className="page">
 
+        {/* ── Navbar ── */}
         <nav className="nav">
-          <button className="nav-wordmark" onClick={() => navigate('/')}>
-            <span className="nav-pitch">Pitch</span><span className="nav-forge">Forge</span>
-          </button>
-          {phase === 'generating' && (
-            <span className="nav-status">
-              <span className="nav-status-dot" />
-              Generating proposal
-            </span>
-          )}
-          {(phase === 'reviewing' || phase === 'revising') && (
-            <span className="nav-phase-label">Review</span>
-          )}
-          {phase === 'final' && (
-            <span className="nav-phase-label">Final</span>
-          )}
+          <Logo onClick={() => navigate('/')} />
+          <div className="nav-phase">
+            {phase === 'generating' && (
+              <span className="nav-status">
+                <span className="status-dot" />
+                Generating proposal
+              </span>
+            )}
+            {(phase === 'reviewing' || phase === 'revising') && (
+              <span className="nav-label">Review Draft</span>
+            )}
+            {phase === 'finalizing' && (
+              <span className="nav-label">Finalizing…</span>
+            )}
+            {phase === 'final' && (
+              <span className="nav-label">Complete</span>
+            )}
+          </div>
         </nav>
 
         <main className="gp-main">
 
-          {/* ── GENERATING ── */}
+          {/* ══ GENERATING ══ */}
           {phase === 'generating' && (
-            <div className="gen-layout">
-              <div className="pipeline-panel">
-                <p className="panel-eyebrow">Pipeline</p>
-                <div className="pipeline-vert">
-                  {NODES.map((node, i) => {
+            <div className="two-col anim" style={{ '--delay': '0ms' }}>
+
+              {/* Dark card — pipeline */}
+              <div className="dark-card pipeline-col">
+                <div className="card-eyebrow">
+                  <span className="eyebrow-dot" />
+                  Pipeline
+                </div>
+
+                <div className="node-list">
+                  {NODES.map((node) => {
                     const s = nodeStates[node.key]
                     return (
-                      <div key={node.key} className="pipeline-row">
-                        {i > 0 && (
-                          <div className={`conn-v${s === 'active' ? ' conn-v--active' : s === 'done' ? ' conn-v--done' : ''}`} />
-                        )}
-                        <div className="pip-item">
-                          <div className={`node node--${s}`}>
-                            {s === 'done'   && <span className="node-icon">✓</span>}
-                            {s === 'active' && <span className="node-pulse" />}
-                            {s === 'idle'   && <span className="node-idle" />}
-                          </div>
-                          <div className="node-labels">
-                            <span className="node-main">{node.label}</span>
-                            <span className="node-sub">{node.sub}</span>
-                          </div>
+                      <div key={node.key} className={`node-row node-row--${s}`}>
+                        <div className={`node-circle node-circle--${s}`}>
+                          {s === 'done'   && <span className="nc-check">✓</span>}
+                          {s === 'active' && <span className="nc-active" />}
+                          {s === 'idle'   && <span className="nc-idle" />}
+                        </div>
+                        <div className="node-info">
+                          <span className="node-name">{node.label}</span>
+                          <span className="node-sub">{node.sub}</span>
+                        </div>
+                        <div className={`node-badge node-badge--${s}`}>
+                          {s === 'done' ? 'Done' : s === 'active' ? 'Running' : 'Pending'}
                         </div>
                       </div>
                     )
                   })}
                 </div>
+
                 <p className="pipeline-status">{statusText}</p>
               </div>
 
-              <div className="draft-panel">
-                <p className="panel-eyebrow">Draft</p>
+              {/* Light card — draft stream */}
+              <div className="light-card draft-col">
+                <div className="draft-header">
+                  <span className="card-section-label">Draft</span>
+                  {proposalText && (
+                    <span className="char-count">{proposalText.length} chars</span>
+                  )}
+                </div>
                 <div className="draft-scroll" ref={draftRef}>
                   {proposalText
                     ? <pre className="draft-text">{proposalText}<span className="draft-cursor" /></pre>
@@ -254,80 +271,39 @@ export default function GenerateProposal() {
             </div>
           )}
 
-          {/* ── REVIEWING / REVISING ── */}
+          {/* ══ REVIEWING / REVISING ══ */}
           {(phase === 'reviewing' || phase === 'revising') && (
-            <div className="gen-layout">
+            <div className="two-col anim" style={{ '--delay': '0ms' }}>
 
-              {/* Pipeline panel — shows current stage */}
-              <div className="pipeline-panel">
-                <p className="panel-eyebrow">Pipeline</p>
-                <div className="pipeline-vert">
-                  {NODES.map((node, i) => {
-                    const s = nodeStates[node.key]
-                    return (
-                      <div key={node.key} className="pipeline-row">
-                        {i > 0 && (
-                          <div className={`conn-v${s === 'active' ? ' conn-v--active' : s === 'done' ? ' conn-v--done' : ''}`} />
-                        )}
-                        <div className="pip-item">
-                          <div className={`node node--${s}`}>
-                            {s === 'done'   && <span className="node-icon">✓</span>}
-                            {s === 'active' && <span className="node-pulse" />}
-                            {s === 'idle'   && <span className="node-idle" />}
-                          </div>
-                          <div className="node-labels">
-                            <span className="node-main">{node.label}</span>
-                            <span className="node-sub">{node.sub}</span>
-                          </div>
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
-                <p className="pipeline-status">
-                  {phase === 'revising' ? 'Awaiting instructions…' : 'Awaiting your review'}
-                </p>
-              </div>
-
-              {/* Review content */}
-              <div className="review-layout">
-                <div className="review-header">
+              {/* Light card — proposal text */}
+              <div className="light-card proposal-col">
+                <div className="proposal-header">
                   <div>
-                    <p className="result-eyebrow">Proposal Ready</p>
-                    <h1 className="result-title">Review Your Draft</h1>
+                    <div className="result-eyebrow">Proposal Ready</div>
+                    <h2 className="result-title">Review Your Draft</h2>
                   </div>
-                  {quality && (
-                    <div className="quality-block">
-                      <span className="quality-num" style={{ color: qualityColor(quality.score) }}>
-                        {quality.score}
-                      </span>
-                      <div className="quality-meta">
-                        <span className="quality-lbl">quality score</span>
-                        <span className={`badge ${qualityBadgeClass(quality.score)}`}>
-                          {qualityLabel(quality.score)}
-                        </span>
-                      </div>
-                    </div>
+                  {phase === 'reviewing' && (
+                    <button className="btn-primary approve-btn" onClick={doFinalize}>
+                      Approve Proposal →
+                    </button>
                   )}
                 </div>
 
-                <div className="proposal-card">
+                <div className="proposal-scroll">
                   <pre className="proposal-text">{proposalText}</pre>
                 </div>
 
-                {quality?.feedback && (
-                  <div className="feedback-section">
-                    <button className="feedback-toggle" onClick={() => setFeedbackOpen(o => !o)}>
-                      <span>AI Critique</span>
-                      <span className={`chevron${feedbackOpen ? ' chevron--open' : ''}`}>▾</span>
+                {phase === 'reviewing' && (
+                  <div className="proposal-footer">
+                    <button className="btn-secondary revise-btn" onClick={() => setPhase('revising')}>
+                      ✎ Request Revision
                     </button>
-                    {feedbackOpen && <p className="feedback-body">{quality.feedback}</p>}
                   </div>
                 )}
 
                 {phase === 'revising' && (
                   <div className="revision-panel">
-                    <p className="revision-lbl">Describe your changes</p>
+                    <label className="revise-label">Describe your changes</label>
                     <textarea
                       className="revision-input"
                       placeholder="e.g. Make the opening stronger, add a closing question, emphasize React experience…"
@@ -337,114 +313,165 @@ export default function GenerateProposal() {
                       autoFocus
                     />
                     <div className="rev-actions">
-                      <button className="secondary-btn" onClick={() => setPhase('reviewing')}>
-                        Cancel
-                      </button>
+                      <button className="btn-secondary" onClick={() => setPhase('reviewing')}>Cancel</button>
                       <button
-                        className="primary-btn"
+                        className="btn-primary"
                         onClick={submitRevision}
                         disabled={!revisionInput.trim()}
                       >
-                        <span className="primary-btn-text">Submit Revision</span>
-                        <span className="primary-btn-arrow">→</span>
-                        <span className="primary-btn-glow" />
+                        Submit Revision →
                       </button>
                     </div>
                   </div>
                 )}
-
-                {phase === 'reviewing' && (
-                  <div className="review-actions">
-                    <button className="revision-btn" onClick={() => setPhase('revising')}>
-                      <span className="revision-btn-icon">✎</span>
-                      <span>Request Revision</span>
-                    </button>
-                    <button className="primary-btn" onClick={doFinalize}>
-                      <span className="primary-btn-text">Approve Proposal</span>
-                      <span className="primary-btn-arrow">→</span>
-                      <span className="primary-btn-glow" />
-                    </button>
-                  </div>
-                )}
               </div>
 
-            </div>
-          )}
-
-          {/* ── FINALIZING ── */}
-          {phase === 'finalizing' && (
-            <div className="finalizing-wrap">
-              <div className="fin-spinner" />
-              <p className="fin-text">Compiling your proposal…</p>
-            </div>
-          )}
-
-          {/* ── FINAL ── */}
-          {phase === 'final' && (
-            <div className="final-layout">
-              <div className="final-header">
-                <p className="result-eyebrow">Complete</p>
-                <h1 className="result-title">Your Proposal</h1>
-              </div>
-
-              {/* Job meta card */}
-              <div className="job-meta-card">
-                {form?.title && (
-                  <div className="job-meta-field">
-                    <span className="job-meta-label">Job</span>
-                    <span className="job-meta-value">{form.title}</span>
-                  </div>
-                )}
-                <div className="job-meta-divider" />
-                {fitData?.suggested_price && (
-                  <div className="job-meta-field">
-                    <span className="job-meta-label">Suggested Rate</span>
-                    <span className="job-meta-price">{fitData.suggested_price}</span>
-                  </div>
-                )}
+              {/* Dark card — critic / pipeline */}
+              <div className="dark-card critique-col">
+                {/* Quality score */}
                 {quality && (
-                  <div className="job-meta-field">
-                    <span className="job-meta-label">Quality Score</span>
-                    <div className="job-meta-score-row">
-                      <span className="job-meta-score-num" style={{ color: qualityColor(quality.score) }}>
+                  <div className="quality-block">
+                    <div className="quality-score-row">
+                      <span
+                        className="quality-num"
+                        style={{ color: qualityColor(quality.score) }}
+                      >
                         {quality.score}
                       </span>
-                      <span className={`badge ${qualityBadgeClass(quality.score)}`}>
-                        {qualityLabel(quality.score)}
-                      </span>
+                      <div className="quality-meta">
+                        <span className="quality-meta-label">Quality Score</span>
+                        <span
+                          className="quality-badge"
+                          style={qualityBadgeStyle(quality.score)}
+                        >
+                          {qualityLabel(quality.score)}
+                        </span>
+                      </div>
                     </div>
+                    {quality.iterationCount > 0 && (
+                      <div className="iter-row">
+                        <span className="iter-label">Iterations</span>
+                        <span className="iter-val">{quality.iterationCount}</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Pipeline progress */}
+                <div className="pipeline-mini">
+                  <div className="card-eyebrow" style={{ marginBottom: '12px' }}>
+                    <span>Pipeline</span>
+                  </div>
+                  <div className="node-list-mini">
+                    {NODES.map((node) => {
+                      const s = nodeStates[node.key]
+                      return (
+                        <div key={node.key} className={`node-mini node-mini--${s}`}>
+                          <div className={`node-circle-sm node-circle-sm--${s}`}>
+                            {s === 'done'   && <span className="nc-check-sm">✓</span>}
+                            {s === 'active' && <span className="nc-active-sm" />}
+                          </div>
+                          <span className="node-mini-name">{node.label}</span>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+
+                {/* AI Critique */}
+                {quality?.feedback && (
+                  <div className="critique-section">
+                    <button className="critique-toggle" onClick={() => setFeedbackOpen(o => !o)}>
+                      <span className="card-eyebrow" style={{ margin: 0 }}>AI Critique</span>
+                      <span className={`chevron${feedbackOpen ? ' chevron--open' : ''}`}>▾</span>
+                    </button>
+                    {feedbackOpen && (
+                      <p className="critique-body">{quality.feedback}</p>
+                    )}
                   </div>
                 )}
               </div>
+            </div>
+          )}
 
-              {/* Proposal */}
-              <div className="final-proposal-card">
-                <pre className="proposal-text">{finalProposal}</pre>
+          {/* ══ FINALIZING ══ */}
+          {phase === 'finalizing' && (
+            <div className="center-wrap anim" style={{ '--delay': '0ms' }}>
+              <div className="dark-card finalizing-card">
+                <div className="fin-spinner" />
+                <p className="fin-text">Compiling your proposal…</p>
+              </div>
+            </div>
+          )}
+
+          {/* ══ FINAL ══ */}
+          {phase === 'final' && (
+            <div className="final-layout anim" style={{ '--delay': '0ms' }}>
+
+              {/* Meta row */}
+              {(form?.title || fitData?.suggested_price || quality) && (
+                <div className="meta-strip">
+                  {form?.title && (
+                    <div className="meta-item">
+                      <span className="meta-label">Job</span>
+                      <span className="meta-val">{form.title}</span>
+                    </div>
+                  )}
+                  {fitData?.suggested_price && (
+                    <div className="meta-item">
+                      <span className="meta-label">Suggested Rate</span>
+                      <span className="meta-val meta-val--price">{fitData.suggested_price}</span>
+                    </div>
+                  )}
+                  {quality && (
+                    <div className="meta-item">
+                      <span className="meta-label">Quality Score</span>
+                      <div className="meta-score-row">
+                        <span className="meta-score-num" style={{ color: qualityColor(quality.score) }}>
+                          {quality.score}
+                        </span>
+                        <span className="quality-badge" style={qualityBadgeStyle(quality.score)}>
+                          {qualityLabel(quality.score)}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Final proposal card */}
+              <div className="light-card final-proposal-card">
+                <div className="result-eyebrow">Your Proposal</div>
+                <div className="final-scroll">
+                  <pre className="proposal-text">{finalProposal}</pre>
+                </div>
               </div>
 
+              {/* Actions */}
               <div className="final-actions">
-                <button className="secondary-btn" onClick={() => navigate('/new')}>
+                <button className="btn-secondary" onClick={() => navigate('/new')}>
                   ← New Proposal
                 </button>
                 <div className="final-action-group">
-                  <button className="secondary-btn" onClick={downloadTxt}>
+                  <button className="btn-secondary" onClick={downloadTxt}>
                     ↓ Download .txt
                   </button>
-                  <button className="primary-btn" onClick={copyToClipboard}>
-                    <span className="primary-btn-text">{copied ? 'Copied!' : 'Copy to Clipboard'}</span>
-                    <span className="primary-btn-glow" />
+                  <button className="btn-primary" onClick={copyToClipboard}>
+                    {copied ? 'Copied!' : 'Copy to Clipboard'}
                   </button>
                 </div>
               </div>
             </div>
           )}
 
-          {/* ── ERROR ── */}
+          {/* ══ ERROR ══ */}
           {phase === 'error' && (
-            <div className="error-wrap">
-              <p className="error-icon">⚠</p>
-              <p className="error-msg">{errorMsg || 'Something went wrong. Please try again.'}</p>
-              <button className="secondary-btn" onClick={() => navigate('/new')}>← Try Again</button>
+            <div className="center-wrap anim" style={{ '--delay': '0ms' }}>
+              <div className="dark-card error-card">
+                <p className="error-icon">⚠</p>
+                <p className="error-msg">{errorMsg || 'Something went wrong. Please try again.'}</p>
+                <button className="btn-secondary" onClick={() => navigate('/new')}>← Try Again</button>
+              </div>
             </div>
           )}
 
@@ -456,575 +483,767 @@ export default function GenerateProposal() {
 
 const css = `
   :root {
-    --bg:        #0a0908;
-    --gold:      #c9a84c;
-    --gold-dim:  #8a6d2e;
-    --fire:      #e8793a;
-    --ivory:     #f5f0e8;
-    --ivory-dim: #9c9389;
-    --font-display: 'Cormorant Garamond', Georgia, serif;
-    --font-mono:    'JetBrains Mono', 'Courier New', monospace;
+    --text-dark:       rgba(30,36,25,0.85);
+    --text-muted:      rgba(30,36,25,0.45);
+    --text-light:      rgba(255,255,255,0.88);
+    --text-light-muted:rgba(255,255,255,0.4);
+    --glass-light:     rgba(226,225,222,0.76);
+    --glass-light-b:   rgba(212,210,208,0.90);
+    --glass-dark:      rgba(22,26,20,0.75);
+    --glass-dark-b:    rgba(255,255,255,0.09);
+    --accent:          #7ab87a;
+    --accent-bg:       rgba(122,184,122,0.15);
+    --font:            'Instrument Sans', sans-serif;
   }
 
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .anim {
+    opacity: 0;
+    animation: fadeUp 400ms ease forwards;
+    animation-delay: var(--delay, 0ms);
+  }
 
-  .gp-page {
+  /* ── Page ── */
+  .page {
     position: relative;
-    min-height: 100vh; height: 100vh;
-    background: var(--bg);
-    display: flex; flex-direction: column;
+    min-height: 100vh;
+    height: 100vh;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
     overflow: hidden;
   }
 
-  /* ── Background layers ── */
-  .bg-grid {
-    position: absolute; inset: 0; pointer-events: none;
-    background-image:
-      linear-gradient(rgba(201,168,76,0.04) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(201,168,76,0.04) 1px, transparent 1px);
-    background-size: 60px 60px;
-    mask-image: radial-gradient(ellipse 80% 60% at 50% 50%, black 20%, transparent 100%);
-  }
-  .bg-vignette {
-    position: absolute; inset: 0; pointer-events: none;
-    background: radial-gradient(ellipse 100% 90% at 50% 50%, transparent 30%, #0a0908 100%);
-  }
-  .bg-grain {
-    position: fixed; inset: 0; pointer-events: none; z-index: 3;
-    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-    background-size: 200px 200px; opacity: 0.03; mix-blend-mode: screen;
-  }
-
-  /* ── Nav ── */
+  /* ── Navbar ── */
   .nav {
-    position: relative; z-index: 10;
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 1.75rem 3rem;
-    border-bottom: 1px solid rgba(201,168,76,0.08);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px 40px;
+    z-index: 10;
     flex-shrink: 0;
-    animation: fade-up 0.5s ease both;
   }
-  .nav-wordmark {
-    font-family: var(--font-display); font-size: 1.5rem; font-weight: 500;
-    letter-spacing: 0.06em; background: none; border: none; cursor: pointer; padding: 0;
-  }
-  .nav-pitch { color: var(--ivory); }
-  .nav-forge { color: var(--gold); }
+  .nav-phase {}
   .nav-status {
-    display: inline-flex; align-items: center; gap: 0.5rem;
-    font-family: var(--font-mono); font-size: 0.62rem;
-    letter-spacing: 0.14em; text-transform: uppercase; color: var(--ivory-dim);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-family: var(--font);
+    font-size: 13px;
+    font-weight: 500;
+    color: rgba(30,36,25,0.6);
   }
-  .nav-status-dot {
-    width: 6px; height: 6px; border-radius: 50%;
-    background: var(--gold);
+  .status-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--accent);
     animation: dot-blink 1.4s ease-in-out infinite;
   }
-  .nav-phase-label {
-    font-family: var(--font-mono); font-size: 0.62rem;
-    letter-spacing: 0.14em; text-transform: uppercase; color: var(--ivory-dim);
+  @keyframes dot-blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.2; } }
+  .nav-label {
+    font-family: var(--font);
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: rgba(30,36,25,0.5);
+    background: rgba(255,255,255,0.55);
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(255,255,255,0.75);
+    border-radius: 100px;
+    padding: 5px 14px;
   }
+
+  /* ── Buttons ── */
+  .btn-primary {
+    border-radius: 100px;
+    background: rgba(26,31,22,0.88);
+    color: rgba(255,255,255,0.92);
+    border: none;
+    padding: 12px 24px;
+    font-family: var(--font);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: transform 200ms;
+    letter-spacing: -0.01em;
+    white-space: nowrap;
+    will-change: transform;
+  }
+  .btn-primary:hover:not(:disabled) { transform: scale(1.02); }
+  .btn-primary:disabled { opacity: 0.38; cursor: not-allowed; }
+
+  .btn-secondary {
+    border-radius: 100px;
+    background: rgba(255,255,255,0.55);
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(255,255,255,0.75);
+    color: rgba(30,36,25,0.8);
+    padding: 12px 24px;
+    font-family: var(--font);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: transform 200ms;
+    letter-spacing: -0.01em;
+    white-space: nowrap;
+  }
+  .btn-secondary:hover { transform: scale(1.02); }
 
   /* ── Main ── */
   .gp-main {
-    position: relative; z-index: 10;
-    flex: 1; display: flex;
+    flex: 1;
+    display: flex;
+    overflow: hidden;
+    padding: 0 24px 24px;
+  }
+
+  /* ── Two column layout ── */
+  .two-col {
+    display: flex;
+    gap: 16px;
+    flex: 1;
+    overflow: hidden;
+    width: 100%;
+  }
+
+  /* ── Glass cards ── */
+  .dark-card {
+    background: var(--glass-dark);
+    backdrop-filter: blur(24px);
+    border: 1px solid var(--glass-dark-b);
+    border-radius: 20px;
+    padding: 28px 28px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
     overflow: hidden;
   }
 
-  /* ══════════════════════════════
-     GENERATING PHASE
-  ══════════════════════════════ */
-
-  .gen-layout {
-    display: flex; flex: 1; overflow: hidden;
-    animation: fade-up 0.6s ease both;
+  .light-card {
+    background: var(--glass-light);
+    backdrop-filter: blur(24px);
+    border: 1px solid var(--glass-light-b);
+    border-radius: 20px;
+    padding: 28px 28px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    overflow: hidden;
   }
 
-  .pipeline-panel {
-    width: 260px; flex-shrink: 0;
-    display: flex; flex-direction: column;
-    padding: 2.5rem 2rem 2rem;
-    border-right: 1px solid rgba(201,168,76,0.08);
-    gap: 1.5rem;
+  /* ── Pipeline column (dark, narrower) ── */
+  .pipeline-col {
+    flex: 0 0 280px;
   }
 
-  .panel-eyebrow {
-    font-family: var(--font-mono); font-size: 0.62rem;
-    letter-spacing: 0.2em; text-transform: uppercase;
-    color: var(--gold); opacity: 0.6;
-  }
-
-  .pipeline-vert {
-    display: flex; flex-direction: column;
+  /* ── Draft column (light) ── */
+  .draft-col {
     flex: 1;
   }
 
-  .pipeline-row {
-    display: flex; flex-direction: column;
-    align-items: flex-start;
+  /* ── Proposal column (light) ── */
+  .proposal-col {
+    flex: 1;
+    min-width: 0;
   }
 
-  .conn-v {
-    width: 1px; height: 36px;
-    background: rgba(138,109,46,0.3);
-    margin-left: 27px;
-    position: relative; overflow: hidden;
+  /* ── Critique column (dark) ── */
+  .critique-col {
+    flex: 0 0 300px;
+    overflow-y: auto;
   }
-  .conn-v--active::after {
+  .critique-col::-webkit-scrollbar { width: 3px; }
+  .critique-col::-webkit-scrollbar-track { background: transparent; }
+  .critique-col::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 2px; }
+
+  /* ── Shared card labels ── */
+  .card-eyebrow {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-family: var(--font);
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text-light-muted);
+  }
+  .eyebrow-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--accent);
+    animation: dot-blink 1.4s ease-in-out infinite;
+  }
+
+  .card-section-label {
+    font-family: var(--font);
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+  }
+
+  /* ── Node list (generating phase) ── */
+  .node-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    flex: 1;
+  }
+
+  .node-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 12px;
+    border-radius: 12px;
+    transition: background 300ms;
+  }
+  .node-row--active { background: rgba(122,184,122,0.06); }
+  .node-row--done   { background: rgba(255,255,255,0.02); }
+  .node-row--idle   {}
+
+  .node-circle {
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    position: relative;
+    transition: background 300ms;
+  }
+  .node-circle--idle   { border: 1.5px solid rgba(255,255,255,0.1); background: transparent; }
+  .node-circle--active {
+    border: 1.5px solid var(--accent);
+    background: rgba(122,184,122,0.1);
+  }
+  .node-circle--active::after {
     content: '';
-    position: absolute; top: -100%; left: 0; right: 0;
-    height: 100%;
-    background: linear-gradient(180deg, transparent, var(--gold), transparent);
-    animation: shimmer-v 1.2s linear infinite;
+    position: absolute; inset: -5px;
+    border-radius: 50%;
+    border: 1px solid var(--accent);
+    opacity: 0.3;
+    animation: pulse-ring 1.5s ease-out infinite;
   }
-  .conn-v--done { background: var(--gold-dim); }
+  .node-circle--done { border: 1.5px solid var(--accent); background: rgba(122,184,122,0.18); }
 
-  .pip-item {
-    display: flex; align-items: center; gap: 0.85rem;
+  .nc-check { font-size: 13px; color: var(--accent); font-weight: 600; }
+  .nc-idle  { width: 6px; height: 6px; border-radius: 50%; background: rgba(255,255,255,0.15); }
+  .nc-active {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--accent);
+    animation: pulse-dot 1.2s ease-in-out infinite;
   }
+
+  @keyframes pulse-ring {
+    0%   { transform: scale(1); opacity: 0.4; }
+    100% { transform: scale(1.7); opacity: 0; }
+  }
+  @keyframes pulse-dot {
+    0%, 100% { transform: scale(1); opacity: 1; }
+    50%       { transform: scale(0.65); opacity: 0.5; }
+  }
+
+  .node-info { flex: 1; display: flex; flex-direction: column; gap: 1px; }
+  .node-name {
+    font-family: var(--font);
+    font-size: 13px;
+    font-weight: 500;
+    letter-spacing: -0.01em;
+    color: var(--text-light);
+    transition: opacity 300ms;
+  }
+  .node-row--idle .node-name { opacity: 0.3; }
+  .node-sub {
+    font-family: var(--font);
+    font-size: 11px;
+    color: var(--text-light-muted);
+    transition: opacity 300ms;
+  }
+  .node-row--idle .node-sub { opacity: 0.3; }
+
+  .node-badge {
+    font-family: var(--font);
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    border-radius: 100px;
+    padding: 3px 8px;
+    white-space: nowrap;
+  }
+  .node-badge--idle   { color: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.08); }
+  .node-badge--active { color: var(--accent); background: rgba(122,184,122,0.12); border: 1px solid rgba(122,184,122,0.25); }
+  .node-badge--done   { color: rgba(122,184,122,0.7); background: rgba(122,184,122,0.08); border: 1px solid rgba(122,184,122,0.15); }
 
   .pipeline-status {
-    font-family: var(--font-mono); font-size: 0.65rem;
-    letter-spacing: 0.1em; color: var(--ivory-dim);
+    font-family: var(--font);
+    font-size: 11px;
+    color: var(--text-light-muted);
     animation: blink-text 2s ease-in-out infinite;
   }
+  @keyframes blink-text { 0%, 100% { opacity: 0.5; } 50% { opacity: 0.9; } }
 
   /* ── Draft panel ── */
-  .draft-panel {
-    flex: 1; display: flex; flex-direction: column;
-    padding: 2.5rem 2.5rem 2rem;
-    gap: 1rem;
-    overflow: hidden;
+  .draft-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-shrink: 0;
+  }
+  .char-count {
+    font-family: var(--font);
+    font-size: 11px;
+    color: var(--text-muted);
   }
 
   .draft-scroll {
-    flex: 1; overflow-y: auto;
-    border: 1px solid rgba(201,168,76,0.08);
-    padding: 1.75rem 2rem;
+    flex: 1;
+    overflow-y: auto;
+    border-radius: 12px;
+    border: 1px solid rgba(30,36,25,0.06);
+    background: rgba(255,255,255,0.3);
+    padding: 20px 22px;
   }
-  .draft-scroll::-webkit-scrollbar { width: 4px; }
+  .draft-scroll::-webkit-scrollbar { width: 3px; }
   .draft-scroll::-webkit-scrollbar-track { background: transparent; }
-  .draft-scroll::-webkit-scrollbar-thumb { background: rgba(201,168,76,0.2); border-radius: 2px; }
+  .draft-scroll::-webkit-scrollbar-thumb { background: rgba(30,36,25,0.12); border-radius: 2px; }
 
   .draft-text {
-    font-family: var(--font-display); font-size: 1rem;
-    line-height: 1.85; color: var(--ivory); font-weight: 300;
-    white-space: pre-wrap; word-break: break-word;
+    font-family: var(--font);
+    font-size: 14px;
+    font-weight: 400;
+    letter-spacing: -0.01em;
+    line-height: 1.75;
+    color: var(--text-dark);
+    white-space: pre-wrap;
+    word-break: break-word;
   }
   .draft-cursor {
     display: inline-block;
-    width: 2px; height: 1.1em;
-    background: var(--gold);
-    margin-left: 2px; vertical-align: text-bottom;
+    width: 2px; height: 1em;
+    background: rgba(30,36,25,0.6);
+    margin-left: 2px;
+    vertical-align: text-bottom;
     animation: cursor-blink 0.9s ease-in-out infinite;
   }
+  @keyframes cursor-blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+
   .draft-placeholder {
-    font-family: var(--font-mono); font-size: 0.7rem;
-    letter-spacing: 0.1em; color: var(--ivory-dim); opacity: 0.4;
+    font-family: var(--font);
+    font-size: 13px;
+    color: var(--text-muted);
+    opacity: 0.5;
     animation: blink-text 2s ease-in-out infinite;
   }
 
-  /* ── Node circles (same as AnalyzePipeline) ── */
-  .node {
-    width: 56px; height: 56px; border-radius: 50%;
-    display: flex; align-items: center; justify-content: center;
-    transition: background 0.4s, border-color 0.4s;
-    position: relative; flex-shrink: 0;
-  }
-  .node--idle { border: 1px solid rgba(138,109,46,0.3); background: transparent; }
-  .node-idle { width: 8px; height: 8px; border-radius: 50%; background: rgba(138,109,46,0.4); }
-  .node--active { border: 1px solid var(--gold); background: rgba(201,168,76,0.08); }
-  .node--active::before {
-    content: ''; position: absolute; inset: -4px; border-radius: 50%;
-    border: 1px solid var(--gold); opacity: 0.4;
-    animation: pulse-ring 1.5s ease-out infinite;
-  }
-  .node--active::after {
-    content: ''; position: absolute; inset: -9px; border-radius: 50%;
-    border: 1px solid var(--gold); opacity: 0.15;
-    animation: pulse-ring 1.5s ease-out 0.3s infinite;
-  }
-  .node-pulse {
-    width: 10px; height: 10px; border-radius: 50%;
-    background: var(--gold);
-    animation: pulse-dot 1.2s ease-in-out infinite;
-  }
-  .node--done { border: 1px solid var(--gold); background: var(--gold); }
-  .node-icon { color: var(--bg); font-weight: 700; font-size: 1.1rem; font-family: var(--font-mono); }
-  .node-labels { display: flex; flex-direction: column; gap: 0.15rem; }
-  .node-main {
-    font-family: var(--font-mono); font-size: 0.65rem;
-    letter-spacing: 0.12em; text-transform: uppercase; color: var(--ivory-dim);
-    transition: color 0.3s;
-  }
-  .pip-item:has(.node--active) .node-main { color: var(--gold); }
-  .pip-item:has(.node--done)   .node-main { color: var(--ivory); }
-  .node-sub {
-    font-family: var(--font-mono); font-size: 0.55rem;
-    letter-spacing: 0.08em; color: var(--ivory-dim); opacity: 0.5;
-  }
-  .pip-item:has(.node--active) .node-sub { opacity: 0.8; }
-  .pip-item:has(.node--done)   .node-sub { opacity: 0.6; }
-
-  /* ══════════════════════════════
-     REVIEW / REVISE PHASE
-  ══════════════════════════════ */
-
-  .review-layout {
-    flex: 1; display: flex; flex-direction: column;
-    align-items: center;
-    padding: 2.5rem 2rem 2rem;
-    gap: 1.75rem;
-    overflow-y: auto;
-    animation: fade-up 0.6s ease both;
-    min-width: 0;
-  }
-  .review-layout::-webkit-scrollbar { width: 4px; }
-  .review-layout::-webkit-scrollbar-track { background: transparent; }
-  .review-layout::-webkit-scrollbar-thumb { background: rgba(201,168,76,0.15); border-radius: 2px; }
-
-  .review-header {
-    width: 100%; max-width: 780px;
-    display: flex; align-items: flex-start;
-    justify-content: space-between; gap: 1.5rem;
+  /* ── Proposal panel (review/revise) ── */
+  .proposal-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
     flex-wrap: wrap;
+    flex-shrink: 0;
   }
-
   .result-eyebrow {
-    font-family: var(--font-mono); font-size: 0.65rem;
-    letter-spacing: 0.2em; text-transform: uppercase;
-    color: var(--gold); opacity: 0.7;
-    margin-bottom: 0.3rem;
+    font-family: var(--font);
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: 4px;
   }
   .result-title {
-    font-family: var(--font-display); font-size: 2.8rem;
-    font-weight: 300; font-style: italic; color: var(--ivory);
+    font-family: var(--font);
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: -0.035em;
+    color: var(--text-dark);
+    line-height: 1.1;
+  }
+  .approve-btn {
+    margin-top: 4px;
+    flex-shrink: 0;
   }
 
-  .quality-block {
-    display: flex; align-items: center; gap: 1rem; flex-shrink: 0;
+  .proposal-scroll {
+    flex: 1;
+    overflow-y: auto;
+    border-radius: 12px;
+    border: 1px solid rgba(30,36,25,0.06);
+    background: rgba(255,255,255,0.3);
+    padding: 20px 22px;
   }
-  .quality-num {
-    font-family: var(--font-display); font-size: 3.2rem;
-    font-weight: 600; line-height: 1;
-    transition: color 0.4s;
-  }
-  .quality-meta { display: flex; flex-direction: column; gap: 0.45rem; }
-  .quality-lbl {
-    font-family: var(--font-mono); font-size: 0.58rem;
-    letter-spacing: 0.12em; text-transform: uppercase; color: var(--ivory-dim);
-  }
-
-  /* ── Proposal card ── */
-  .proposal-card {
-    width: 100%; max-width: 780px;
-    border: 1px solid rgba(201,168,76,0.1);
-    max-height: 48vh; overflow-y: auto;
-    padding: 2rem 2.25rem;
-    background: rgba(255,255,255,0.01);
-  }
-  .proposal-card::-webkit-scrollbar { width: 4px; }
-  .proposal-card::-webkit-scrollbar-track { background: transparent; }
-  .proposal-card::-webkit-scrollbar-thumb { background: rgba(201,168,76,0.2); border-radius: 2px; }
+  .proposal-scroll::-webkit-scrollbar { width: 3px; }
+  .proposal-scroll::-webkit-scrollbar-track { background: transparent; }
+  .proposal-scroll::-webkit-scrollbar-thumb { background: rgba(30,36,25,0.12); border-radius: 2px; }
 
   .proposal-text {
-    font-family: var(--font-display); font-size: 1.05rem;
-    line-height: 1.9; color: var(--ivory); font-weight: 300;
-    white-space: pre-wrap; word-break: break-word;
+    font-family: var(--font);
+    font-size: 14px;
+    font-weight: 400;
+    letter-spacing: -0.01em;
+    line-height: 1.75;
+    color: var(--text-dark);
+    white-space: pre-wrap;
+    word-break: break-word;
   }
 
-  /* ── Critic feedback ── */
-  .feedback-section {
-    width: 100%; max-width: 780px;
-    border: 1px solid rgba(201,168,76,0.08);
-    overflow: hidden;
-  }
-  .feedback-toggle {
-    width: 100%; display: flex; align-items: center; justify-content: space-between;
-    padding: 0.85rem 1.25rem;
-    font-family: var(--font-mono); font-size: 0.65rem;
-    letter-spacing: 0.12em; text-transform: uppercase;
-    color: var(--ivory-dim); background: rgba(201,168,76,0.02);
-    border: none; cursor: pointer;
-    transition: color 0.2s, background 0.2s;
-  }
-  .feedback-toggle:hover { color: var(--ivory); background: rgba(201,168,76,0.05); }
-  .chevron { transition: transform 0.25s ease; display: inline-block; }
-  .chevron--open { transform: rotate(180deg); }
-  .feedback-body {
-    padding: 1.1rem 1.25rem 1.4rem;
-    font-family: var(--font-display); font-size: 0.95rem;
-    line-height: 1.8; color: var(--ivory-dim); font-weight: 300;
-    border-top: 1px solid rgba(201,168,76,0.07);
+  .proposal-footer {
+    flex-shrink: 0;
+    display: flex;
+    justify-content: flex-end;
   }
 
   /* ── Revision panel ── */
   .revision-panel {
-    width: 100%; max-width: 780px;
-    display: flex; flex-direction: column; gap: 1rem;
-    border: 1px solid rgba(201,168,76,0.14);
-    padding: 1.5rem 1.75rem;
-    background: rgba(201,168,76,0.015);
-    animation: fade-up 0.35s ease both;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 16px;
+    background: rgba(255,255,255,0.4);
+    border-radius: 12px;
+    border: 1px solid rgba(30,36,25,0.08);
+    animation: fadeUp 300ms ease both;
   }
-  .revision-lbl {
-    font-family: var(--font-mono); font-size: 0.65rem;
-    letter-spacing: 0.14em; text-transform: uppercase;
-    color: var(--gold); opacity: 0.85;
+  .revise-label {
+    font-family: var(--font);
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text-muted);
   }
   .revision-input {
-    width: 100%; resize: vertical; background: transparent;
-    border: none; border-bottom: 1px solid rgba(138,109,46,0.4);
-    padding: 0.5rem 0;
-    font-family: var(--font-display); font-size: 1rem;
-    line-height: 1.7; color: var(--ivory); font-weight: 300;
-    outline: none; transition: border-color 0.2s;
+    width: 100%;
+    resize: vertical;
+    background: rgba(255,255,255,0.7);
+    border: 1px solid rgba(30,36,25,0.1);
+    border-radius: 10px;
+    padding: 11px 14px;
+    font-family: var(--font);
+    font-size: 14px;
+    font-weight: 400;
+    letter-spacing: -0.01em;
+    line-height: 1.6;
+    color: rgba(30,36,25,0.8);
+    outline: none;
+    transition: border-color 200ms;
   }
-  .revision-input::placeholder { color: var(--ivory-dim); opacity: 0.4; }
-  .revision-input:focus { border-bottom-color: var(--gold); }
+  .revision-input::placeholder { color: rgba(30,36,25,0.3); }
+  .revision-input:focus { border-color: rgba(122,184,122,0.5); }
+
   .rev-actions {
-    display: flex; align-items: center; justify-content: flex-end; gap: 1rem;
-    flex-wrap: wrap;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
   }
 
-  /* ── Action bars ── */
-  .review-actions {
-    width: 100%; max-width: 780px;
-    display: flex; align-items: center; justify-content: space-between; gap: 1rem;
-    flex-wrap: wrap;
+  /* ── Critique column content ── */
+  .quality-block {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid rgba(255,255,255,0.07);
+  }
+  .quality-score-row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+  .quality-num {
+    font-family: var(--font);
+    font-size: 52px;
+    font-weight: 700;
+    letter-spacing: -0.035em;
+    line-height: 1;
+    transition: color 400ms;
+  }
+  .quality-meta { display: flex; flex-direction: column; gap: 6px; }
+  .quality-meta-label {
+    font-family: var(--font);
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text-light-muted);
+  }
+  .quality-badge {
+    font-family: var(--font);
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    border-radius: 100px;
+    padding: 4px 10px;
+    width: fit-content;
   }
 
-  /* ══════════════════════════════
-     FINALIZING PHASE
-  ══════════════════════════════ */
+  .iter-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .iter-label {
+    font-family: var(--font);
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text-light-muted);
+  }
+  .iter-val {
+    font-family: var(--font);
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-light);
+  }
 
-  .finalizing-wrap {
-    flex: 1; display: flex; flex-direction: column;
-    align-items: center; justify-content: center; gap: 2rem;
-    animation: fade-up 0.5s ease both;
+  /* Mini pipeline in critique col */
+  .pipeline-mini {
+    padding-bottom: 20px;
+    border-bottom: 1px solid rgba(255,255,255,0.07);
+  }
+  .node-list-mini {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .node-mini {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .node-circle-sm {
+    width: 24px; height: 24px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .node-circle-sm--idle   { border: 1px solid rgba(255,255,255,0.1); }
+  .node-circle-sm--active { border: 1px solid var(--accent); background: rgba(122,184,122,0.1); }
+  .node-circle-sm--done   { border: 1px solid var(--accent); background: rgba(122,184,122,0.15); }
+  .nc-check-sm { font-size: 10px; color: var(--accent); font-weight: 600; }
+  .nc-active-sm {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--accent);
+    animation: pulse-dot 1.2s ease-in-out infinite;
+  }
+  .node-mini-name {
+    font-family: var(--font);
+    font-size: 12px;
+    font-weight: 400;
+    color: var(--text-light);
+    transition: opacity 300ms;
+  }
+  .node-mini--idle .node-mini-name { opacity: 0.3; }
+
+  /* Critique toggle */
+  .critique-section {}
+  .critique-toggle {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    margin-bottom: 10px;
+  }
+  .chevron {
+    font-size: 14px;
+    color: var(--text-light-muted);
+    transition: transform 250ms ease;
+    display: inline-block;
+  }
+  .chevron--open { transform: rotate(180deg); }
+  .critique-body {
+    font-family: var(--font);
+    font-size: 13px;
+    font-weight: 400;
+    letter-spacing: -0.01em;
+    line-height: 1.65;
+    color: var(--text-light-muted);
+    animation: fadeUp 300ms ease both;
+  }
+
+  /* ── Finalizing ── */
+  .center-wrap {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .finalizing-card {
+    align-items: center;
+    text-align: center;
+    padding: 48px 60px;
   }
   .fin-spinner {
-    width: 48px; height: 48px; border-radius: 50%;
-    border: 2px solid rgba(201,168,76,0.15);
-    border-top-color: var(--gold);
+    width: 40px; height: 40px;
+    border-radius: 50%;
+    border: 2px solid rgba(122,184,122,0.15);
+    border-top-color: var(--accent);
     animation: spin 1s linear infinite;
   }
+  @keyframes spin { to { transform: rotate(360deg); } }
   .fin-text {
-    font-family: var(--font-mono); font-size: 0.75rem;
-    letter-spacing: 0.14em; text-transform: uppercase; color: var(--ivory-dim);
+    font-family: var(--font);
+    font-size: 14px;
+    font-weight: 500;
+    letter-spacing: -0.01em;
+    color: var(--text-light-muted);
     animation: blink-text 2s ease-in-out infinite;
   }
 
-  /* ══════════════════════════════
-     FINAL PHASE
-  ══════════════════════════════ */
-
+  /* ── Final layout ── */
   .final-layout {
-    flex: 1; display: flex; flex-direction: column;
-    align-items: center;
-    padding: 2.5rem 2rem 2rem;
-    gap: 1.75rem;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
     overflow-y: auto;
-    animation: fade-up 0.7s ease both;
+    width: 100%;
+    max-width: 860px;
+    margin: 0 auto;
   }
-  .final-layout::-webkit-scrollbar { width: 4px; }
-  .final-layout::-webkit-scrollbar-track { background: transparent; }
-  .final-layout::-webkit-scrollbar-thumb { background: rgba(201,168,76,0.15); border-radius: 2px; }
+  .final-layout::-webkit-scrollbar { width: 3px; }
+  .final-layout::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 2px; }
 
-  .final-header { width: 100%; max-width: 780px; }
-
-  /* Job metadata card */
-  .job-meta-card {
-    width: 100%; max-width: 780px;
-    border: 1px solid rgba(201,168,76,0.12);
-    background: rgba(201,168,76,0.02);
-    display: flex; flex-wrap: wrap; align-items: center; gap: 0;
-  }
-  .job-meta-field {
-    flex: 1; min-width: 180px;
-    display: flex; flex-direction: column; gap: 0.4rem;
-    padding: 1.1rem 1.5rem;
-  }
-  .job-meta-divider {
-    width: 1px; align-self: stretch;
-    background: rgba(201,168,76,0.1);
+  /* Meta strip */
+  .meta-strip {
+    background: var(--glass-dark);
+    backdrop-filter: blur(24px);
+    border: 1px solid var(--glass-dark-b);
+    border-radius: 16px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0;
     flex-shrink: 0;
   }
-  .job-meta-label {
-    font-family: var(--font-mono); font-size: 0.58rem;
-    letter-spacing: 0.18em; text-transform: uppercase;
-    color: var(--ivory-dim); opacity: 0.6;
+  .meta-item {
+    flex: 1;
+    min-width: 160px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 16px 20px;
+    border-right: 1px solid rgba(255,255,255,0.06);
   }
-  .job-meta-value {
-    font-family: var(--font-display); font-size: 1.05rem;
-    color: var(--ivory); font-weight: 300; line-height: 1.3;
+  .meta-item:last-child { border-right: none; }
+  .meta-label {
+    font-family: var(--font);
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text-light-muted);
   }
-  .job-meta-price {
-    font-family: var(--font-display); font-size: 1.3rem;
-    color: var(--gold); font-weight: 400;
+  .meta-val {
+    font-family: var(--font);
+    font-size: 14px;
+    font-weight: 500;
+    letter-spacing: -0.01em;
+    color: var(--text-light);
   }
-  .job-meta-score-row {
-    display: flex; align-items: center; gap: 0.75rem;
+  .meta-val--price {
+    font-size: 18px;
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    color: var(--accent);
   }
-  .job-meta-score-num {
-    font-family: var(--font-display); font-size: 1.6rem;
-    font-weight: 600; line-height: 1;
+  .meta-score-row { display: flex; align-items: center; gap: 8px; }
+  .meta-score-num {
+    font-family: var(--font);
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: -0.035em;
   }
 
-  /* Final proposal */
+  /* Final proposal card */
   .final-proposal-card {
-    width: 100%; max-width: 780px;
-    border: 1px solid rgba(201,168,76,0.1);
-    max-height: 52vh; overflow-y: auto;
-    padding: 2rem 2.25rem;
-    background: rgba(255,255,255,0.01);
+    flex: 1;
+    overflow: hidden;
   }
-  .final-proposal-card::-webkit-scrollbar { width: 4px; }
-  .final-proposal-card::-webkit-scrollbar-track { background: transparent; }
-  .final-proposal-card::-webkit-scrollbar-thumb { background: rgba(201,168,76,0.2); border-radius: 2px; }
+  .final-scroll {
+    flex: 1;
+    overflow-y: auto;
+    border-radius: 12px;
+    border: 1px solid rgba(30,36,25,0.06);
+    background: rgba(255,255,255,0.3);
+    padding: 20px 22px;
+    max-height: 52vh;
+  }
+  .final-scroll::-webkit-scrollbar { width: 3px; }
+  .final-scroll::-webkit-scrollbar-thumb { background: rgba(30,36,25,0.12); border-radius: 2px; }
 
   .final-actions {
-    width: 100%; max-width: 780px;
-    display: flex; align-items: center; justify-content: space-between; gap: 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
     flex-wrap: wrap;
+    flex-shrink: 0;
+    padding-bottom: 8px;
+    padding-left: 4px;
   }
-  .final-action-group {
-    display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;
-  }
+  .final-action-group { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .final-action-group .btn-secondary,
+  .final-action-group .btn-primary { min-width: 152px; text-align: center; }
 
-  /* ══════════════════════════════
-     ERROR PHASE
-  ══════════════════════════════ */
-
-  .error-wrap {
-    flex: 1; display: flex; flex-direction: column;
-    align-items: center; justify-content: center; gap: 1.5rem;
+  /* ── Error ── */
+  .error-card {
+    align-items: center;
     text-align: center;
-    animation: fade-up 0.6s ease both;
+    padding: 48px 60px;
   }
-  .error-icon { font-size: 2.5rem; color: var(--fire); opacity: 0.8; }
+  .error-icon { font-size: 28px; color: rgba(220,80,80,0.8); }
   .error-msg {
-    font-family: var(--font-mono); font-size: 0.8rem;
-    letter-spacing: 0.06em; color: var(--ivory-dim);
-    max-width: 420px; line-height: 1.8;
+    font-family: var(--font);
+    font-size: 14px;
+    color: var(--text-light-muted);
+    max-width: 360px;
+    line-height: 1.6;
   }
-
-  /* ── Badges ── */
-  .badge {
-    font-family: var(--font-mono); font-size: 0.62rem;
-    letter-spacing: 0.16em; text-transform: uppercase;
-    padding: 0.3rem 0.9rem;
-    clip-path: polygon(6px 0%, 100% 0%, calc(100% - 6px) 100%, 0% 100%);
-  }
-  .badge--green { background: rgba(201,168,76,0.15); color: var(--gold); border: 1px solid rgba(201,168,76,0.3); }
-  .badge--amber { background: rgba(232,121,58,0.12); color: var(--fire); border: 1px solid rgba(232,121,58,0.3); }
-  .badge--red   { background: rgba(192,57,43,0.12);  color: #e74c3c;    border: 1px solid rgba(192,57,43,0.3); }
-
-  /* ── Buttons ── */
-  .secondary-btn {
-    font-family: var(--font-mono); font-size: 0.72rem;
-    letter-spacing: 0.12em; text-transform: uppercase;
-    color: var(--ivory-dim); background: transparent;
-    border: 1px solid rgba(138,109,46,0.4);
-    padding: 0.85rem 1.5rem; cursor: pointer;
-    clip-path: polygon(8px 0%, 100% 0%, calc(100% - 8px) 100%, 0% 100%);
-    transition: color 0.2s, border-color 0.2s;
-  }
-  .secondary-btn:hover { color: var(--ivory); border-color: var(--gold-dim); }
-
-  .revision-btn {
-    display: inline-flex; align-items: center; gap: 0.6rem;
-    font-family: var(--font-mono); font-size: 0.72rem;
-    letter-spacing: 0.12em; text-transform: uppercase;
-    color: var(--fire); background: rgba(232,121,58,0.06);
-    border: 1px solid rgba(232,121,58,0.45);
-    padding: 0.85rem 1.5rem; cursor: pointer;
-    clip-path: polygon(8px 0%, 100% 0%, calc(100% - 8px) 100%, 0% 100%);
-    transition: color 0.2s, border-color 0.2s, background 0.2s;
-  }
-  .revision-btn:hover {
-    color: #f09060; border-color: var(--fire);
-    background: rgba(232,121,58,0.12);
-  }
-  .revision-btn-icon { font-size: 0.9rem; }
-
-  .primary-btn {
-    position: relative; display: inline-flex; align-items: center;
-    gap: 0.75rem; padding: 1rem 2.2rem;
-    font-family: var(--font-mono); font-size: 0.82rem;
-    letter-spacing: 0.14em; text-transform: uppercase;
-    color: var(--ivory); background: transparent;
-    border: 1px solid var(--gold-dim); cursor: pointer; overflow: hidden;
-    transition: color 0.3s, border-color 0.3s;
-    clip-path: polygon(12px 0%, 100% 0%, calc(100% - 12px) 100%, 0% 100%);
-  }
-  .primary-btn::before {
-    content: ''; position: absolute; inset: 0;
-    background: linear-gradient(135deg, rgba(201,168,76,0.14), rgba(232,121,58,0.08));
-    opacity: 0; transition: opacity 0.3s;
-  }
-  .primary-btn:hover:not(:disabled) { border-color: var(--gold); color: var(--gold); }
-  .primary-btn:hover:not(:disabled)::before { opacity: 1; }
-  .primary-btn:hover:not(:disabled) .primary-btn-glow { opacity: 1; }
-  .primary-btn:hover:not(:disabled) .primary-btn-arrow { transform: translateX(4px); }
-  .primary-btn:disabled { opacity: 0.38; cursor: not-allowed; }
-  .primary-btn-text { position: relative; z-index: 1; }
-  .primary-btn-arrow { position: relative; z-index: 1; font-size: 1rem; transition: transform 0.3s; }
-  .primary-btn-glow {
-    position: absolute; inset: -2px;
-    box-shadow: 0 0 24px 4px rgba(201,168,76,0.25), 0 0 50px 8px rgba(232,121,58,0.1);
-    opacity: 0; transition: opacity 0.4s; pointer-events: none;
-  }
-
-  /* ── Keyframes ── */
-  @keyframes fade-up    { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
-  @keyframes dot-blink  { 0%, 100% { opacity: 1; } 50% { opacity: 0.2; } }
-  @keyframes pulse-ring { 0% { transform: scale(1); opacity: 0.4; } 100% { transform: scale(1.5); opacity: 0; } }
-  @keyframes pulse-dot  { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(0.7); opacity: 0.5; } }
-  @keyframes shimmer-v  { from { top: -100%; } to { top: 100%; } }
-  @keyframes blink-text { 0%, 100% { opacity: 0.6; } 50% { opacity: 1; } }
-  @keyframes spin        { to { transform: rotate(360deg); } }
-  @keyframes cursor-blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
 
   /* ── Mobile ── */
-  @media (max-width: 640px) {
-    .nav { padding: 1.25rem; }
-    .nav-wordmark { font-size: 1.2rem; }
+  @media (max-width: 768px) {
+    .nav { padding: 16px 20px; }
+    .gp-main { padding: 0 12px 16px; }
 
-    .gen-layout { flex-direction: column; overflow-y: auto; }
+    .two-col { flex-direction: column; overflow-y: auto; gap: 12px; }
 
-    .pipeline-panel {
-      width: 100%; border-right: none;
-      border-bottom: 1px solid rgba(201,168,76,0.08);
-      padding: 1.5rem 1.25rem; gap: 1rem;
-      flex-direction: row; align-items: center; flex-wrap: wrap;
-    }
-    .panel-eyebrow { display: none; }
-    .pipeline-vert { flex-direction: row; flex-wrap: wrap; gap: 0.5rem; flex: 1; }
-    .pipeline-row { flex-direction: row; align-items: center; }
-    .conn-v { display: none; }
-    .node { width: 40px; height: 40px; }
-    .node-sub { display: none; }
-    .pipeline-status { font-size: 0.6rem; flex-shrink: 0; }
+    .pipeline-col { flex: unset; }
+    .critique-col { flex: unset; }
 
-    .draft-panel { padding: 1.25rem; flex: 1; min-height: 0; }
-    .draft-panel .panel-eyebrow { display: none; }
+    .dark-card, .light-card { padding: 20px 18px; gap: 14px; }
 
-    .review-layout,
-    .final-layout { padding: 1.5rem 1.25rem; gap: 1.25rem; min-width: 0; }
-    .result-title  { font-size: 2rem; }
-    .review-header { flex-direction: column; gap: 1rem; }
-    .proposal-card { max-height: 38vh; padding: 1.25rem; }
-    .final-proposal-card { max-height: 40vh; padding: 1.25rem; }
-    .job-meta-card { flex-direction: column; }
-    .job-meta-divider { width: 100%; height: 1px; align-self: auto; }
-    .job-meta-field { padding: 0.9rem 1.25rem; }
-    .review-actions,
+    .proposal-header { flex-direction: column; }
+    .approve-btn { align-self: stretch; text-align: center; }
+
+    .final-layout { max-width: 100%; }
+    .meta-strip { flex-direction: column; }
+    .meta-item { border-right: none; border-bottom: 1px solid rgba(255,255,255,0.06); }
+    .meta-item:last-child { border-bottom: none; }
+
     .final-actions { flex-direction: column-reverse; align-items: stretch; }
     .final-action-group { flex-direction: column-reverse; align-items: stretch; }
-    .rev-actions   { flex-direction: column-reverse; align-items: stretch; }
-    .secondary-btn { text-align: center; }
-    .primary-btn   { justify-content: center; }
+    .btn-secondary, .btn-primary { text-align: center; }
+
+    .rev-actions { flex-direction: column-reverse; align-items: stretch; }
   }
 `

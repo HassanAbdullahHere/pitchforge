@@ -7,13 +7,60 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=JetBrains+Mono:wght@300;400;500&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&display=swap"
       rel="stylesheet"
     />
     <style>
       *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
       html, body, #root { height: 100%; width: 100%; }
-      body { background: #0a0908; overflow-x: hidden; }
+      body {
+        font-family: 'Instrument Sans', sans-serif;
+        overflow-x: hidden;
+      }
+      @keyframes bgShift {
+        0%   { background-position: 20% 25%; }
+        33%  { background-position: 72% 18%; }
+        66%  { background-position: 45% 40%; }
+        100% { background-position: 20% 25%; }
+      }
+
+      /* Fixed atmospheric background — all page content sits above at z-index 1 */
+      body::before {
+        content: '';
+        position: fixed;
+        inset: 0;
+        z-index: 0;
+        /*
+          Light radial at top-center ensures the hero text zone stays pale
+          throughout the full animation cycle. Dark tones are anchored to
+          the bottom corners of the 200%×200% tile and only appear below
+          the fold where there is no text.
+        */
+        background:
+          radial-gradient(ellipse 90% 60% at 50% 0%,   rgba(215,224,208,1.00) 0%, transparent 52%),
+          radial-gradient(ellipse 60% 50% at 10% 100%, rgba(72, 90, 66,0.82)  0%, transparent 48%),
+          radial-gradient(ellipse 60% 50% at 90% 100%, rgba(55, 72, 50,0.78)  0%, transparent 48%),
+          linear-gradient(168deg, #d2dac8 0%, #aab89e 20%, #7d9470 42%, #536049 65%, #3a4732 100%);
+        background-size: 200% 200%;
+        background-position: 20% 25%;
+        animation: bgShift 22s ease-in-out infinite;
+      }
+
+      /* Persistent light wash over the top third — keeps hero text legible
+         no matter which part of the animated gradient is underneath */
+      body::after {
+        content: '';
+        position: fixed;
+        inset: 0;
+        z-index: 0;
+        pointer-events: none;
+        background: linear-gradient(
+          to bottom,
+          rgba(218,225,212,0.38) 0%,
+          rgba(218,225,212,0.18) 40%,
+          transparent            70%
+        );
+      }
     </style>
   </head>
   <body>
