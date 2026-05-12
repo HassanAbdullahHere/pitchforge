@@ -65,23 +65,25 @@ export default function Landing() {
         <div className="hero-frame">
 
         {/* ── Navbar ── */}
-        <nav className="nav">
-          <Logo />
-          <div className="nav-links">
-            <a
-              className="nav-link"
-              href="https://github.com/HassanAbdullahHere/pitchforge"
-              target="_blank"
-              rel="noreferrer"
-            >
-              GitHub
-            </a>
-            <button className="nav-link nav-link-btn" onClick={scrollToHIW}>How It Works</button>
-          </div>
-          <button className="btn-primary nav-cta" onClick={() => navigate('/new')}>
-            Get Started
-          </button>
-        </nav>
+        <div className="nav-wrapper">
+          <nav className="nav">
+            <Logo />
+            <div className="nav-links">
+              <a
+                className="nav-link"
+                href="https://github.com/HassanAbdullahHere/pitchforge"
+                target="_blank"
+                rel="noreferrer"
+              >
+                GitHub
+              </a>
+              <button className="nav-link nav-link-btn" onClick={scrollToHIW}>How It Works</button>
+            </div>
+            <button className="btn-primary nav-cta" onClick={() => navigate('/new')}>
+              Get Started
+            </button>
+          </nav>
+        </div>
 
         {/* ── Hero ── */}
         <main className="hero">
@@ -135,8 +137,31 @@ export default function Landing() {
             ))}
             <div className="metric-card powered-card anim" style={{ '--delay': '380ms' }}>
               <span className="powered-label">Powered by</span>
-              <span className="powered-name">Gemini 2.5 Flash</span>
-              <span className="powered-sub">+ LangGraph Pipeline</span>
+              <div className="powered-badges">
+                <div className="tech-badge">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                    <defs>
+                      <linearGradient id="gem-g" x1="4" y1="2" x2="20" y2="22" gradientUnits="userSpaceOnUse">
+                        <stop offset="0%" stopColor="#4285F4"/>
+                        <stop offset="55%" stopColor="#9B72CB"/>
+                        <stop offset="100%" stopColor="#0F9D58"/>
+                      </linearGradient>
+                    </defs>
+                    <path d="M12 2C11.6 5.8 9.2 9.2 5 11c-.4.2-.4.8 0 1 4.2 1.8 6.6 5.2 7 9 0 .5.7.5.7 0 .5-3.8 2.9-7.2 7-9 .4-.2.4-.8 0-1-4.1-1.8-6.5-5.2-7-9C12.7 1.5 12 1.5 12 2Z" fill="url(#gem-g)"/>
+                  </svg>
+                  <span className="tech-badge-name">Gemini</span>
+                </div>
+                <div className="tech-badge">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                    <circle cx="5" cy="12" r="3" fill="#1C7A4B"/>
+                    <circle cx="19.5" cy="5.5" r="3" fill="#1C7A4B"/>
+                    <circle cx="19.5" cy="18.5" r="3" fill="#1C7A4B"/>
+                    <line x1="7.8" y1="10.8" x2="16.7" y2="6.7" stroke="#1C7A4B" strokeWidth="1.8" strokeLinecap="round"/>
+                    <line x1="7.8" y1="13.2" x2="16.7" y2="17.3" stroke="#1C7A4B" strokeWidth="1.8" strokeLinecap="round"/>
+                  </svg>
+                  <span className="tech-badge-name tech-badge-name-green">LangGraph</span>
+                </div>
+              </div>
             </div>
           </div>
         </main>
@@ -224,14 +249,32 @@ const css = `
     flex-direction: column;
   }
 
+  /* ── Navbar wrapper (sticky band) ── */
+  .nav-wrapper {
+    position: sticky;
+    top: 16px;
+    z-index: 100;
+    display: flex;
+    justify-content: center;
+    padding: 0 24px;
+    pointer-events: none;
+  }
+
   /* ── Navbar ── */
   .nav {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 20px 40px;
-    position: relative;
-    z-index: 10;
+    padding: 12px 20px;
+    width: 100%;
+    max-width: 1400px;
+    background: rgba(255,255,255,0.72);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255,255,255,0.85);
+    border-radius: 100px;
+    box-shadow: 0 4px 24px rgba(30,36,25,0.08), 0 1px 4px rgba(30,36,25,0.04);
+    pointer-events: auto;
   }
 
   .nav-links {
@@ -277,7 +320,8 @@ const css = `
     transition: transform 200ms;
     letter-spacing: -0.01em;
   }
-  .btn-primary:hover { transform: scale(1.02); }
+  .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,0,0,0.22); }
+  .btn-primary:active { transform: translateY(0); box-shadow: none; }
 
   .btn-secondary {
     border-radius: 100px;
@@ -293,7 +337,8 @@ const css = `
     transition: transform 200ms;
     letter-spacing: -0.01em;
   }
-  .btn-secondary:hover { transform: scale(1.02); }
+  .btn-secondary:hover { transform: translateY(-2px); box-shadow: 0 4px 14px rgba(0,0,0,0.10); }
+  .btn-secondary:active { transform: translateY(0); box-shadow: none; }
 
   .btn-lg { padding: 14px 28px; font-size: 15px; }
 
@@ -323,6 +368,7 @@ const css = `
     display: flex;
     flex-direction: column;
     gap: 12px;
+    perspective: 800px;
   }
 
   /* ── Badge pill ── */
@@ -420,6 +466,16 @@ const css = `
     display: flex;
     flex-direction: column;
     gap: 4px;
+    transform-style: preserve-3d;
+    transform: rotateX(0deg) rotateY(0deg) translateZ(0);
+    transition: transform 400ms cubic-bezier(0.23, 1, 0.32, 1), box-shadow 400ms ease;
+    will-change: transform;
+    cursor: default;
+  }
+
+  .metric-card:hover {
+    transform: rotateX(-6deg) rotateY(8deg) translateZ(8px);
+    box-shadow: -6px 16px 40px rgba(0,0,0,0.35), 0 2px 8px rgba(0,0,0,0.2);
   }
 
   .metric-value {
@@ -450,33 +506,45 @@ const css = `
   }
 
   .powered-card {
-    border-color: rgba(122,184,122,0.18);
+    border-color: rgba(255,255,255,0.12);
+    gap: 10px;
   }
 
   .powered-label {
     font-family: var(--font);
-    font-size: 11px;
+    font-size: 10px;
     font-weight: 500;
-    letter-spacing: 0.06em;
+    letter-spacing: 0.1em;
     text-transform: uppercase;
-    color: var(--text-light-muted);
+    color: rgba(255,255,255,0.3);
   }
 
-  .powered-name {
+  .powered-badges {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+  }
+
+  .tech-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(255,255,255,0.07);
+    border: 1px solid rgba(255,255,255,0.10);
+    border-radius: 10px;
+    padding: 7px 12px;
+  }
+
+  .tech-badge-name {
     font-family: var(--font);
-    font-size: 15px;
+    font-size: 13px;
     font-weight: 600;
-    letter-spacing: -0.02em;
-    color: var(--accent);
-    margin-top: 4px;
+    letter-spacing: -0.015em;
+    color: rgba(255,255,255,0.85);
   }
 
-  .powered-sub {
-    font-family: var(--font);
-    font-size: 12px;
-    font-weight: 400;
-    letter-spacing: -0.01em;
-    color: rgba(255,255,255,0.25);
+  .tech-badge-name-green {
+    color: #4ade80;
   }
 
   /* ── How It Works section ── */
@@ -595,7 +663,8 @@ const css = `
 
   /* ── Mobile ── */
   @media (max-width: 768px) {
-    .nav { padding: 16px 20px; }
+    .nav-wrapper { top: 10px; padding: 0 12px; }
+    .nav { padding: 10px 16px; border-radius: 20px; }
     .nav-links { display: none; }
 
     .hero {

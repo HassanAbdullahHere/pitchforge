@@ -74,6 +74,7 @@ export default function GenerateProposal() {
     if (ev === 'node_start') {
       setNodeStates(p => ({ ...p, [data.node]: 'active' }))
       setStatusText(data.label + '…')
+      if (data.node === 'generator') setProposalText('')
     } else if (ev === 'node_complete') {
       setNodeStates(p => ({ ...p, [data.node]: 'done' }))
     } else if (ev === 'token') {
@@ -573,7 +574,8 @@ const css = `
     white-space: nowrap;
     will-change: transform;
   }
-  .btn-primary:hover:not(:disabled) { transform: scale(1.02); }
+  .btn-primary:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,0,0,0.22); }
+  .btn-primary:active:not(:disabled) { transform: translateY(0); box-shadow: none; }
   .btn-primary:disabled { opacity: 0.38; cursor: not-allowed; }
 
   .btn-secondary {
@@ -587,11 +589,12 @@ const css = `
     font-size: 14px;
     font-weight: 500;
     cursor: pointer;
-    transition: transform 200ms;
+    transition: transform 200ms, box-shadow 200ms;
     letter-spacing: -0.01em;
     white-space: nowrap;
   }
-  .btn-secondary:hover { transform: scale(1.02); }
+  .btn-secondary:hover { transform: translateY(-2px); box-shadow: 0 4px 14px rgba(0,0,0,0.10); }
+  .btn-secondary:active { transform: translateY(0); box-shadow: none; }
 
   /* ── Main ── */
   .gp-main {
