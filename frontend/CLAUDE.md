@@ -31,7 +31,14 @@ frontend/
 | `/generate` | `pages/GenerateProposal.jsx` | ✅ done — token streaming, approve/revise flow |
 
 ## SSE Consumption Pattern
-Backend uses POST endpoints, so `EventSource` (GET-only) cannot be used. All streaming pages use:
+Backend uses POST endpoints, so `EventSource` (GET-only) cannot be used. `GenerateProposal.jsx` uses a shared `readSSE` helper:
+```javascript
+// readSSE captures and returns the final 'done' payload
+const doneData = await readSSE(url, payload, onEvent, signal)
+// set quality / final data from doneData AFTER the stream resolves — never from inside onEvent
+```
+
+Raw reader loop used in `AnalyzePipeline.jsx`:
 ```javascript
 const res = await fetch('/api/proposal/...', { method: 'POST', body: JSON.stringify(payload), signal: ctrl.signal })
 const reader = res.body.getReader()
@@ -46,6 +53,9 @@ while (true) {
   for (const frame of frames) { /* parse event + data lines */ }
 }
 ```
+
+## StrictMode
+`<StrictMode>` is intentionally **removed** from `main.jsx`. StrictMode double-invokes every `useEffect` in development, which caused two simultaneous SSE connections per page load — both hitting the same LangGraph thread and burning double tokens. Without StrictMode, `useEffect(() => {...}, [])` fires exactly once. The `AbortController` cleanup still handles navigation-away correctly.
 
 ## JobDetails Validation Rules
 | Field | Rule |

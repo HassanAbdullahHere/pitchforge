@@ -7,6 +7,8 @@ from pitchforge.state import PitchforgeState
 llm = ChatGoogleGenerativeAI(
     model="gemini-2.5-flash",
     google_api_key=os.getenv("GEMINI_API_KEY"),
+    thinking_budget=0,
+    max_output_tokens=800,
     generation_config={"response_mime_type": "application/json"},
 )
 
@@ -14,7 +16,7 @@ def critique_proposal(state: PitchforgeState) -> dict:
     """
     Node 5 — Critic Agent.
 
-    Reads: proposal_draft, job_analysis, profile_matches, iteration_count
+    Reads: proposal_draft, job_analysis, iteration_count
     Writes: critic_feedback, quality_score
     """
 
@@ -22,7 +24,6 @@ def critique_proposal(state: PitchforgeState) -> dict:
     print(f"\n[Node 5] Critiquing proposal draft (iteration {iteration})...")
 
     job = state["job_analysis"]
-    profile = "\n".join(state["profile_matches"])
     draft = state["proposal_draft"]
 
     prompt = f"""
@@ -38,13 +39,14 @@ Budget: {job.get('budget')}
 Timeline: {job.get('timeline')}
 Experience level: {job.get('experience_level')}
 
-AVAILABLE PROFILE EVIDENCE (what the freelancer can legitimately claim):
-{profile}
-
 PROPOSAL UNDER REVIEW:
 {draft}
 
 ITERATION: {state.get('iteration_count', 1)} of 3
+
+CRITICAL: Your entire response must be valid JSON under 750 tokens.
+Keep all string values concise. The feedback field must be under 150 words.
+Never use newlines inside JSON string values — use spaces instead.
 
 Evaluate against these criteria and return ONLY valid JSON.
 No explanation. No markdown. No code fences.
@@ -59,7 +61,7 @@ No explanation. No markdown. No code fences.
     "tone": <0-20>,
     "closing": <0-20>
   }},
-  "feedback": "<see feedback rules below>",
+  "feedback": "<specific issues — maximum 150 words total, no more>",
   "passed_elements": ["<list what actually works — be specific>"],
   "failed_elements": ["<list exact phrases or sentences that are weak — quote them>"]
 }}
@@ -124,10 +126,21 @@ On iteration 3: if score >= 55, return PASS regardless — avoid infinite loop o
 """
 
     response = llm.invoke([HumanMessage(content=prompt)])
+    if hasattr(response, 'usage_metadata') and response.usage_metadata:
+        print(f"[Node 5 critic] tokens — input: {response.usage_metadata.get('input_tokens')} | output: {response.usage_metadata.get('output_tokens')}")
 
     try:
-        result = json.loads(response.content.strip())
-    except Exception:
+        raw = response.content
+        if isinstance(raw, list):
+            raw = "".join(p.get("text", "") if isinstance(p, dict) else str(p) for p in raw)
+        raw = raw.strip()
+        if "```" in raw:
+            raw = raw.split("```")[1]
+            if raw.startswith("json"):
+                raw = raw[4:]
+        result = json.loads(raw.strip())
+    except Exception as e:
+        print(f"[Node 5] JSON parse failed: {e} — raw: {response.content!r:.200}")
         result = {"quality_score": 60, "feedback": "Could not parse critic response.", "verdict": "PASS", "scores": {}}
 
     quality_score = int(result.get("quality_score", 60))

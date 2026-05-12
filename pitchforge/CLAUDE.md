@@ -30,9 +30,9 @@ pitchforge/
 | 3 scorer | job_analysis, profile_matches | fit_score, suggested_price, matched_skills, missing_skills |
 | 3.5 fit_checkpoint | fit_score, suggested_price, job_analysis | should_apply |
 | 4 generator | job_analysis, profile_matches, fit_score, suggested_price, critic_feedback, human_feedback, iteration_count | proposal_draft, iteration_count |
-| 5 critic | proposal_draft, job_analysis, profile_matches, iteration_count | critic_feedback, quality_score |
+| 5 critic | proposal_draft, job_analysis, iteration_count | critic_feedback, quality_score |
 | 6 human_checkpoint | proposal_draft, quality_score, job_analysis, iteration_count | human_approved, human_feedback, is_human_revision |
-| 7 final_compiler *(todo)* | proposal_draft, job_analysis, suggested_price | final_proposal |
+| 7 compiler | proposal_draft | final_proposal |
 
 ---
 
@@ -80,6 +80,38 @@ FlashRank model is downloaded on first run (~3MB) and cached by the library.
 
 ---
 
+## LLM Configuration (all nodes)
+Every `ChatGoogleGenerativeAI` instance must include:
+```python
+thinking_budget=0       # disables thinking mode — billed at $3.50/1M vs $0.075/1M
+max_output_tokens=N     # per-node caps — see below
+```
+
+| Node | max_output_tokens | Reason |
+|------|------------------|--------|
+| analyzer | 400 | small JSON blob |
+| scorer | 400 | small JSON blob |
+| generator | 700 | 320-word proposal ≈ 430 tokens |
+| critic | 800 | JSON with feedback — 600 caused truncation |
+
+Token logging is active on all nodes — after every `llm.invoke()`:
+```python
+if hasattr(response, 'usage_metadata') and response.usage_metadata:
+    print(f"[Node X] tokens — input: {response.usage_metadata.get('input_tokens')} | output: {response.usage_metadata.get('output_tokens')}")
+```
+
+---
+
+## Critic Notes
+- **Profile chunks are NOT passed to the critic** — saves ~1,800 tokens/call. The critic evaluates the draft against job requirements only; the proposal already embeds whatever evidence matters.
+- Feedback field is capped at 150 words in the prompt schema. The prompt opens with a `CRITICAL:` token-budget instruction before the JSON schema to prevent mid-JSON truncation.
+- JSON parse handles both plain string and list-of-parts `response.content` (Gemini sometimes returns the latter when thinking is disabled).
+
+## Compiler Notes
+- Node 7 returns `proposal_draft` as `final_proposal` with no wrapper. The `=== PROPOSAL ===` header was removed — it was noise that the frontend had to display as-is.
+
+---
+
 ## Rules
 1. Build and test one node at a time
 2. Never modify `state.py` without checking all existing nodes
@@ -87,3 +119,4 @@ FlashRank model is downloaded on first run (~3MB) and cached by the library.
 4. One node per file — single responsibility
 5. `graph.py` owns all wiring — nodes, edges, checkpointer
 6. `main.py` is only the entry point — no business logic
+7. Never remove `thinking_budget=0` or `max_output_tokens` from any LLM instance

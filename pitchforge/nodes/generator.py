@@ -6,6 +6,8 @@ from pitchforge.state import PitchforgeState
 llm = ChatGoogleGenerativeAI(
     model="gemini-2.5-flash",
     google_api_key=os.getenv("GEMINI_API_KEY"),
+    thinking_budget=0,
+    max_output_tokens=700,
     streaming=True,
 )
 
@@ -120,6 +122,8 @@ If a sentence does neither — cut it.
 """
 
     response = llm.invoke([HumanMessage(content=prompt)])
+    if hasattr(response, 'usage_metadata') and response.usage_metadata:
+        print(f"[Node 4 generator] tokens — input: {response.usage_metadata.get('input_tokens')} | output: {response.usage_metadata.get('output_tokens')}")
 
     proposal_draft = response.content.strip()
 

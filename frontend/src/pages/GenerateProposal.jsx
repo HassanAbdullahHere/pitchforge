@@ -22,6 +22,7 @@ async function readSSE(url, payload, onEvent, signal) {
   const reader = res.body.getReader()
   const dec = new TextDecoder()
   let buf = ''
+  let doneData = null
   while (true) {
     const { done, value } = await reader.read()
     if (done) break
@@ -38,9 +39,11 @@ async function readSSE(url, payload, onEvent, signal) {
         }
       }
       if (!data) continue
+      if (ev === 'done') doneData = data
       onEvent(ev, data)
     }
   }
+  return doneData
 }
 
 export default function GenerateProposal() {
@@ -61,7 +64,7 @@ export default function GenerateProposal() {
   const [copied, setCopied]             = useState(false)
   const [feedbackOpen, setFeedbackOpen] = useState(false)
 
-  const ctrlRef = useRef(null)
+  const ctrlRef  = useRef(null)
   const draftRef = useRef(null)
 
   useEffect(() => {
@@ -80,11 +83,6 @@ export default function GenerateProposal() {
     } else if (ev === 'token') {
       setProposalText(p => p + data.token)
     } else if (ev === 'done' && data.proposal_draft !== undefined) {
-      setQuality({
-        score: data.quality_score,
-        feedback: data.critic_feedback,
-        iterationCount: data.iteration_count,
-      })
       setPhase('reviewing')
     } else if (ev === 'error') {
       setErrorMsg(data.message)
@@ -96,7 +94,14 @@ export default function GenerateProposal() {
     const ctrl = new AbortController()
     ctrlRef.current = ctrl
     try {
-      await readSSE(url, payload, handleEvents, ctrl.signal)
+      const doneData = await readSSE(url, payload, handleEvents, ctrl.signal)
+      if (doneData?.proposal_draft !== undefined) {
+        setQuality({
+          score: doneData.quality_score,
+          feedback: doneData.critic_feedback,
+          iterationCount: doneData.iteration_count,
+        })
+      }
     } catch (err) {
       if (err.name === 'AbortError') return
       setErrorMsg(err.message || 'Something went wrong')

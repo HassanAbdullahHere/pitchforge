@@ -86,7 +86,7 @@ class PitchforgeState(TypedDict):
 | Status | Item |
 |--------|------|
 | ✅ | Nodes 1–6 (analyzer, retriever, scorer, fit_checkpoint, generator, critic, human_checkpoint) |
-| ✅ | Node 7 — final compiler |
+| ✅ | Node 7 — compiler (returns proposal_draft as final_proposal, no wrapper) |
 | ✅ | graph.py — full StateGraph wiring |
 | ✅ | backend runner.py — async SSE streaming via `astream_events` |
 | ✅ | backend schemas.py |
@@ -95,6 +95,15 @@ class PitchforgeState(TypedDict):
 | ✅ | Frontend: Job Details form (`/new`) — with enhanced validation |
 | ✅ | Frontend: Analysis Pipeline page (`/analyze`) — animated pipeline + fit score result |
 | ✅ | Frontend: Generate Proposal page (`/generate`) — token streaming + approve/revise flow |
+
+## Token Cost Profile
+Gemini 2.5 Flash — non-thinking mode (`thinking_budget=0` on all nodes):
+- Input: $0.075/1M tokens · Output: $0.30/1M tokens
+- Typical run (2 auto-iterations): ~$0.0013
+- Worst-case auto run (3 iterations): ~$0.0019
+- With 2 human revisions: ~$0.0027
+
+Key optimisations in place: thinking disabled, per-node output caps, critic no longer receives profile chunks (saves ~1,800 tokens/critic call).
 
 ---
 
