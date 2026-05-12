@@ -1,13 +1,13 @@
 import os
 import json
-import re
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.messages import HumanMessage
 from pitchforge.state import PitchforgeState
 
 llm = ChatGoogleGenerativeAI(
     model="gemini-2.5-flash",
-    google_api_key=os.getenv("GEMINI_API_KEY")
+    google_api_key=os.getenv("GEMINI_API_KEY"),
+    generation_config={"response_mime_type": "application/json"},
 )
 
 def critique_proposal(state: PitchforgeState) -> dict:
@@ -124,26 +124,14 @@ On iteration 3: if score >= 55, return PASS regardless — avoid infinite loop o
 """
 
     response = llm.invoke([HumanMessage(content=prompt)])
-    raw = response.content.strip()
 
-    # Strip markdown code fences if present
-    if raw.startswith("```"):
-        raw = raw.split("```")[1]
-        if raw.startswith("json"):
-            raw = raw[4:]
-        raw = raw.strip()
+    try:
+        result = json.loads(response.content.strip())
+    except Exception:
+        result = {"quality_score": 60, "feedback": "Could not parse critic response.", "verdict": "PASS", "scores": {}}
 
-    # Escape literal control chars inside JSON string values (LLM sometimes emits raw newlines)
-    raw = re.sub(
-        r'"((?:[^"\\]|\\.)*)"',
-        lambda m: '"' + m.group(1).replace('\n', '\\n').replace('\r', '\\r').replace('\t', '\\t') + '"',
-        raw,
-    )
-
-    result = json.loads(raw)
-
-    quality_score = int(result["quality_score"])
-    feedback = result["feedback"]
+    quality_score = int(result.get("quality_score", 60))
+    feedback = result.get("feedback", "")
     verdict = result.get("verdict", "PASS" if quality_score >= 70 else "FAIL")
     scores = result.get("scores", {})
 

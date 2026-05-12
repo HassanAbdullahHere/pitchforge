@@ -53,17 +53,26 @@ export default function JobDetails() {
     const title = form.title.trim()
     if (!title) errs.title = 'Job title is required'
     else if (title.length < 5) errs.title = 'Job title must be at least 5 characters'
+    else if (title.split(/\s+/).filter(Boolean).length < 3) errs.title = 'Job title must be at least 3 words'
     else if (title.length > 150) errs.title = 'Job title is too long'
 
     const desc = form.description.trim()
     if (!desc) errs.description = 'Paste the full job posting'
     else if (desc.length < 150) errs.description = 'Paste the full job posting — at least 150 characters'
+    else if (desc.length > 8000) errs.description = 'Job posting is too long — max 8 000 characters'
 
-    if (form.budget.trim() && (isNaN(Number(form.budget)) || Number(form.budget) <= 0))
-      errs.budget = 'Enter a valid budget amount'
+    if (form.budget.trim()) {
+      const budgetVal = Number(form.budget)
+      if (isNaN(budgetVal) || budgetVal <= 0) errs.budget = 'Enter a valid budget amount'
+      else if (budgetVal > 1_000_000) errs.budget = 'Budget seems unrealistically high'
+    }
 
-    if (form.timeline.trim() && (isNaN(Number(form.timeline)) || Number(form.timeline) <= 0))
-      errs.timeline = 'Enter a valid timeline'
+    if (form.timeline.trim()) {
+      const timelineVal = Number(form.timeline)
+      if (isNaN(timelineVal) || timelineVal <= 0) errs.timeline = 'Enter a valid timeline'
+      else if (form.timelineUnit === 'Weeks' && timelineVal > 104) errs.timeline = 'Timeline exceeds 2 years'
+      else if (form.timelineUnit === 'Months' && timelineVal > 24) errs.timeline = 'Timeline exceeds 2 years'
+    }
 
     if (Object.keys(errs).length) {
       setErrors(errs)
@@ -230,7 +239,7 @@ export default function JobDetails() {
                   <div className="textarea-header">
                     <label className="field-label">Job Posting</label>
                     <div className="textarea-meta">
-                      <span className="char-count">{form.description.length} chars</span>
+                      <span className={`char-count${form.description.length > 7500 ? ' char-count--warn' : ''}`}>{form.description.length} / 8 000</span>
                       {form.description && (
                         <button
                           className="clear-btn"
@@ -627,6 +636,11 @@ const css = `
     font-weight: 400;
     letter-spacing: 0.02em;
     color: var(--text-muted);
+    transition: color 0.2s;
+  }
+  .char-count--warn {
+    color: #e8793a;
+    font-weight: 600;
   }
   .clear-btn {
     font-family: var(--font);

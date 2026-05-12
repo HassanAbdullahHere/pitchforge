@@ -1,14 +1,14 @@
 from typing import Optional, Literal
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 # --- Request Models ---
 
 class JobInputRequest(BaseModel):
-    title: str
-    description: str
-    budget: str
-    timeline: str
+    title: str = Field(..., min_length=5, max_length=150)
+    description: str = Field(..., min_length=150, max_length=8000)
+    budget: str = Field("", max_length=30)
+    timeline: str = Field("", max_length=20)
     level: str
     platform: str
 
