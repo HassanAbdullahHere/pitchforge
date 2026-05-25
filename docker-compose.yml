@@ -1,0 +1,22 @@
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    container_name: pitchforge_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USER:-pitchforge}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-pitchforge_dev}
+      POSTGRES_DB: ${DB_NAME:-pitchforge}
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-pitchforge} -d ${DB_NAME:-pitchforge}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:
+    driver: local

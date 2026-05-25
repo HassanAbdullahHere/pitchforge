@@ -9,12 +9,13 @@
 ## Files
 ```
 frontend/
+├── .env.example            # Template: VITE_API_BASE_URL (for production builds)
 ├── package.json
-├── vite.config.js       # Dev server on :5173, proxies /api → localhost:8000
-├── index.html           # Loads Google Fonts, mounts #root
+├── vite.config.js          # Dev server on :5173, proxies /api → localhost:8000
+├── index.html              # Loads Google Fonts, mounts #root
 └── src/
     ├── main.jsx
-    ├── App.jsx           # BrowserRouter + Routes
+    ├── App.jsx             # BrowserRouter + Routes
     └── pages/
         ├── Landing.jsx           # Entry page — hero, sparks, process strip, CTA
         ├── JobDetails.jsx        # Job form with enhanced validation → navigates to /analyze
@@ -81,10 +82,13 @@ All defined as CSS custom properties in `Landing.jsx` (and future pages):
 ```
 
 ## API
-Backend runs on `http://localhost:8000`. Vite proxies `/api/*` → backend, so all fetch calls use `/api/...` — no hardcoded ports in component code.
+- **Dev:** Vite proxies `/api/*` → `http://localhost:8000`. All fetch calls use relative `/api/...` paths.
+- **Production:** Set `VITE_API_BASE_URL` in `frontend/.env` and update `vite.config.js` proxy target accordingly.
+- **Never hardcode `localhost:8000`** in component code — always use relative `/api/` paths.
 
 ## Rules
 1. Each page owns its styles as a `css` template literal passed to a `<style>` tag — no separate `.css` files unless the project grows to need them
 2. Never hardcode `localhost:8000` in components — always use relative `/api/` paths
 3. New pages go in `src/pages/`, shared components in `src/components/` (create when needed)
 4. Run with: `npm run dev` from `frontend/`
+5. Never commit real API keys or backend URLs to frontend source — use `VITE_*` env vars

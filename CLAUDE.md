@@ -3,14 +3,18 @@
 ## What This Is
 AI pipeline that takes a job posting (Upwork, Freelancer, etc.) and produces a personalized proposal. Uses RAG to pull relevant experience, scores job fit, generates a draft, critiques and refines in a loop, then outputs a final approved proposal.
 
+Built as a **product** — all changes must follow the production rules at the bottom of this file.
+
 ---
 
 ## Monorepo Structure
 ```
 PitchForge/
-├── pitchforge/   # LangGraph core pipeline  → see pitchforge/CLAUDE.md
-├── backend/      # FastAPI middle layer      → see backend/CLAUDE.md
-├── frontend/     # React + Vite UI           → see frontend/CLAUDE.md
+├── pitchforge/        # LangGraph core pipeline  → see pitchforge/CLAUDE.md
+├── backend/           # FastAPI middle layer      → see backend/CLAUDE.md
+├── frontend/          # React + Vite UI           → see frontend/CLAUDE.md
+├── docker-compose.yml # PostgreSQL (pgvector) container
+├── .env.example       # Docker Compose env var template
 └── CLAUDE.md
 ```
 
@@ -22,9 +26,12 @@ PitchForge/
 | Orchestration | LangGraph |
 | LLM | Gemini 2.5 Flash |
 | Embeddings | Google gemini-embedding-2-preview |
-| Vector store | ChromaDB (local, persistent) |
-| Retrieval | Hybrid BM25 + ChromaDB vector, RRF fusion, FlashRank re-ranking |
+| Vector store | ChromaDB (local) → **pgvector migration in progress** |
+| Retrieval | Hybrid BM25 + vector, RRF fusion, FlashRank re-ranking |
 | LLM wrapper | LangChain Google GenAI |
+| Database | PostgreSQL 16 via Docker (`pgvector/pgvector:pg16`) |
+| ORM | SQLAlchemy 2.0 (async) + asyncpg driver |
+| Migrations | Alembic |
 | Backend | FastAPI |
 | Frontend | React 18 + Vite |
 | Dependency mgmt | uv (Python), npm (JS) |
@@ -85,16 +92,21 @@ class PitchforgeState(TypedDict):
 ## Build Status
 | Status | Item |
 |--------|------|
-| ✅ | Nodes 1–6 (analyzer, retriever, scorer, fit_checkpoint, generator, critic, human_checkpoint) |
-| ✅ | Node 7 — compiler (returns proposal_draft as final_proposal, no wrapper) |
+| ✅ | Nodes 1–7 (analyzer, retriever, scorer, fit_checkpoint, generator, critic, human_checkpoint, compiler) |
 | ✅ | graph.py — full StateGraph wiring |
 | ✅ | backend runner.py — async SSE streaming via `astream_events` |
 | ✅ | backend schemas.py |
 | ✅ | backend routers/proposals.py + main.py |
+| ✅ | PostgreSQL container (Docker) + pgvector image |
+| ✅ | SQLAlchemy async engine + session factory (`database.py`) |
+| ✅ | Proposals table + Alembic migrations wired |
 | ✅ | Frontend: Landing page (`/`) |
 | ✅ | Frontend: Job Details form (`/new`) — with enhanced validation |
 | ✅ | Frontend: Analysis Pipeline page (`/analyze`) — animated pipeline + fit score result |
 | ✅ | Frontend: Generate Proposal page (`/generate`) — token streaming + approve/revise flow |
+| 🔜 | ChromaDB → pgvector migration (Step 2) |
+
+---
 
 ## Token Cost Profile
 Gemini 2.5 Flash — non-thinking mode (`thinking_budget=0` on all nodes):
@@ -103,24 +115,71 @@ Gemini 2.5 Flash — non-thinking mode (`thinking_budget=0` on all nodes):
 - Worst-case auto run (3 iterations): ~$0.0019
 - With 2 human revisions: ~$0.0027
 
-Key optimisations in place: thinking disabled, per-node output caps, critic no longer receives profile chunks (saves ~1,800 tokens/critic call).
+Key optimisations: thinking disabled, per-node output caps, critic no longer receives profile chunks (saves ~1,800 tokens/critic call).
 
 ---
 
 ## How to Run
+
+### Prerequisites
+- Docker Desktop running
+- `uv` installed (Python), `npm` installed (JS)
+
 ```bash
-# One-time RAG setup
+# 1. Start the database (first time or after docker-compose down)
+docker-compose up -d
+
+# 2. One-time RAG setup (only if pitchforge/chromadb/ doesn't exist)
 cd pitchforge && uv run setup_rag.py
 
-# LangGraph pipeline (direct)
-cd pitchforge && uv run main.py
+# 3. Apply DB migrations (first time or after schema changes)
+cd backend && uv run alembic upgrade head
 
-# FastAPI backend (must use uv)
+# 4. FastAPI backend
 cd backend && uv run uvicorn app.main:app --reload
 
-# Frontend dev server
+# 5. Frontend dev server
 cd frontend && npm run dev
 ```
 
-## Environment
-`pitchforge/.env` → `GEMINI_API_KEY=your_key_here`
+---
+
+## Environment Variables
+
+Each layer has its own `.env` (gitignored). Copy from `.env.example` to get started.
+
+| File | Variables |
+|------|-----------|
+| `.env` (root) | `DB_USER`, `DB_PASSWORD`, `DB_NAME`, `DB_PORT` — Docker Compose |
+| `backend/.env` | `GEMINI_API_KEY`, `DATABASE_URL`, `CORS_ORIGINS` |
+| `pitchforge/.env` | `GEMINI_API_KEY` |
+
+---
+
+## Production Rules
+
+These rules apply to every change in this codebase. This is a product, not a prototype.
+
+### Secrets & Config
+1. **Never hardcode credentials, API keys, or URLs** in source code — always use environment variables via `os.getenv()` or `os.environ`
+2. **Never commit `.env` files** — they are gitignored; provide `.env.example` with placeholder values
+3. **Never hardcode `localhost`** in runtime code — use env vars for service URLs (CORS origins, DB host, etc.)
+4. All secrets in `.env.example` must use placeholder values like `your_key_here`, never real values
+5. **Secret management upgrade path** — local `.env` is fine for dev; use platform env vars (Render/Railway dashboard) for first deploy; migrate to Doppler or Infisical when the team grows or multiple environments are needed
+
+### Database
+5. **All schema changes must go through Alembic** — never run raw `ALTER TABLE` or `CREATE TABLE` manually against the DB
+6. Every model change = new migration: `alembic revision --autogenerate -m "describe_change"` then `alembic upgrade head`
+7. Migrations must be reversible — always implement `downgrade()` in migration files
+8. Never set `echo=True` on the SQLAlchemy engine in production — it logs all SQL including values
+
+### Code Quality
+9. **No `--reload` flag in production** — only use it in dev (`uv run uvicorn app.main:app --reload`)
+10. All new API endpoints must have a corresponding Pydantic request/response model in `schemas.py`
+11. No business logic in routers — routers call runner functions only
+12. No direct graph calls outside `runner.py`
+
+### Dependencies
+13. Always use `uv` (not `pip`) for Python dependency management in this project
+14. Pin new dependencies with minimum version (`>=`) not exact (`==`) to allow patch updates
+15. Run `uv sync` after any `pyproject.toml` change

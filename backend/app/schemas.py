@@ -55,5 +55,6 @@ class FinalResponse(BaseModel):
 
 class HealthResponse(BaseModel):
     status: str
+    db_connected: bool
     chromadb_connected: bool
     gemini_reachable: bool
