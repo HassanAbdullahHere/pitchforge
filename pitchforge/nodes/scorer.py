@@ -49,35 +49,38 @@ Hourly range:  $15–$40/hr
 Fixed minimum: $500
 Use the rate card only when the client has stated no budget. When a budget IS stated, anchor to the budget first.
 
+━━━ MANDATORY PRE-STEP — CLASSIFY SKILLS FIRST, EVALUATE SECOND ━━━
+Before writing any JSON, you must mentally sort every skill in the job posting into exactly one tier:
+
+  REQUIRED   — stated as necessary with no qualifier ("must", "required", "you will need", bare list items)
+  PREFERRED  — softened language: "bonus", "nice to have", "a plus", "ideally", "familiarity with", "experience with X is a plus"
+  IMPLICIT   — not stated but obviously needed to deliver the scope (e.g. a FastAPI project implicitly needs Python)
+
+HARD RULE: PREFERRED skills are permanently discarded after this step.
+They must not appear in matched_skills, missing_skills, fit_reasoning, or affect fit_score in any way.
+Treat them as if they do not exist in the job posting.
+
+Only REQUIRED and IMPLICIT skills proceed to evaluation below.
+
 ━━━ OUTPUT FORMAT ━━━
 Return ONLY valid JSON matching this exact schema. No markdown, no code fences, no explanation.
 
 {{
   "fit_score": <integer 0–100>,
   "fit_reasoning": "<2 sentences — name specific matched skills and name any critical gaps. Be direct.>",
-  "matched_skills": ["<skill>"],
-  "missing_skills": ["<skill>"],
+  "matched_skills": ["<REQUIRED or IMPLICIT skill confirmed in profile — no PREFERRED skills ever>"],
+  "missing_skills": ["<REQUIRED or IMPLICIT skill absent from profile — no PREFERRED skills ever>"],
   "suggested_price": "<price string — see pricing rules>",
   "pricing_reasoning": "<1–2 sentences — explain why this price, referencing the client budget and scope>"
 }}
 
-━━━ STEP 1 — CLASSIFY SKILLS BEFORE EVALUATING ━━━
-Before any matching or scoring, sort every skill mentioned in the job into one of three tiers:
-
-  REQUIRED   — explicitly stated as necessary ("must have", "required", "you will need", or listed with no qualifier)
-  PREFERRED  — softened language ("bonus", "nice to have", "plus", "ideally", "familiarity with", "experience with X is a plus")
-  IMPLICIT   — not stated but obviously necessary to deliver the described scope (e.g. a REST API project implicitly requires HTTP knowledge)
-
-Rules that follow apply ONLY to REQUIRED and IMPLICIT skills.
-PREFERRED skills must be discarded entirely — they must not appear in matched_skills, missing_skills, or influence fit_score.
-
-━━━ STEP 2 — SKILL MATCHING RULES ━━━
-Apply these strictly — do not over-penalise the freelancer:
+━━━ SKILL MATCHING RULES ━━━
+Apply to REQUIRED and IMPLICIT skills only:
 
 1. MATCHED: skill exists in the profile, even implicitly (e.g. "REST API" matches if profile shows API development work)
 2. MATCHED: adjacent/equivalent technology counts (e.g. "PostgreSQL" matches general DB experience; "Node.js" matches if profile shows Express/NestJS)
 3. MISSING: only mark a skill missing if there is NO related experience anywhere in the profile
-4. Do not penalise the freelancer for tools they likely know but weren't mentioned in the profile chunks provided
+4. Do not penalise the freelancer for tools they likely know but the profile chunks don't explicitly mention
 
 ━━━ SCORING RUBRIC ━━━
 80–100 — Strong match: nearly all required skills present, scope aligns with demonstrated experience
