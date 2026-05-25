@@ -66,7 +66,7 @@ chunks.append({
 })
 
 # Connect to PostgreSQL and register pgvector type adapter
-conn = psycopg2.connect(os.environ["DATABASE_URL"])
+conn = psycopg2.connect(os.environ["DATABASE_URL_SYNC"])
 register_vector(conn)  # must be called after connect, before any vector ops
 cur = conn.cursor()
 

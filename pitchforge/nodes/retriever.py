@@ -33,7 +33,7 @@ def _get_conn():
     """Return a cached psycopg2 connection with pgvector type registered."""
     global _conn
     if _conn is None or _conn.closed:
-        _conn = psycopg2.connect(os.environ["DATABASE_URL"])
+        _conn = psycopg2.connect(os.environ["DATABASE_URL_SYNC"])
         register_vector(_conn)  # must be called on every new connection
     return _conn
 
