@@ -1,28 +1,25 @@
 import os
-import json
 from pathlib import Path
 
 from dotenv import load_dotenv
 load_dotenv(Path(__file__).parent.parent / ".env")
 
 import numpy as np
-import chromadb
+import psycopg2
+from pgvector.psycopg2 import register_vector
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
 from rank_bm25 import BM25Okapi
 from flashrank import Ranker, RerankRequest
 
 from pitchforge.state import PitchforgeState
 
-_CHROMA_PATH = str(Path(__file__).parent.parent / "chromadb")
-_CORPUS_PATH = Path(__file__).parent.parent / "chromadb" / "bm25_corpus.json"
-
 embeddings = GoogleGenerativeAIEmbeddings(
     model="gemini-embedding-2-preview",
     google_api_key=os.getenv("GEMINI_API_KEY")
 )
 
-_client = None
-_collection = None
+# Lazy-loaded globals — DB connection replaces ChromaDB client/collection
+_conn = None
 _bm25 = None
 _corpus_texts = None
 _corpus_ids = None
@@ -32,20 +29,26 @@ _N_CANDIDATES = 6
 _N_FINAL = 4
 
 
-def _get_collection():
-    global _client, _collection
-    if _collection is None:
-        _client = chromadb.PersistentClient(path=_CHROMA_PATH)
-        _collection = _client.get_collection("freelancer_profile")
-    return _collection
+def _get_conn():
+    """Return a cached psycopg2 connection with pgvector type registered."""
+    global _conn
+    if _conn is None or _conn.closed:
+        _conn = psycopg2.connect(os.environ["DATABASE_URL"])
+        register_vector(_conn)  # must be called on every new connection
+    return _conn
 
 
 def _get_bm25():
+    """Load BM25 corpus from DB on first call, cache globally."""
     global _bm25, _corpus_texts, _corpus_ids
     if _bm25 is None:
-        corpus = json.loads(_CORPUS_PATH.read_text())
-        _corpus_ids = [c["id"] for c in corpus]
-        _corpus_texts = [c["text"] for c in corpus]
+        conn = _get_conn()
+        cur = conn.cursor()
+        cur.execute("SELECT id, text FROM profile_chunks ORDER BY id")
+        rows = cur.fetchall()
+        cur.close()
+        _corpus_ids = [row[0] for row in rows]
+        _corpus_texts = [row[1] for row in rows]
         _bm25 = BM25Okapi([t.lower().split() for t in _corpus_texts])
     return _bm25
 
@@ -67,12 +70,12 @@ def _rrf_fuse(ranked_lists: list[list[str]], k: int = 60) -> list[str]:
 
 def retrieve_profile(state: PitchforgeState) -> dict:
     """
-    Node 2 — Hybrid RAG retrieval: BM25 + vector search, RRF fusion, FlashRank re-ranking.
+    Node 2 — Hybrid RAG retrieval: BM25 + pgvector search, RRF fusion, FlashRank re-ranking.
 
     Reads:  state["job_analysis"]
     Writes: state["profile_matches"]
     """
-    print("\n[Node 2] Hybrid retrieval: BM25 + vector + re-ranking...")
+    print("\n[Node 2] Hybrid retrieval: BM25 + pgvector + re-ranking...")
 
     job = state["job_analysis"]
     query = (
@@ -81,29 +84,34 @@ def retrieve_profile(state: PitchforgeState) -> dict:
         f"Experience level: {job.get('experience_level', '')}."
     )
 
-    # 1. BM25 keyword retrieval
+    # 1. BM25 keyword retrieval (corpus loaded from DB on first call)
     bm25 = _get_bm25()
     bm25_scores = bm25.get_scores(query.lower().split())
     bm25_ids = [_corpus_ids[i] for i in np.argsort(bm25_scores)[::-1][:_N_CANDIDATES]]
     print(f"  BM25 top IDs: {bm25_ids}")
 
-    # 2. ChromaDB vector retrieval
-    collection = _get_collection()
-    vec_results = collection.query(
-        query_embeddings=[embeddings.embed_query(query)],
-        n_results=min(_N_CANDIDATES, collection.count()),
-        include=["documents"]
+    # 2. pgvector cosine similarity search
+    # <=> is cosine distance — correct for Gemini's L2-normalized embeddings
+    query_vector = np.array(embeddings.embed_query(query), dtype=np.float32)
+    conn = _get_conn()
+    cur = conn.cursor()
+    cur.execute(
+        "SELECT id, text FROM profile_chunks ORDER BY embedding <=> %s LIMIT %s",
+        (query_vector, _N_CANDIDATES)
     )
-    vec_ids = vec_results["ids"][0]
+    vec_rows = cur.fetchall()
+    cur.close()
+    vec_ids = [row[0] for row in vec_rows]
+    vec_id_to_text = {row[0]: row[1] for row in vec_rows}
     print(f"  Vector top IDs: {vec_ids}")
 
     # 3. RRF fusion
     fused_ids = _rrf_fuse([bm25_ids, vec_ids])
     print(f"  RRF fused order: {fused_ids}")
 
-    # Build id→text map (BM25 corpus as base, ChromaDB docs override)
+    # Build id→text map (BM25 corpus as base, vector results override)
     id_to_text = dict(zip(_corpus_ids, _corpus_texts))
-    id_to_text.update(zip(vec_results["ids"][0], vec_results["documents"][0]))
+    id_to_text.update(vec_id_to_text)
     fused_passages = [id_to_text[i] for i in fused_ids if i in id_to_text]
 
     # 4. FlashRank cross-encoder re-ranking

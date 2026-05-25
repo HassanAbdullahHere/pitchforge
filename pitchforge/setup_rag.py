@@ -1,81 +1,95 @@
+"""
+setup_rag.py — One-time script: chunks profile.json and upserts into
+the PostgreSQL profile_chunks table.
+
+Run from pitchforge/ directory:
+    uv run python setup_rag.py
+
+Prerequisites:
+    - Docker container running (docker-compose up -d from project root)
+    - Alembic migrations applied (cd backend && uv run alembic upgrade head)
+    - DATABASE_URL and GEMINI_API_KEY set in pitchforge/.env
+"""
+
 import os
 import json
-import chromadb
-from langchain_google_genai import GoogleGenerativeAIEmbeddings
+from pathlib import Path
+
+import numpy as np
+import psycopg2
 from dotenv import load_dotenv
+from langchain_google_genai import GoogleGenerativeAIEmbeddings
+from pgvector.psycopg2 import register_vector
 
-load_dotenv()
-
-# Initializing ChromaDB
-client = chromadb.PersistentClient(path="./chromadb")
-
+load_dotenv(Path(__file__).parent / ".env")
 
 embeddings = GoogleGenerativeAIEmbeddings(
     model="gemini-embedding-2-preview",
     google_api_key=os.getenv("GEMINI_API_KEY")
 )
 
-# Load profile
-with open("profile/profile.json", "r") as f:
+# Load profile from absolute path — works regardless of cwd
+with open(Path(__file__).parent / "profile" / "profile.json", "r") as f:
     profile = json.load(f)
 
-# Smaller chunks = more precise retrieval
+# Build chunks — same structure as before
 chunks = []
 
-# Skills chunk
 chunks.append({
     "id": "skills",
     "text": f"Skills: {', '.join(profile['skills'])}"
 })
 
-# Each project as separate chunk
 for i, project in enumerate(profile["projects"]):
     chunks.append({
         "id": f"project_{i}",
         "text": f"Project: {project['name']}. {project['description']}. Tech: {', '.join(project['tech'])}"
     })
 
-# Experience chunks
 for i, exp in enumerate(profile["experience"]):
     chunks.append({
         "id": f"experience_{i}",
         "text": f"Experience: {exp}"
     })
 
-# Niches chunk
 chunks.append({
     "id": "niches",
     "text": f"Specializes in: {', '.join(profile['niches'])}"
 })
 
-# Rates chunk
 chunks.append({
     "id": "rates",
-    "text": f"Hourly rate: ${profile['rates']['hourly_min']}-${profile['rates']['hourly_max']}. Minimum fixed: ${profile['rates']['fixed_min']}"
+    "text": (
+        f"Hourly rate: ${profile['rates']['hourly_min']}-${profile['rates']['hourly_max']}. "
+        f"Minimum fixed: ${profile['rates']['fixed_min']}"
+    )
 })
 
-# Create or reset collection
-try:
-    client.delete_collection("freelancer_profile")
-except:
-    pass
+# Connect to PostgreSQL and register pgvector type adapter
+conn = psycopg2.connect(os.environ["DATABASE_URL"])
+register_vector(conn)  # must be called after connect, before any vector ops
+cur = conn.cursor()
 
-collection = client.create_collection("freelancer_profile")
+print(f"Upserting {len(chunks)} chunks into profile_chunks...")
 
-# Embed and store each chunk
-print("Indexing profile into ChromaDB...")
 for chunk in chunks:
-    vector = embeddings.embed_query(chunk["text"])
-    collection.add(
-        ids=[chunk["id"]],
-        embeddings=[vector],
-        documents=[chunk["text"]]
+    # embed_query returns list[float] (float64) — convert to float32 for pgvector
+    vector = np.array(embeddings.embed_query(chunk["text"]), dtype=np.float32)
+
+    cur.execute(
+        """
+        INSERT INTO profile_chunks (id, text, embedding)
+        VALUES (%s, %s, %s)
+        ON CONFLICT (id) DO UPDATE
+            SET text      = EXCLUDED.text,
+                embedding = EXCLUDED.embedding
+        """,
+        (chunk["id"], chunk["text"], vector)
     )
-    print(f"  + Indexed: {chunk['id']}")
+    print(f"  + Upserted: {chunk['id']}")
 
-corpus_path = "./chromadb/bm25_corpus.json"
-with open(corpus_path, "w") as f:
-    json.dump(chunks, f, indent=2)
-print(f"BM25 corpus saved: {corpus_path}")
+conn.commit()
+cur.close()
+conn.close()
 
-print(f"\nDone — {len(chunks)} chunks indexed into ChromaDB")
+print(f"\nDone — {len(chunks)} chunks stored in PostgreSQL profile_chunks table")

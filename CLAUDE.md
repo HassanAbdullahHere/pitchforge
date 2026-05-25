@@ -26,7 +26,7 @@ PitchForge/
 | Orchestration | LangGraph |
 | LLM | Gemini 2.5 Flash |
 | Embeddings | Google gemini-embedding-2-preview |
-| Vector store | ChromaDB (local) → **pgvector migration in progress** |
+| Vector store | pgvector (PostgreSQL extension) — `profile_chunks` table, 3072-dim |
 | Retrieval | Hybrid BM25 + vector, RRF fusion, FlashRank re-ranking |
 | LLM wrapper | LangChain Google GenAI |
 | Database | PostgreSQL 16 via Docker (`pgvector/pgvector:pg16`) |
@@ -99,12 +99,13 @@ class PitchforgeState(TypedDict):
 | ✅ | backend routers/proposals.py + main.py |
 | ✅ | PostgreSQL container (Docker) + pgvector image |
 | ✅ | SQLAlchemy async engine + session factory (`database.py`) |
-| ✅ | Proposals table + Alembic migrations wired |
+| ✅ | `proposals` table + Alembic migrations wired |
+| ✅ | ChromaDB → pgvector migration — `profile_chunks` table, 3072-dim embeddings |
 | ✅ | Frontend: Landing page (`/`) |
 | ✅ | Frontend: Job Details form (`/new`) — with enhanced validation |
 | ✅ | Frontend: Analysis Pipeline page (`/analyze`) — animated pipeline + fit score result |
 | ✅ | Frontend: Generate Proposal page (`/generate`) — token streaming + approve/revise flow |
-| 🔜 | ChromaDB → pgvector migration (Step 2) |
+| 🔜 | Wire `proposals` table to pipeline (save runs to DB) |
 
 ---
 

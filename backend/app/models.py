@@ -3,6 +3,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime, timezone
 
+from pgvector.sqlalchemy import Vector
 from sqlalchemy import JSON, DateTime, Integer, String, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
@@ -65,3 +66,20 @@ class Proposal(Base):
         default=lambda: datetime.now(timezone.utc),
         onupdate=lambda: datetime.now(timezone.utc),
     )
+
+
+class ProfileChunk(Base):
+    """
+    Stores embedded profile chunks for pgvector similarity search.
+    Replaces the ChromaDB PersistentClient used by the retriever node.
+    8 rows total (skills, projects, experiences, niches, rates).
+    Sequential scan is faster than IVFFlat at this scale.
+    """
+
+    __tablename__ = "profile_chunks"
+
+    # String ID — chunk IDs are "skills", "project_0", etc., not UUIDs
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    text: Mapped[str] = mapped_column(Text, nullable=False)
+    # 768-dim Gemini embeddings (gemini-embedding-2-preview)
+    embedding: Mapped[list] = mapped_column(Vector(3072), nullable=False)
