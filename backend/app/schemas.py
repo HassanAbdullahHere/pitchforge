@@ -2,6 +2,22 @@ from typing import Optional, Literal
 from pydantic import BaseModel, Field
 
 
+# --- Auth Models ---
+
+class GoogleAuthRequest(BaseModel):
+    id_token: str
+
+class TokenResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+
+class UserResponse(BaseModel):
+    id: str
+    email: str
+    name: str
+    avatar_url: Optional[str] = None
+
+
 # --- Request Models ---
 
 class JobInputRequest(BaseModel):

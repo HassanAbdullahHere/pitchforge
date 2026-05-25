@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Logo from '../components/Logo'
+import { useAuth } from '../context/AuthContext'
 
 const METRICS = [
   { label: 'Avg Fit Score', value: '82', sub: 'out of 100' },
@@ -38,8 +39,9 @@ const HOW_IT_WORKS = [
 ]
 
 export default function Landing() {
-  const navigate = useNavigate()
-  const hiwRef = useRef(null)
+  const navigate    = useNavigate()
+  const hiwRef      = useRef(null)
+  const { user, loading } = useAuth()
 
   useEffect(() => {
     const el = hiwRef.current
@@ -79,9 +81,20 @@ export default function Landing() {
               </a>
               <button className="nav-link nav-link-btn" onClick={scrollToHIW}>How It Works</button>
             </div>
-            <button className="btn-primary nav-cta" onClick={() => navigate('/new')}>
-              Get Started
-            </button>
+            {!loading && (
+              user ? (
+                <div className="nav-avatar" title={user.name}>
+                  {user.avatar_url
+                    ? <img src={user.avatar_url} alt={user.name} className="avatar-img" />
+                    : <span className="avatar-initial">{user.name[0].toUpperCase()}</span>
+                  }
+                </div>
+              ) : (
+                <button className="btn-primary nav-cta" onClick={() => navigate('/login')}>
+                  Sign In with Google
+                </button>
+              )
+            )}
           </nav>
         </div>
 
@@ -304,6 +317,38 @@ const css = `
   .nav-cta {
     padding: 9px 20px;
     font-size: 13px;
+  }
+
+  .nav-avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    overflow: hidden;
+    cursor: pointer;
+    border: 2px solid rgba(30,36,25,0.15);
+    background: rgba(26,31,22,0.88);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: transform 200ms, box-shadow 200ms;
+  }
+  .nav-avatar:hover {
+    transform: scale(1.08);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.18);
+  }
+  .avatar-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  .avatar-initial {
+    font-family: var(--font);
+    font-size: 14px;
+    font-weight: 600;
+    color: rgba(255,255,255,0.92);
+    text-transform: uppercase;
+    line-height: 1;
   }
 
   /* ── Buttons ── */

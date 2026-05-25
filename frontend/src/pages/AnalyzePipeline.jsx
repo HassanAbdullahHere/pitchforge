@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import Logo from '../components/Logo'
+import { useAuth } from '../context/AuthContext'
 
 const NODES = [
   { key: 'analyzer',       label: 'Analyzing',  sub: 'job posting' },
@@ -16,6 +17,7 @@ export default function AnalyzePipeline() {
   const navigate = useNavigate()
   const { state } = useLocation()
   const form = state?.form
+  const { authHeaders } = useAuth()
 
   const [nodeStates, setNodeStates]   = useState(INIT_STATES)
   const [phase, setPhase]             = useState('streaming')
@@ -43,7 +45,7 @@ export default function AnalyzePipeline() {
 
         const res = await fetch('/api/proposal/analyze', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', ...authHeaders() },
           body: JSON.stringify(payload),
           signal: ctrl.signal,
         })

@@ -12,6 +12,7 @@ from sqlalchemy import text
 
 from app.database import AsyncSessionLocal, engine
 from app.routers.proposals import router as proposals_router
+from app.routers.auth import router as auth_router
 from app.schemas import HealthResponse
 
 
@@ -42,6 +43,7 @@ app.add_middleware(
 )
 
 app.include_router(proposals_router, prefix="/api")
+app.include_router(auth_router, prefix="/api")
 
 
 @app.get("/health", response_model=HealthResponse)

@@ -1,17 +1,19 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from fastapi.responses import StreamingResponse
 
-from backend.app.schemas import (
-    JobInputRequest,
-    GenerateRequest,
-    RefineRequest,
+from app.deps import get_current_user
+from app.models import User
+from app.schemas import (
     FinalizeRequest,
+    GenerateRequest,
+    JobInputRequest,
+    RefineRequest,
 )
-from backend.app.runner import (
+from app.runner import (
     stream_analysis,
+    stream_finalize,
     stream_generation,
     stream_revise,
-    stream_finalize,
 )
 
 router = APIRouter(prefix="/proposal", tags=["proposals"])
@@ -20,7 +22,10 @@ _SSE_HEADERS = {"Cache-Control": "no-cache", "X-Accel-Buffering": "no"}
 
 
 @router.post("/analyze")
-async def analyze(job: JobInputRequest):
+async def analyze(
+    job: JobInputRequest,
+    current_user: User = Depends(get_current_user),
+):
     return StreamingResponse(
         stream_analysis(job.model_dump()),
         media_type="text/event-stream",
@@ -29,7 +34,10 @@ async def analyze(job: JobInputRequest):
 
 
 @router.post("/generate")
-async def generate(body: GenerateRequest):
+async def generate(
+    body: GenerateRequest,
+    current_user: User = Depends(get_current_user),
+):
     return StreamingResponse(
         stream_generation(body.thread_id, body.should_apply),
         media_type="text/event-stream",
@@ -38,7 +46,10 @@ async def generate(body: GenerateRequest):
 
 
 @router.post("/revise")
-async def revise(body: RefineRequest):
+async def revise(
+    body: RefineRequest,
+    current_user: User = Depends(get_current_user),
+):
     return StreamingResponse(
         stream_revise(body.thread_id, body.instruction),
         media_type="text/event-stream",
@@ -47,7 +58,10 @@ async def revise(body: RefineRequest):
 
 
 @router.post("/finalize")
-async def finalize(body: FinalizeRequest):
+async def finalize(
+    body: FinalizeRequest,
+    current_user: User = Depends(get_current_user),
+):
     return StreamingResponse(
         stream_finalize(body.thread_id),
         media_type="text/event-stream",

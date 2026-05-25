@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import Logo from '../components/Logo'
+import { useAuth } from '../context/AuthContext'
 
 const NODES = [
   { key: 'generator',        label: 'Drafting',   sub: 'proposal' },
@@ -11,10 +12,10 @@ const NODES = [
 
 const INIT_NODES = Object.fromEntries(NODES.map(n => [n.key, 'idle']))
 
-async function readSSE(url, payload, onEvent, signal) {
+async function readSSE(url, payload, onEvent, signal, extraHeaders = {}) {
   const res = await fetch(url, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...extraHeaders },
     body: JSON.stringify(payload),
     signal,
   })
@@ -52,6 +53,7 @@ export default function GenerateProposal() {
   const threadId = state?.threadId
   const fitData  = state?.fitData
   const form     = state?.form
+  const { authHeaders } = useAuth()
 
   const [phase, setPhase]               = useState('generating')
   const [nodeStates, setNodeStates]     = useState(INIT_NODES)
@@ -94,7 +96,7 @@ export default function GenerateProposal() {
     const ctrl = new AbortController()
     ctrlRef.current = ctrl
     try {
-      const doneData = await readSSE(url, payload, handleEvents, ctrl.signal)
+      const doneData = await readSSE(url, payload, handleEvents, ctrl.signal, authHeaders())
       if (doneData?.proposal_draft !== undefined) {
         setQuality({
           score: doneData.quality_score,
@@ -132,7 +134,7 @@ export default function GenerateProposal() {
     try {
       const res = await fetch('/api/proposal/finalize', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
         body: JSON.stringify({ thread_id: threadId }),
       })
       if (!res.ok) throw new Error(`Server returned ${res.status}`)
