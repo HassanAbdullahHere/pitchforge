@@ -16,7 +16,7 @@ def route_fit(state: PitchforgeState) -> str:
 
 
 def route_critic(state: PitchforgeState) -> str:
-    if state.get("is_human_revision") or state["quality_score"] >= 70 or state["iteration_count"] >= 3:
+    if state.get("is_human_revision") or state["quality_score"] >= 85 or state["iteration_count"] >= 3:
         return "human_checkpoint"
     return "generator"
 

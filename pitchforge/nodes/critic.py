@@ -129,9 +129,9 @@ Only penalise missing information if it is genuinely absent and matters:
 - failed_elements must contain exact quoted phrases from the proposal, not paraphrases
 
 ━━━ PASS THRESHOLD ━━━
-PASS: quality_score >= 70
-FAIL: quality_score < 70
-Iteration 3 exception: if score >= 55, return PASS — do not loop indefinitely on marginal proposals"""
+PASS: quality_score >= 85
+FAIL: quality_score < 85
+Iteration 3 exception: if score >= 65, return PASS — do not loop indefinitely on marginal proposals"""
 
     response = llm.invoke([SystemMessage(content=SYSTEM_PROMPT), HumanMessage(content=prompt)])
     if hasattr(response, 'usage_metadata') and response.usage_metadata:
@@ -160,7 +160,7 @@ Iteration 3 exception: if score >= 55, return PASS — do not loop indefinitely 
 
     quality_score = int(result.get("quality_score", 60))
     feedback      = result.get("feedback", "")
-    verdict       = result.get("verdict", "PASS" if quality_score >= 70 else "FAIL")
+    verdict       = result.get("verdict", "PASS" if quality_score >= 85 else "FAIL")
     scores        = result.get("scores", {})
     failed        = result.get("failed_elements", [])
 

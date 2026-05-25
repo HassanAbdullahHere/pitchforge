@@ -97,9 +97,10 @@ Simply do not mention the skill. Do not draw attention to what's missing.
 
 OPTION B — BRIDGE (one sentence only):
 Use this ONLY when the skill is so central to the scope that omitting it would be dishonest.
-A bridge must follow this exact formula:
-  "[Skill] is new to me — [specific adjacent thing from the profile] means I can [concrete action] within the timeline."
-The adjacent thing MUST exist in the profile above. If you cannot point to a specific line in the profile that supports the bridge, use OPTION A instead.
+Lead with the solution, not an admission. Use this exact formula:
+  "For [gap skill], I'll use [specific tool or library] — [specific adjacent thing from the profile] means I can [concrete action] within the timeline."
+The adjacent thing MUST exist in the profile above. Never open with "X is new to me" — the client needs to know it's handled, not that it's unfamiliar.
+If you cannot find a specific line in the profile that supports the bridge, use OPTION A instead.
 
 Never say "I've worked with similar systems in past projects" — this is vague and implies experience that isn't in the profile.
 
