@@ -28,11 +28,11 @@ export function AuthProvider({ children }) {
    * Called by the Login page after Google returns an id_token.
    * Exchanges the Google token for our JWT, stores it, fetches user profile.
    */
-  async function login(googleIdToken) {
+  async function login(googleAccessToken) {
     const res = await fetch('/api/auth/google', {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify({ id_token: googleIdToken }),
+      body:    JSON.stringify({ access_token: googleAccessToken }),
     })
     if (!res.ok) throw new Error('Auth failed')
 

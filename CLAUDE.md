@@ -105,7 +105,14 @@ class PitchforgeState(TypedDict):
 | ✅ | Frontend: Job Details form (`/new`) — with enhanced validation |
 | ✅ | Frontend: Analysis Pipeline page (`/analyze`) — animated pipeline + fit score result |
 | ✅ | Frontend: Generate Proposal page (`/generate`) — token streaming + approve/revise flow |
-| 🔜 | Wire `proposals` table to pipeline (save runs to DB) |
+| ✅ | Auth: Google OAuth + JWT — `users` table, `jwt_utils.py`, `deps.py`, `/api/auth/google` + `/api/auth/me` |
+| ✅ | Auth: Frontend — `AuthContext.jsx`, `Login.jsx` (`useGoogleLogin` hook), `ProtectedRoute.jsx` |
+| ✅ | Auth: All proposal endpoints locked behind `get_current_user` dependency |
+| ✅ | Auth: Navbar Google sign-in button + avatar dropdown (name, email, sign out) on Landing page |
+| 🔜 | Wire `proposals` table to pipeline (save runs to DB, link to user) |
+| 🔜 | PostgreSQL checkpointer — replace `MemorySaver` in `graph.py` (threads die on server restart) |
+| 🔜 | Rate limiting — `slowapi` on proposal endpoints (per-user, before public launch) |
+| 🔜 | Usage events — `usage_events` table + per-user request tracking |
 
 ---
 
@@ -152,8 +159,15 @@ Each layer has its own `.env` (gitignored). Copy from `.env.example` to get star
 | File | Variables |
 |------|-----------|
 | `.env` (root) | `DB_USER`, `DB_PASSWORD`, `DB_NAME`, `DB_PORT` — Docker Compose |
-| `backend/.env` | `GEMINI_API_KEY`, `DATABASE_URL`, `CORS_ORIGINS` |
+| `backend/.env` | `GEMINI_API_KEY`, `DATABASE_URL`, `CORS_ORIGINS`, `GOOGLE_CLIENT_ID`, `JWT_SECRET_KEY` |
 | `pitchforge/.env` | `GEMINI_API_KEY` |
+| `frontend/.env` | `VITE_GOOGLE_CLIENT_ID` |
+
+### Auth Notes
+- `JWT_SECRET_KEY` — random 256-bit hex secret used to sign JWTs. Never sent to clients. Changing it invalidates all existing tokens.
+- `GOOGLE_CLIENT_ID` — used by both frontend (`VITE_GOOGLE_CLIENT_ID`) for the OAuth popup, and backend for reference (not strictly used at runtime — userinfo is verified via Google's userinfo endpoint).
+- Token expiry: 7 days. Users are logged out after expiry; no silent refresh (acceptable for v1).
+- Token revocation: setting `user.is_active = False` in the DB bans a user immediately (checked in `get_current_user`). Full JWT blacklist not built yet.
 
 ---
 

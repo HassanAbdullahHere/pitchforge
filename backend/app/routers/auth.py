@@ -3,9 +3,8 @@ from __future__ import annotations
 import os
 from datetime import datetime, timezone
 
+import httpx
 from fastapi import APIRouter, Depends, HTTPException, status
-from google.auth.transport import requests as google_requests
-from google.oauth2 import id_token
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -15,7 +14,7 @@ from app.jwt_utils import create_token
 from app.models import User
 from app.schemas import GoogleAuthRequest, TokenResponse, UserResponse
 
-GOOGLE_CLIENT_ID = os.environ["GOOGLE_CLIENT_ID"]
+GOOGLE_USERINFO_URL = "https://www.googleapis.com/oauth2/v3/userinfo"
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -26,25 +25,27 @@ async def google_auth(
     db: AsyncSession = Depends(get_db),
 ) -> TokenResponse:
     """
-    Verify a Google ID token from the frontend, upsert the user, return our JWT.
+    Verify a Google OAuth2 access_token, upsert the user, return our JWT.
 
     Flow:
-      1. Frontend (React) → Google OAuth → gets id_token
-      2. Frontend POSTs id_token here
-      3. We verify with Google's public keys (cached after first call)
-      4. Upsert user row, return signed JWT
+      1. Frontend gets access_token from useGoogleLogin() hook
+      2. Frontend POSTs access_token here
+      3. We call Google's userinfo endpoint to verify + get user details
+      4. Upsert user row, return our signed JWT
     """
-    try:
-        idinfo = id_token.verify_oauth2_token(
-            request.id_token,
-            google_requests.Request(),
-            GOOGLE_CLIENT_ID,
+    async with httpx.AsyncClient() as client:
+        resp = await client.get(
+            GOOGLE_USERINFO_URL,
+            headers={"Authorization": f"Bearer {request.access_token}"},
         )
-    except ValueError as exc:
+
+    if resp.status_code != 200:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=f"Invalid Google token: {exc}",
+            detail="Invalid or expired Google access token",
         )
+
+    idinfo = resp.json()
 
     google_id  = idinfo["sub"]
     email      = idinfo["email"]

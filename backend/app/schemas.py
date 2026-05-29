@@ -5,7 +5,7 @@ from pydantic import BaseModel, Field
 # --- Auth Models ---
 
 class GoogleAuthRequest(BaseModel):
-    id_token: str
+    access_token: str
 
 class TokenResponse(BaseModel):
     access_token: str
