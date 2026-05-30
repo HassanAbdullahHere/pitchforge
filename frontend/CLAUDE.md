@@ -9,67 +9,94 @@
 ## Files
 ```
 frontend/
-├── .env.example            # Template: VITE_API_BASE_URL (for production builds)
+├── .env.example            # VITE_GOOGLE_CLIENT_ID, VITE_API_BASE_URL
 ├── package.json
-├── vite.config.js          # Dev server on :5173, proxies /api → localhost:8000
-├── index.html              # Loads Google Fonts, mounts #root
+├── vite.config.js          # Dev server :5173, proxies /api → localhost:8000
+├── index.html
 └── src/
-    ├── main.jsx
-    ├── App.jsx             # BrowserRouter + Routes
+    ├── main.jsx            # GoogleOAuthProvider + AuthProvider — no StrictMode (see below)
+    ├── App.jsx             # BrowserRouter + 4 routes
+    ├── context/
+    │   └── AuthContext.jsx # useAuth() — JWT storage, login/logout, authHeaders()
+    ├── components/
+    │   ├── Logo.jsx        # Reusable SVG logo
+    │   └── ProtectedRoute.jsx  # Redirects to / if not authenticated
     └── pages/
-        ├── Landing.jsx           # Entry page — hero, sparks, process strip, CTA
-        ├── JobDetails.jsx        # Job form with enhanced validation → navigates to /analyze
-        ├── AnalyzePipeline.jsx   # SSE streaming pipeline animation + fit score result card
-        └── GenerateProposal.jsx  # Proposal generation — token streaming + approve/revise flow
+        ├── Landing.jsx           # Hero, process strip, Google sign-in, avatar dropdown
+        ├── JobDetails.jsx        # Job form with validation — navigates to /analyze
+        ├── AnalyzePipeline.jsx   # SSE streaming pipeline animation + fit score result
+        └── GenerateProposal.jsx  # Token streaming, approve/revise loop, finalize
 ```
 
-## Pages
-| Route | File | Status |
-|-------|------|--------|
-| `/` | `pages/Landing.jsx` | ✅ done |
-| `/new` | `pages/JobDetails.jsx` | ✅ done — validated form, passes `{ form }` state to `/analyze` |
-| `/analyze` | `pages/AnalyzePipeline.jsx` | ✅ done — animated pipeline + fit score + Generate/Cancel |
-| `/generate` | `pages/GenerateProposal.jsx` | ✅ done — token streaming, approve/revise flow |
+`Login.jsx` exists but is not routed — auth happens on Landing. It can be deleted.
 
-## SSE Consumption Pattern
-Backend uses POST endpoints, so `EventSource` (GET-only) cannot be used. `GenerateProposal.jsx` uses a shared `readSSE` helper:
-```javascript
-// readSSE captures and returns the final 'done' payload
-const doneData = await readSSE(url, payload, onEvent, signal)
-// set quality / final data from doneData AFTER the stream resolves — never from inside onEvent
-```
+---
 
-Raw reader loop used in `AnalyzePipeline.jsx`:
+## Routes
+| Route | Page | Protected |
+|-------|------|-----------|
+| `/` | Landing.jsx | No |
+| `/new` | JobDetails.jsx | Yes |
+| `/analyze` | AnalyzePipeline.jsx | Yes |
+| `/generate` | GenerateProposal.jsx | Yes |
+
+---
+
+## Auth (`AuthContext.jsx`)
+- On mount: reads JWT from `localStorage`, calls `/api/auth/me` to restore session
+- `login(googleAccessToken)`: exchanges Google token for backend JWT, stores in `localStorage`
+- `authHeaders()`: returns `{ Authorization: "Bearer <token>" }` for fetch calls
+- `logout()`: clears localStorage, resets user state
+
+---
+
+## SSE Consumption
+Backend uses POST, so `EventSource` (GET-only) cannot be used. Two patterns:
+
+**AnalyzePipeline** — raw reader loop:
 ```javascript
-const res = await fetch('/api/proposal/...', { method: 'POST', body: JSON.stringify(payload), signal: ctrl.signal })
+const res = await fetch('/api/proposal/analyze', { method: 'POST', body: JSON.stringify(payload), signal })
 const reader = res.body.getReader()
-const dec = new TextDecoder()
 let buf = ''
 while (true) {
   const { done, value } = await reader.read()
   if (done) break
   buf += dec.decode(value, { stream: true })
   const frames = buf.split('\n\n')
-  buf = frames.pop()   // keep incomplete last frame
-  for (const frame of frames) { /* parse event + data lines */ }
+  buf = frames.pop()
+  for (const frame of frames) { /* parse event + data */ }
 }
 ```
 
-## StrictMode
-`<StrictMode>` is intentionally **removed** from `main.jsx`. StrictMode double-invokes every `useEffect` in development, which caused two simultaneous SSE connections per page load — both hitting the same LangGraph thread and burning double tokens. Without StrictMode, `useEffect(() => {...}, [])` fires exactly once. The `AbortController` cleanup still handles navigation-away correctly.
+**GenerateProposal** — `readSSE(url, payload, onEvent, signal)` helper:
+```javascript
+// onEvent fires for every frame during streaming
+// readSSE returns the final 'done' payload after stream closes
+const doneData = await readSSE(url, payload, onEvent, signal)
+// update UI state from doneData — not from inside onEvent
+```
 
-## JobDetails Validation Rules
+---
+
+## StrictMode
+Intentionally removed from `main.jsx`. StrictMode double-invokes `useEffect` in dev, which caused two simultaneous SSE connections per page load — both hitting the same LangGraph thread. `AbortController` cleanup on unmount still works correctly.
+
+---
+
+## JobDetails Validation
 | Field | Rule |
 |-------|------|
-| `title` | required, 5–150 chars |
-| `description` | required, min 150 chars |
-| `budget` | optional — if non-empty must be a positive number |
-| `timeline` | optional — if non-empty must be a positive number |
+| `title` | required, 5–150 chars, 3+ words |
+| `description` | required, 150–8000 chars |
+| `budget` | optional — if non-empty, must be a positive number |
+| `timeline` | optional — if non-empty, must be a positive number |
 
-Budget and timeline values are combined with their unit dropdowns before sending to the API (e.g. `"500 USD"`, `"2 weeks"`).
+Budget and timeline are combined with unit dropdowns before sending (e.g. `"500 USD"`, `"2 weeks"`).
+
+---
 
 ## Design System
-All defined as CSS custom properties in `Landing.jsx` (and future pages):
+CSS custom properties defined in `Landing.jsx`, reused across pages:
 ```css
 --bg:           #0a0908   /* near-black warm */
 --gold:         #c9a84c   /* burnished gold — primary accent */
@@ -81,14 +108,18 @@ All defined as CSS custom properties in `Landing.jsx` (and future pages):
 --font-mono:    'JetBrains Mono'
 ```
 
+---
+
 ## API
-- **Dev:** Vite proxies `/api/*` → `http://localhost:8000`. All fetch calls use relative `/api/...` paths.
-- **Production:** Set `VITE_API_BASE_URL` in `frontend/.env` and update `vite.config.js` proxy target accordingly.
-- **Never hardcode `localhost:8000`** in component code — always use relative `/api/` paths.
+Dev: Vite proxies `/api/*` → `http://localhost:8000`. All fetch calls use relative `/api/` paths.  
+Production: set `VITE_API_BASE_URL` and update `vite.config.js` proxy target.  
+Never hardcode `localhost:8000` in component code.
+
+---
 
 ## Rules
-1. Each page owns its styles as a `css` template literal passed to a `<style>` tag — no separate `.css` files unless the project grows to need them
-2. Never hardcode `localhost:8000` in components — always use relative `/api/` paths
-3. New pages go in `src/pages/`, shared components in `src/components/` (create when needed)
-4. Run with: `npm run dev` from `frontend/`
-5. Never commit real API keys or backend URLs to frontend source — use `VITE_*` env vars
+1. Each page owns its styles as a `css` template literal — no separate `.css` files
+2. All fetch calls use relative `/api/` paths — never hardcoded backend URLs
+3. New pages → `src/pages/`, shared UI → `src/components/`
+4. Run: `npm run dev` from `frontend/`
+5. Never commit real API keys or backend URLs — use `VITE_*` env vars
