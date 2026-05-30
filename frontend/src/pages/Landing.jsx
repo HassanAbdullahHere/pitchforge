@@ -42,7 +42,7 @@ const HOW_IT_WORKS = [
 export default function Landing() {
   const navigate    = useNavigate()
   const hiwRef      = useRef(null)
-  const { user, loading, logout } = useAuth()
+  const { user, loading, login, logout } = useAuth()
   const [menuOpen, setMenuOpen]   = useState(false)
   const menuRef                   = useRef(null)
 
@@ -73,6 +73,11 @@ export default function Landing() {
     },
     onError: () => console.error('Google login error'),
   })
+
+  function handleGetStarted() {
+    if (user) navigate('/new')
+    else googleLogin()
+  }
 
   useEffect(() => {
     const el = hiwRef.current
@@ -176,7 +181,7 @@ export default function Landing() {
             </p>
 
             <div className="cta-row anim" style={{ '--delay': '240ms' }}>
-              <button className="btn-primary btn-lg" onClick={() => navigate('/new')}>
+              <button className="btn-primary btn-lg" onClick={handleGetStarted}>
                 Get Started →
               </button>
               <button className="btn-secondary btn-lg" onClick={scrollToHIW}>
