@@ -6,8 +6,10 @@ from contextlib import asynccontextmanager
 from dotenv import load_dotenv
 load_dotenv()
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request as FastAPIRequest
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from slowapi.errors import RateLimitExceeded
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 from sqlalchemy import text
 from starlette.datastructures import MutableHeaders
@@ -16,6 +18,7 @@ from starlette.types import ASGIApp, Receive, Scope, Send
 from app.database import AsyncSessionLocal, engine, DATABASE_URL
 from app.routers.proposals import router as proposals_router
 from app.routers.auth import router as auth_router
+from app.limiter import limiter
 from app.schemas import HealthResponse
 from pitchforge.graph import compile_graph
 import app.runner as runner_module
@@ -62,7 +65,13 @@ async def lifespan(app: FastAPI):
     await engine.dispose()
 
 
+async def _rate_limit_handler(request: FastAPIRequest, exc: RateLimitExceeded) -> JSONResponse:
+    return JSONResponse(status_code=429, content={"detail": "Too many requests. Please try again later."})
+
+
 app = FastAPI(title="PitchForge API", lifespan=lifespan)
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_handler)
 
 # CORS origins — comma-separated env var for production, localhost defaults for dev
 _cors_origins = os.getenv(

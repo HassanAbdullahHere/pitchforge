@@ -1,12 +1,14 @@
+from datetime import date, datetime, timezone
 from uuid import UUID as PyUUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import StreamingResponse
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.deps import get_current_user
+from app.limiter import limiter
 from app.models import Proposal, User
 from app.schemas import (
     FinalizeRequest,
@@ -15,6 +17,7 @@ from app.schemas import (
     ProposalDetailResponse,
     ProposalHistoryItem,
     RefineRequest,
+    UsageResponse,
 )
 from app.runner import (
     MAX_HUMAN_REVISIONS,
@@ -36,10 +39,25 @@ async def list_proposals(
 ):
     result = await db.execute(
         select(Proposal)
-        .where(Proposal.user_id == current_user.id)
+        .where(Proposal.user_id == current_user.id, Proposal.final_proposal.isnot(None))
         .order_by(Proposal.created_at.desc())
     )
     return result.scalars().all()
+
+
+@router.get("/usage", response_model=UsageResponse)
+async def get_usage(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    today_start = datetime.combine(date.today(), datetime.min.time()).replace(tzinfo=timezone.utc)
+    count = await db.scalar(
+        select(func.count(Proposal.id)).where(
+            Proposal.user_id == current_user.id,
+            Proposal.created_at >= today_start,
+        )
+    )
+    return UsageResponse(used=count or 0, limit=7)
 
 
 @router.get("s/{proposal_id}", response_model=ProposalDetailResponse)
@@ -58,11 +76,25 @@ async def get_proposal(
 
 
 @router.post("/analyze")
+@limiter.limit("14/day")
 async def analyze(
+    request: Request,
     job: JobInputRequest,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
+    today_start = datetime.combine(date.today(), datetime.min.time()).replace(tzinfo=timezone.utc)
+    count = await db.scalar(
+        select(func.count(Proposal.id)).where(
+            Proposal.user_id == current_user.id,
+            Proposal.created_at >= today_start,
+        )
+    )
+    if count >= 7:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Daily analysis limit reached. Please try again tomorrow.",
+        )
     return StreamingResponse(
         stream_analysis(job.model_dump(), db, current_user.id),
         media_type="text/event-stream",

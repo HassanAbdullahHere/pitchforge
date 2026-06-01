@@ -51,7 +51,11 @@ export default function AnalyzePipeline() {
           signal: ctrl.signal,
         })
 
-        if (!res.ok) throw new Error(`Server returned ${res.status}`)
+        if (!res.ok) {
+          let msg = `Something went wrong (${res.status})`
+          try { const body = await res.json(); if (body.detail) msg = body.detail } catch {}
+          throw new Error(msg)
+        }
 
         const reader = res.body.getReader()
         const dec = new TextDecoder()

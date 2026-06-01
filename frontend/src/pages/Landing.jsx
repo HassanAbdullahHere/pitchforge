@@ -42,9 +42,18 @@ const HOW_IT_WORKS = [
 export default function Landing() {
   const navigate    = useNavigate()
   const hiwRef      = useRef(null)
-  const { user, loading, login, logout } = useAuth()
+  const { user, loading, login, logout, authHeaders } = useAuth()
   const [menuOpen, setMenuOpen]   = useState(false)
+  const [usage, setUsage]         = useState(null)
   const menuRef                   = useRef(null)
+
+  useEffect(() => {
+    if (!menuOpen || !user) return
+    fetch('/api/proposal/usage', { headers: authHeaders() })
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { if (data) setUsage(data) })
+      .catch(() => {})
+  }, [menuOpen])
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -134,6 +143,25 @@ export default function Landing() {
                           <span className="menu-email">{user.email}</span>
                         </div>
                       </div>
+                      {usage && (
+                        <div className="usage-wrap">
+                          <div className="usage-header">
+                            <span className="usage-label">Daily limit</span>
+                            <span className="usage-count">{Math.min(Math.round((usage.used / usage.limit) * 100), 100)}%</span>
+                          </div>
+                          <div className="usage-track">
+                            <div
+                              className="usage-fill"
+                              style={{
+                                width: `${Math.min((usage.used / usage.limit) * 100, 100)}%`,
+                                background: usage.used >= usage.limit ? '#dc5050'
+                                  : usage.used >= Math.ceil(usage.limit * 0.7) ? '#e8793a'
+                                  : '#7ab87a',
+                              }}
+                            />
+                          </div>
+                        </div>
+                      )}
                       <div className="menu-divider" />
                       <button className="menu-item" onClick={() => { setMenuOpen(false); navigate('/proposals') }}>
                         <span className="menu-item-icon">≡</span>
@@ -522,6 +550,42 @@ const css = `
     height: 1px;
     background: rgba(30,36,25,0.07);
     margin: 4px 0;
+  }
+
+  /* Usage bar */
+  .usage-wrap {
+    padding: 10px 10px 12px;
+  }
+  .usage-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 7px;
+  }
+  .usage-label {
+    font-family: var(--font-display);
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: rgba(30,36,25,0.45);
+  }
+  .usage-count {
+    font-family: var(--font-display);
+    font-size: 11px;
+    font-weight: 600;
+    color: rgba(30,36,25,0.65);
+  }
+  .usage-track {
+    height: 4px;
+    background: rgba(30,36,25,0.08);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+  .usage-fill {
+    height: 100%;
+    border-radius: 2px;
+    transition: width 500ms ease;
   }
 
   /* Menu items */

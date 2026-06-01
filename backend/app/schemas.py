@@ -103,6 +103,11 @@ class ProposalDetailResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+class UsageResponse(BaseModel):
+    used: int
+    limit: int
+
+
 class HealthResponse(BaseModel):
     status: str
     db_connected: bool

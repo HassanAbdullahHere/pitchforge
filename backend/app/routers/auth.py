@@ -4,13 +4,14 @@ import os
 from datetime import datetime, timezone
 
 import httpx
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.deps import get_current_user
 from app.jwt_utils import create_token
+from app.limiter import limiter
 from app.models import User
 from app.schemas import GoogleAuthRequest, TokenResponse, UserResponse
 
@@ -20,8 +21,10 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 
 @router.post("/google", response_model=TokenResponse)
+@limiter.limit("10/hour")
 async def google_auth(
-    request: GoogleAuthRequest,
+    request: Request,
+    body: GoogleAuthRequest,
     db: AsyncSession = Depends(get_db),
 ) -> TokenResponse:
     """
@@ -37,7 +40,7 @@ async def google_auth(
         async with httpx.AsyncClient(timeout=10.0) as client:
             resp = await client.get(
                 GOOGLE_USERINFO_URL,
-                headers={"Authorization": f"Bearer {request.access_token}"},
+                headers={"Authorization": f"Bearer {body.access_token}"},
             )
     except httpx.TimeoutException:
         raise HTTPException(

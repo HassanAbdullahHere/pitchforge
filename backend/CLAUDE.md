@@ -92,13 +92,15 @@ Exceptions: currently leak `str(e)` to frontend and log nothing — **pending st
 |--------|------|------|-------|
 | POST | `/api/auth/google` | none | Exchanges Google token for JWT |
 | GET | `/api/auth/me` | JWT | Returns current user profile |
+| GET | `/api/proposals` | JWT | Lists finalized proposals for current user (final_proposal IS NOT NULL) |
+| GET | `/api/proposals/{id}` | JWT | Proposal detail — 403 if not owner, 404 if not found |
 | POST | `/api/proposal/analyze` | JWT | Starts new thread, streams fit analysis |
 | POST | `/api/proposal/generate` | JWT | Resumes thread, streams generation |
-| POST | `/api/proposal/revise` | JWT | Resumes with feedback, streams revision |
+| POST | `/api/proposal/revise` | JWT | Resumes with feedback, streams revision (limit: 2/proposal) |
 | POST | `/api/proposal/finalize` | JWT | Approves, streams to END |
 
 All proposal endpoints return `StreamingResponse(media_type="text/event-stream")` with `Cache-Control: no-cache`, `X-Accel-Buffering: no`.  
-`thread_id` ownership is **not yet enforced** — any authenticated user can pass another user's thread_id.
+`thread_id` ownership enforced on all proposal endpoints — 403 if thread doesn't belong to current user.
 
 ---
 
