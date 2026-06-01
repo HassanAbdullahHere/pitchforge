@@ -10,6 +10,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 from sqlalchemy import text
+from starlette.datastructures import MutableHeaders
+from starlette.types import ASGIApp, Receive, Scope, Send
 
 from app.database import AsyncSessionLocal, engine, DATABASE_URL
 from app.routers.proposals import router as proposals_router
@@ -17,6 +19,26 @@ from app.routers.auth import router as auth_router
 from app.schemas import HealthResponse
 from pitchforge.graph import compile_graph
 import app.runner as runner_module
+
+
+class SecurityHeadersMiddleware:
+    def __init__(self, app: ASGIApp) -> None:
+        self.app = app
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        async def patched_send(message) -> None:
+            if message["type"] == "http.response.start":
+                headers = MutableHeaders(scope=message)
+                headers.append("X-Frame-Options", "DENY")
+                headers.append("X-Content-Type-Options", "nosniff")
+                headers.append("Content-Security-Policy", "default-src 'none'")
+            await send(message)
+
+        await self.app(scope, receive, patched_send)
 
 
 def _pg_conn_str(url: str) -> str:
@@ -54,6 +76,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.add_middleware(SecurityHeadersMiddleware)
 
 app.include_router(proposals_router, prefix="/api")
 app.include_router(auth_router, prefix="/api")
