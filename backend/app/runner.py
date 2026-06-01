@@ -194,7 +194,10 @@ async def stream_generation(thread_id: str, should_apply: bool) -> AsyncGenerato
     yield _sse("done", proposal_data)
 
 
-async def stream_revise(thread_id: str, feedback: str) -> AsyncGenerator[str, None]:
+MAX_HUMAN_REVISIONS = 2
+
+
+async def stream_revise(thread_id: str, feedback: str, db: AsyncSession) -> AsyncGenerator[str, None]:
     if await check_injection(feedback):
         yield _sse("error", {"message": "Request blocked."})
         return
@@ -244,6 +247,13 @@ async def stream_revise(thread_id: str, feedback: str) -> AsyncGenerator[str, No
         "critic_feedback": values.get("critic_feedback") or None,
         "iteration_count": values.get("iteration_count", 0),
     }
+
+    result = await db.execute(select(Proposal).where(Proposal.thread_id == thread_id))
+    proposal = result.scalar_one_or_none()
+    if proposal is not None:
+        proposal.revision_count += 1
+        proposal.updated_at = datetime.now(timezone.utc)
+        await db.flush()
 
     yield _sse("interrupt", {"type": "human_checkpoint"})
     yield _sse("done", proposal_data)

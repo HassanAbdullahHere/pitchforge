@@ -61,6 +61,7 @@ class Proposal(Base):
     final_proposal: Mapped[str | None] = mapped_column(Text, nullable=True)
     quality_score: Mapped[int | None] = mapped_column(Integer, nullable=True)
     iteration_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    revision_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
 
     # --- Timestamps ---
     created_at: Mapped[datetime] = mapped_column(

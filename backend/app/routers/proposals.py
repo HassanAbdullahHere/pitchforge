@@ -17,6 +17,7 @@ from app.schemas import (
     RefineRequest,
 )
 from app.runner import (
+    MAX_HUMAN_REVISIONS,
     stream_analysis,
     stream_finalize,
     stream_generation,
@@ -105,13 +106,19 @@ async def revise(
             Proposal.user_id == current_user.id,
         )
     )
-    if result.scalar_one_or_none() is None:
+    proposal = result.scalar_one_or_none()
+    if proposal is None:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Thread not found or access denied",
         )
+    if proposal.revision_count >= MAX_HUMAN_REVISIONS:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=f"Revision limit reached ({MAX_HUMAN_REVISIONS} revisions per proposal)",
+        )
     return StreamingResponse(
-        stream_revise(body.thread_id, body.instruction),
+        stream_revise(body.thread_id, body.instruction, db),
         media_type="text/event-stream",
         headers=_SSE_HEADERS,
     )

@@ -19,7 +19,11 @@ async function readSSE(url, payload, onEvent, signal, extraHeaders = {}) {
     body: JSON.stringify(payload),
     signal,
   })
-  if (!res.ok) throw new Error(`Server returned ${res.status}`)
+  if (!res.ok) {
+    let detail = `Server error (${res.status})`
+    try { const body = await res.json(); if (body.detail) detail = body.detail } catch {}
+    throw new Error(detail)
+  }
   const reader = res.body.getReader()
   const dec = new TextDecoder()
   let buf = ''
@@ -137,7 +141,11 @@ export default function GenerateProposal() {
         headers: { 'Content-Type': 'application/json', ...authHeaders() },
         body: JSON.stringify({ thread_id: threadId }),
       })
-      if (!res.ok) throw new Error(`Server returned ${res.status}`)
+      if (!res.ok) {
+        let detail = `Server error (${res.status})`
+        try { const body = await res.json(); if (body.detail) detail = body.detail } catch {}
+        throw new Error(detail)
+      }
       const reader = res.body.getReader()
       const dec = new TextDecoder()
       let buf = ''
