@@ -703,7 +703,7 @@ const css = `
     font-weight: 500;
     letter-spacing: 0.06em;
     text-transform: uppercase;
-    color: rgba(30,36,25,0.38);
+    color: rgba(30,36,25,0.62);
   }
 
   .process-label {
@@ -711,12 +711,12 @@ const css = `
     font-size: 13px;
     font-weight: 900;
     letter-spacing: -0.01em;
-    color: rgba(12, 12, 11, 0.38);
+    color: rgba(12, 12, 11, 0.62);
   }
 
   .process-sep {
     font-size: 14px;
-    color: rgba(30,36,25,0.18);
+    color: rgba(30,36,25,0.32);
     margin: 0 10px;
   }
 
@@ -841,7 +841,7 @@ const css = `
     font-weight: 500;
     letter-spacing: 0.1em;
     text-transform: uppercase;
-    color: var(--accent);
+    color: rgba(30,36,25,0.42);
   }
 
   .hiw-title {
@@ -900,7 +900,7 @@ const css = `
     font-weight: 500;
     letter-spacing: 0.08em;
     text-transform: uppercase;
-    color: var(--accent);
+    color: rgba(30,36,25,0.38);
   }
 
   .hiw-card-title {

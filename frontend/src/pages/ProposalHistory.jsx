@@ -18,15 +18,15 @@ function relativeTime(dateStr) {
 
 const scoreColor  = s => s >= 70 ? '#7ab87a' : s >= 50 ? '#d4a855' : '#e07070'
 const scoreBg     = s => s >= 70
-  ? { background: 'rgba(122,184,122,0.12)', color: 'rgba(140,210,140,0.9)',  border: '1px solid rgba(122,184,122,0.2)' }
+  ? { background: 'rgba(122,184,122,0.12)', color: 'rgba(50,130,50,0.9)',   border: '1px solid rgba(122,184,122,0.2)' }
   : s >= 50
-  ? { background: 'rgba(212,168,85,0.12)',  color: 'rgba(212,168,85,0.9)',   border: '1px solid rgba(212,168,85,0.25)' }
-  : { background: 'rgba(220,80,80,0.1)',    color: 'rgba(224,112,112,0.9)',  border: '1px solid rgba(220,80,80,0.2)' }
+  ? { background: 'rgba(212,168,85,0.12)',  color: 'rgba(170,120,20,0.9)',  border: '1px solid rgba(212,168,85,0.25)' }
+  : { background: 'rgba(220,80,80,0.1)',    color: 'rgba(180,50,50,0.9)',   border: '1px solid rgba(220,80,80,0.2)' }
 
 const recColor = r => {
-  if (r === 'Strong Apply')     return { background: 'rgba(122,184,122,0.1)',  color: 'rgba(140,210,140,0.85)',  border: '1px solid rgba(122,184,122,0.18)' }
-  if (r === 'Apply Carefully')  return { background: 'rgba(212,168,85,0.1)',   color: 'rgba(212,168,85,0.85)',   border: '1px solid rgba(212,168,85,0.2)' }
-  return                               { background: 'rgba(220,80,80,0.08)',   color: 'rgba(220,100,100,0.8)',   border: '1px solid rgba(220,80,80,0.15)' }
+  if (r === 'Strong Apply')     return { background: 'rgba(122,184,122,0.1)',  color: 'rgba(50,130,50,0.9)',   border: '1px solid rgba(122,184,122,0.18)' }
+  if (r === 'Apply Carefully')  return { background: 'rgba(212,168,85,0.1)',   color: 'rgba(170,120,20,0.9)',  border: '1px solid rgba(212,168,85,0.2)' }
+  return                               { background: 'rgba(220,80,80,0.08)',   color: 'rgba(180,50,50,0.85)',  border: '1px solid rgba(220,80,80,0.15)' }
 }
 
 export default function ProposalHistory() {
@@ -361,7 +361,7 @@ const css = `
   }
   .ph-status-pill--done {
     background: rgba(122,184,122,0.1);
-    color: rgba(100,180,100,0.9);
+    color: rgba(40,120,40,0.9);
     border: 1px solid rgba(122,184,122,0.2);
   }
 

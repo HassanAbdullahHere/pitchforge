@@ -22,12 +22,12 @@ function formatDate(dateStr) {
 }
 
 const scoreColor = s =>
-  s >= 70 ? 'rgba(80,170,80,0.9)' : s >= 50 ? 'rgba(200,155,60,0.9)' : 'rgba(210,80,80,0.9)'
+  s >= 70 ? 'rgba(40,120,40,0.9)' : s >= 50 ? 'rgba(160,110,10,0.9)' : 'rgba(180,50,50,0.9)'
 
 const recStyle = r => {
-  if (r === 'Strong Apply')    return { background: 'rgba(122,184,122,0.12)', color: 'rgba(80,170,80,0.9)',  border: '1px solid rgba(122,184,122,0.22)' }
-  if (r === 'Apply Carefully') return { background: 'rgba(212,168,85,0.12)',  color: 'rgba(200,155,60,0.9)', border: '1px solid rgba(212,168,85,0.28)' }
-  return                              { background: 'rgba(210,70,70,0.09)',   color: 'rgba(210,80,80,0.9)',  border: '1px solid rgba(210,70,70,0.2)' }
+  if (r === 'Strong Apply')    return { background: 'rgba(122,184,122,0.12)', color: 'rgba(40,120,40,0.9)',   border: '1px solid rgba(122,184,122,0.22)' }
+  if (r === 'Apply Carefully') return { background: 'rgba(212,168,85,0.12)',  color: 'rgba(160,110,10,0.9)',  border: '1px solid rgba(212,168,85,0.28)' }
+  return                              { background: 'rgba(210,70,70,0.09)',   color: 'rgba(180,50,50,0.9)',   border: '1px solid rgba(210,70,70,0.2)' }
 }
 
 export default function ProposalDetail() {
@@ -449,7 +449,7 @@ const css = `
   }
   .pd-pill--done {
     background: rgba(100,170,100,0.1);
-    color: rgba(80,170,80,0.9);
+    color: rgba(40,120,40,0.9);
     border: 1px solid rgba(100,170,100,0.22);
   }
   .pd-time {
@@ -560,7 +560,7 @@ const css = `
     align-items: center;
     gap: 6px;
   }
-  .pd-skill-heading--match { color: rgba(80,170,80,0.85); }
+  .pd-skill-heading--match { color: rgba(40,120,40,0.85); }
   .pd-skill-heading--miss  { color: rgba(210,80,80,0.8); }
   .pd-skill-count {
     font-family: var(--font);
@@ -590,7 +590,7 @@ const css = `
   }
   .pd-skill-chip--match {
     background: rgba(100,180,100,0.1);
-    color: rgba(60,150,60,0.9);
+    color: rgba(40,115,40,0.9);
     border: 1px solid rgba(100,180,100,0.18);
   }
   .pd-skill-chip--miss {
