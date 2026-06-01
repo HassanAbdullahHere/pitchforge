@@ -1,5 +1,4 @@
 from langgraph.graph import StateGraph, END
-from langgraph.checkpoint.memory import MemorySaver
 from pitchforge.state import PitchforgeState
 from pitchforge.nodes.analyzer import analyze_job
 from pitchforge.nodes.retriever import retrieve_profile
@@ -25,25 +24,31 @@ def route_human(state: PitchforgeState) -> str:
     return "compiler" if state["human_approved"] else "generator"
 
 
-builder = StateGraph(PitchforgeState)
+def _build() -> StateGraph:
+    builder = StateGraph(PitchforgeState)
 
-builder.add_node("analyzer", analyze_job)
-builder.add_node("retriever", retrieve_profile)
-builder.add_node("scorer", score_fit)
-builder.add_node("fit_checkpoint", human_fit_checkpoint)
-builder.add_node("generator", generate_proposal)
-builder.add_node("critic", critique_proposal)
-builder.add_node("human_checkpoint", human_proposal_checkpoint)
-builder.add_node("compiler", compile_final)
+    builder.add_node("analyzer", analyze_job)
+    builder.add_node("retriever", retrieve_profile)
+    builder.add_node("scorer", score_fit)
+    builder.add_node("fit_checkpoint", human_fit_checkpoint)
+    builder.add_node("generator", generate_proposal)
+    builder.add_node("critic", critique_proposal)
+    builder.add_node("human_checkpoint", human_proposal_checkpoint)
+    builder.add_node("compiler", compile_final)
 
-builder.set_entry_point("analyzer")
-builder.add_edge("analyzer", "retriever")
-builder.add_edge("retriever", "scorer")
-builder.add_edge("scorer", "fit_checkpoint")
-builder.add_conditional_edges("fit_checkpoint", route_fit)
-builder.add_edge("generator", "critic")
-builder.add_conditional_edges("critic", route_critic)
-builder.add_conditional_edges("human_checkpoint", route_human)
-builder.add_edge("compiler", END)
+    builder.set_entry_point("analyzer")
+    builder.add_edge("analyzer", "retriever")
+    builder.add_edge("retriever", "scorer")
+    builder.add_edge("scorer", "fit_checkpoint")
+    builder.add_conditional_edges("fit_checkpoint", route_fit)
+    builder.add_edge("generator", "critic")
+    builder.add_conditional_edges("critic", route_critic)
+    builder.add_conditional_edges("human_checkpoint", route_human)
+    builder.add_edge("compiler", END)
 
-pitchforge_graph = builder.compile(checkpointer=MemorySaver())
+    return builder
+
+
+def compile_graph(checkpointer):
+    """Return a compiled graph bound to the given checkpointer."""
+    return _build().compile(checkpointer=checkpointer)

@@ -8,22 +8,35 @@ load_dotenv()
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 from sqlalchemy import text
 
-from app.database import AsyncSessionLocal, engine
+from app.database import AsyncSessionLocal, engine, DATABASE_URL
 from app.routers.proposals import router as proposals_router
 from app.routers.auth import router as auth_router
 from app.schemas import HealthResponse
+from pitchforge.graph import compile_graph
+import app.runner as runner_module
+
+
+def _pg_conn_str(url: str) -> str:
+    """Convert SQLAlchemy asyncpg URL to a plain psycopg3 connection string."""
+    return url.replace("postgresql+asyncpg://", "postgresql://")
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """
     App lifespan: runs once on startup and once on shutdown.
-    On shutdown, disposes the connection pool so all DB connections
-    are cleanly closed before the process exits.
+    Creates the PostgreSQL checkpointer (and its tables if missing), compiles
+    the LangGraph, then disposes connections on shutdown.
     """
-    yield  # engine connects lazily on first use — nothing to do at startup
+    conn_str = _pg_conn_str(DATABASE_URL)
+    async with AsyncPostgresSaver.from_conn_string(conn_str) as checkpointer:
+        await checkpointer.setup()
+        runner_module.pitchforge_graph = compile_graph(checkpointer)
+        yield
+
     await engine.dispose()
 
 

@@ -6,8 +6,10 @@ from typing import AsyncGenerator
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from pitchforge.graph import pitchforge_graph
 from pitchforge.state import PitchforgeState
+
+# Set during app lifespan in main.py once the PostgreSQL checkpointer is ready.
+pitchforge_graph = None
 from langgraph.types import Command
 from app.models import Proposal
 
