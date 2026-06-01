@@ -52,27 +52,19 @@ export default function JobDetails() {
 
     const title = form.title.trim()
     if (!title) errs.title = 'Job title is required'
-    else if (title.length < 5) errs.title = 'Job title must be at least 5 characters'
-    else if (title.split(/\s+/).filter(Boolean).length < 3) errs.title = 'Job title must be at least 3 words'
+    else if (title.length < 2) errs.title = 'Job title is too short'
     else if (title.length > 150) errs.title = 'Job title is too long'
 
     const desc = form.description.trim()
     if (!desc) errs.description = 'Paste the full job posting'
-    else if (desc.length < 150) errs.description = 'Paste the full job posting — at least 150 characters'
+    else if (desc.length < 50) errs.description = 'Job posting is too short — at least 50 characters'
     else if (desc.length > 8000) errs.description = 'Job posting is too long — max 8 000 characters'
 
-    if (form.budget.trim()) {
-      const budgetVal = Number(form.budget)
-      if (isNaN(budgetVal) || budgetVal <= 0) errs.budget = 'Enter a valid budget amount'
-      else if (budgetVal > 1_000_000) errs.budget = 'Budget seems unrealistically high'
-    }
+    if (form.budget.trim() && form.budget.trim().length > 30)
+      errs.budget = 'Budget value is too long'
 
-    if (form.timeline.trim()) {
-      const timelineVal = Number(form.timeline)
-      if (isNaN(timelineVal) || timelineVal <= 0) errs.timeline = 'Enter a valid timeline'
-      else if (form.timelineUnit === 'Weeks' && timelineVal > 104) errs.timeline = 'Timeline exceeds 2 years'
-      else if (form.timelineUnit === 'Months' && timelineVal > 24) errs.timeline = 'Timeline exceeds 2 years'
-    }
+    if (form.timeline.trim() && form.timeline.trim().length > 20)
+      errs.timeline = 'Timeline value is too long'
 
     if (Object.keys(errs).length) {
       setErrors(errs)

@@ -23,8 +23,8 @@ class UserResponse(BaseModel):
 # --- Request Models ---
 
 class JobInputRequest(BaseModel):
-    title: str = Field(..., min_length=5, max_length=150)
-    description: str = Field(..., min_length=150, max_length=8000)
+    title: str = Field(..., min_length=2, max_length=150)
+    description: str = Field(..., min_length=50, max_length=8000)
     budget: str = Field("", max_length=30)
     timeline: str = Field("", max_length=20)
     level: str
@@ -37,7 +37,7 @@ class GenerateRequest(BaseModel):
 
 class RefineRequest(BaseModel):
     thread_id: str
-    instruction: str
+    instruction: str = Field(..., min_length=5, max_length=2000)
 
 
 class FinalizeRequest(BaseModel):

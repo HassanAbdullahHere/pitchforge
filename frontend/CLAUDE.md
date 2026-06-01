@@ -86,8 +86,8 @@ Intentionally removed from `main.jsx`. StrictMode double-invokes `useEffect` in 
 ## JobDetails Validation
 | Field | Rule |
 |-------|------|
-| `title` | required, 5–150 chars, 3+ words |
-| `description` | required, 150–8000 chars |
+| `title` | required, 2–150 chars |
+| `description` | required, 50–8000 chars |
 | `budget` | optional — if non-empty, must be a positive number |
 | `timeline` | optional — if non-empty, must be a positive number |
 
