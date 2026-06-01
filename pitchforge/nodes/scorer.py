@@ -157,12 +157,3 @@ Follow these rules in strict order of priority:
         "matched_skills": result.get("matched_skills", []),
         "missing_skills": result.get("missing_skills", []),
     }
-
-
-def should_continue(state: PitchforgeState) -> str:
-    """
-    Conditional edge — routes to END if fit is too low to bother generating a proposal.
-    """
-    if state["fit_score"] < 40:
-        return "low_fit"
-    return "continue"

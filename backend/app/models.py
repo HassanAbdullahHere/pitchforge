@@ -111,5 +111,5 @@ class ProfileChunk(Base):
     # String ID — chunk IDs are "skills", "project_0", etc., not UUIDs
     id: Mapped[str] = mapped_column(String(64), primary_key=True)
     text: Mapped[str] = mapped_column(Text, nullable=False)
-    # 768-dim Gemini embeddings (gemini-embedding-2-preview)
+    # 3072-dim Gemini embeddings (gemini-embedding-2-preview)
     embedding: Mapped[list] = mapped_column(Vector(3072), nullable=False)

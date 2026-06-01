@@ -42,11 +42,6 @@ class FinalizeRequest(BaseModel):
     thread_id: str
 
 
-class ReviseRequest(BaseModel):
-    thread_id: str
-    feedback: str
-
-
 # --- Response Models ---
 
 class FitReportResponse(BaseModel):
