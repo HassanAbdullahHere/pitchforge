@@ -115,7 +115,7 @@ class PitchforgeState(TypedDict):
 - ~~Sanitize error messages in `runner.py`~~ — done: `logger.exception()` server-side, generic message to frontend
 - ~~Security headers middleware~~ — done: pure ASGI middleware in `main.py`; X-Frame-Options, X-Content-Type-Options, CSP on all responses
 - ~~Add timeout to `httpx.AsyncClient()`~~ — done: 10s timeout, returns 504 on `TimeoutException`
-- Guard LLM call for prompt injection — cheap Gemini Flash classifier runs before `stream_analysis` and `stream_revise` in `runner.py`; live in `pitchforge/guardrail.py`; binary output (safe/injection); blocks the request if injection detected. Covers both job description and human feedback surfaces.
+- ~~Guard LLM call for prompt injection~~ — done: `pitchforge/guardrail.py` with `check_injection()`; Gemini Flash classifier, `thinking_budget=0`, `max_output_tokens=10`; blocks both `stream_analysis` (job posting) and `stream_revise` (feedback) before any graph call; fails open on error.
 - Rate limiting (`slowapi`) — per-user + per-IP on auth and proposal endpoints
 
 *Observability*

@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
 
+from pitchforge.guardrail import check_injection
 from pitchforge.state import PitchforgeState
 
 # Set during app lifespan in main.py once the PostgreSQL checkpointer is ready.
@@ -66,6 +67,10 @@ async def stream_analysis(job_input: dict, db: AsyncSession, user_id: uuid.UUID)
         f"Experience Level: {job_input.get('level', 'not mentioned')}\n"
         f"Platform: {job_input.get('platform', 'not mentioned')}\n"
     )
+
+    if await check_injection(job_posting):
+        yield _sse("error", {"message": "Request blocked."})
+        return
 
     initial_state: PitchforgeState = {
         "job_posting": job_posting,
@@ -190,6 +195,10 @@ async def stream_generation(thread_id: str, should_apply: bool) -> AsyncGenerato
 
 
 async def stream_revise(thread_id: str, feedback: str) -> AsyncGenerator[str, None]:
+    if await check_injection(feedback):
+        yield _sse("error", {"message": "Request blocked."})
+        return
+
     config = _config(thread_id)
     # human_checkpoint is the node being resumed FROM — suppress its completion
     # so the frontend doesn't show it as ticked at the start of a revision pass
