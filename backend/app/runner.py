@@ -1,10 +1,15 @@
 import json
 import uuid
+from datetime import datetime, timezone
 from typing import AsyncGenerator
+
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from pitchforge.graph import pitchforge_graph
 from pitchforge.state import PitchforgeState
 from langgraph.types import Command
+from app.models import Proposal
 
 
 GRAPH_NODES = {
@@ -44,7 +49,7 @@ def _sse(event: str, data: dict) -> str:
     return f"event: {event}\ndata: {json.dumps(data)}\n\n"
 
 
-async def stream_analysis(job_input: dict) -> AsyncGenerator[str, None]:
+async def stream_analysis(job_input: dict, db: AsyncSession, user_id: uuid.UUID) -> AsyncGenerator[str, None]:
     thread_id = create_thread_id()
     config = _config(thread_id)
 
@@ -105,6 +110,23 @@ async def stream_analysis(job_input: dict) -> AsyncGenerator[str, None]:
         "missing_skills": values.get("missing_skills", []),
         "recommendation": _recommendation(fit_score),
     }
+
+    proposal = Proposal(
+        thread_id=thread_id,
+        user_id=user_id,
+        job_title=job_input.get("title", ""),
+        job_description=job_input.get("description", ""),
+        platform=job_input.get("platform") or None,
+        budget=job_input.get("budget") or None,
+        timeline=job_input.get("timeline") or None,
+        fit_score=fit_data["fit_score"],
+        suggested_price=fit_data["suggested_price"],
+        matched_skills=fit_data["matched_skills"],
+        missing_skills=fit_data["missing_skills"],
+        recommendation=fit_data["recommendation"],
+    )
+    db.add(proposal)
+    await db.flush()
 
     yield _sse("interrupt", {"type": "fit_checkpoint", **fit_data})
     yield _sse("done", fit_data)
@@ -210,7 +232,7 @@ async def stream_revise(thread_id: str, feedback: str) -> AsyncGenerator[str, No
     yield _sse("done", proposal_data)
 
 
-async def stream_finalize(thread_id: str) -> AsyncGenerator[str, None]:
+async def stream_finalize(thread_id: str, db: AsyncSession) -> AsyncGenerator[str, None]:
     config = _config(thread_id)
 
     try:
@@ -232,6 +254,15 @@ async def stream_finalize(thread_id: str) -> AsyncGenerator[str, None]:
     snapshot = await pitchforge_graph.aget_state(config)
     values = snapshot.values
 
-    yield _sse("done", {
-        "final_proposal": values.get("final_proposal") or values.get("proposal_draft", ""),
-    })
+    final_proposal_text = values.get("final_proposal") or values.get("proposal_draft", "")
+
+    result = await db.execute(select(Proposal).where(Proposal.thread_id == thread_id))
+    proposal = result.scalar_one_or_none()
+    if proposal is not None:
+        proposal.final_proposal = final_proposal_text
+        proposal.quality_score = values.get("quality_score", 0)
+        proposal.iteration_count = values.get("iteration_count", 0)
+        proposal.updated_at = datetime.now(timezone.utc)
+        await db.flush()
+
+    yield _sse("done", {"final_proposal": final_proposal_text})

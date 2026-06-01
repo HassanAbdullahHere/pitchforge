@@ -95,15 +95,18 @@ class PitchforgeState(TypedDict):
 - Hybrid RAG (BM25 + pgvector + RRF + FlashRank)
 - Google OAuth + JWT — all proposal endpoints auth-gated
 - Full frontend: Landing, JobDetails, AnalyzePipeline, GenerateProposal
+- Code cleanup: removed dead Login.jsx, ReviseRequest, should_continue(); fixed 768→3072 comment
+- `user_id` FK on `Proposal` + Alembic migration (`fk_proposals_user_id_users`)
+- Proposal row created at `/analyze` (fit data), updated at `/finalize` (final proposal + scores)
+- Thread ownership enforced on all proposal endpoints (403 if thread_id doesn't belong to current user)
 
 **Next (in order):**
 
 *Data & persistence*
-- Add `user_id` FK to `Proposal`, enforce thread ownership in routers (security blocker)
 - PostgreSQL checkpointer — replace `MemorySaver` in `graph.py` (threads die on restart)
-- Save proposals to DB on analyze + finalize (model exists, runner doesn't write yet)
 - `usage_events` table — per-user token/cost tracking (feeds rate limiting + admin)
 - `GET /api/proposals` endpoint + proposals history page in frontend
+- Migrate retriever's psycopg2 pgvector query to asyncpg — sync I/O blocks the event loop under concurrent load
 
 *Security & hardening*
 - Sanitize error messages in `runner.py` — currently leaks `str(e)` to frontend, logs nothing server-side
@@ -111,18 +114,11 @@ class PitchforgeState(TypedDict):
 - Add timeout to `httpx.AsyncClient()` in `/api/auth/google` (currently can hang indefinitely)
 - Guard LLM call for prompt injection — cheap Gemini Flash classifier runs before `stream_analysis` and `stream_revise` in `runner.py`; live in `pitchforge/guardrail.py`; binary output (safe/injection); blocks the request if injection detected. Covers both job description and human feedback surfaces.
 - Rate limiting (`slowapi`) — per-user + per-IP on auth and proposal endpoints
-- Migrate retriever's psycopg2 pgvector query to asyncpg — sync I/O blocks the event loop under concurrent load
 
 *Observability*
 - Structured logging — replace all `print()` with structlog JSON (nodes + runner + requests)
 - Fix `/health` — remove hardcoded `False` fields, add pgvector extension check
 - Admin view — `/api/admin/stats`, `is_admin` flag on `User`, protected admin page in frontend
-
-*Cleanup (do before any of the above)*
-- Delete `frontend/src/pages/Login.jsx` — not routed, dead file
-- Remove `ReviseRequest` from `schemas.py` — duplicate of `RefineRequest`, unused
-- Remove `should_continue()` from `pitchforge/nodes/scorer.py` — defined but never called
-- Fix wrong comment in `models.py:114` — says 768-dim, correct value is 3072
 
 *Tests*
 - Backend: pytest + pytest-asyncio — auth flow, proposal ownership, SSE frame sequence, schema validation
