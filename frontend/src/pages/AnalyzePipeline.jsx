@@ -4,6 +4,7 @@ import Logo from '../components/Logo'
 import { useAuth } from '../context/AuthContext'
 
 const NODES = [
+  { key: 'verifying',      label: 'Verifying',  sub: 'request security' },
   { key: 'analyzer',       label: 'Analyzing',  sub: 'job posting' },
   { key: 'retriever',      label: 'Retrieving', sub: 'profile matches' },
   { key: 'scorer',         label: 'Scoring',    sub: 'job fit' },
@@ -73,8 +74,10 @@ export default function AnalyzePipeline() {
             }
             if (!data) continue
 
-            if (ev === 'node_start') {
-              setNodeStates(p => ({ ...p, [data.node]: 'active' }))
+            if (ev === 'status') {
+              setNodeStates(p => ({ ...p, verifying: 'active' }))
+            } else if (ev === 'node_start') {
+              setNodeStates(p => ({ ...p, verifying: 'done', [data.node]: 'active' }))
               setStatusText(data.label + '…')
             } else if (ev === 'node_complete') {
               setNodeStates(p => ({ ...p, [data.node]: 'done' }))

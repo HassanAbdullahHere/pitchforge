@@ -1,5 +1,6 @@
 import os
 import json
+from google.genai.errors import ServerError
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.messages import SystemMessage, HumanMessage
 from pitchforge.state import PitchforgeState
@@ -10,6 +11,10 @@ llm = ChatGoogleGenerativeAI(
     thinking_budget=0,
     max_output_tokens=800,
     generation_config={"response_mime_type": "application/json"},
+).with_retry(
+    retry_if_exception_type=(ServerError,),
+    stop_after_attempt=3,
+    wait_exponential_jitter=True,
 )
 
 SYSTEM_PROMPT = """You are a senior Upwork consultant who has reviewed thousands of proposals and coached freelancers to top-rated status. You are ruthless, specific, and constructive. You do not give empty praise. You do not penalise things that don't matter. Your feedback must be actionable in a single revision pass."""

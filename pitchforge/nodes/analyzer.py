@@ -1,5 +1,6 @@
 import os
 import json
+from google.genai.errors import ServerError
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.messages import SystemMessage, HumanMessage
 from pitchforge.state import PitchforgeState
@@ -10,6 +11,10 @@ llm = ChatGoogleGenerativeAI(
     thinking_budget=0,
     max_output_tokens=400,
     generation_config={"response_mime_type": "application/json"},
+).with_retry(
+    retry_if_exception_type=(ServerError,),
+    stop_after_attempt=3,
+    wait_exponential_jitter=True,
 )
 
 SYSTEM_PROMPT = """You are a technical recruiter specialising in freelance contracts. You parse job postings into clean, structured data that downstream systems use for scoring and proposal generation. Your output must be precise — errors here cascade into every subsequent step."""

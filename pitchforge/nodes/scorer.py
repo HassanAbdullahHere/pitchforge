@@ -1,5 +1,6 @@
 import os
 import json
+from google.genai.errors import ServerError
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.messages import SystemMessage, HumanMessage
 from pitchforge.state import PitchforgeState
@@ -10,6 +11,10 @@ llm = ChatGoogleGenerativeAI(
     thinking_budget=0,
     max_output_tokens=600,
     generation_config={"response_mime_type": "application/json"},
+).with_retry(
+    retry_if_exception_type=(ServerError,),
+    stop_after_attempt=3,
+    wait_exponential_jitter=True,
 )
 
 SYSTEM_PROMPT = """You are a senior freelance bidding strategist with 10+ years of experience on Upwork and Freelancer. Your job is to evaluate job-freelancer fit and recommend a bid price that maximises the freelancer's chance of winning while protecting their earnings.

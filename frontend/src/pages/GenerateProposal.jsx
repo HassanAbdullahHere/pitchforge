@@ -11,6 +11,7 @@ const NODES = [
 ]
 
 const INIT_NODES = Object.fromEntries(NODES.map(n => [n.key, 'idle']))
+const MAX_REVISIONS = 2
 
 async function readSSE(url, payload, onEvent, signal, extraHeaders = {}) {
   const res = await fetch(url, {
@@ -70,8 +71,14 @@ export default function GenerateProposal() {
   const [copied, setCopied]             = useState(false)
   const [feedbackOpen, setFeedbackOpen] = useState(false)
 
-  const ctrlRef  = useRef(null)
-  const draftRef = useRef(null)
+  const [revisionError, setRevisionError] = useState(null)
+  const [revisionCount, setRevisionCount] = useState(0)
+
+  const ctrlRef          = useRef(null)
+  const draftRef         = useRef(null)
+  const savedProposalRef = useRef('')
+  const savedQualityRef  = useRef(null)
+  const isRevisionRef    = useRef(false)
 
   useEffect(() => {
     if (draftRef.current) {
@@ -80,7 +87,9 @@ export default function GenerateProposal() {
   }, [proposalText])
 
   const handleEvents = (ev, data) => {
-    if (ev === 'node_start') {
+    if (ev === 'status') {
+      setStatusText(data.message)
+    } else if (ev === 'node_start') {
       setNodeStates(p => ({ ...p, [data.node]: 'active' }))
       setStatusText(data.label + '…')
       if (data.node === 'generator') setProposalText('')
@@ -91,8 +100,16 @@ export default function GenerateProposal() {
     } else if (ev === 'done' && data.proposal_draft !== undefined) {
       setPhase('reviewing')
     } else if (ev === 'error') {
-      setErrorMsg(data.message)
-      setPhase('error')
+      if (isRevisionRef.current) {
+        setProposalText(savedProposalRef.current)
+        setQuality(savedQualityRef.current)
+        setRevisionError(data.message)
+        setPhase('reviewing')
+        isRevisionRef.current = false
+      } else {
+        setErrorMsg(data.message)
+        setPhase('error')
+      }
     }
   }
 
@@ -107,11 +124,23 @@ export default function GenerateProposal() {
           feedback: doneData.critic_feedback,
           iterationCount: doneData.iteration_count,
         })
+        if (isRevisionRef.current) {
+          setRevisionCount(c => c + 1)
+          isRevisionRef.current = false
+        }
       }
     } catch (err) {
       if (err.name === 'AbortError') return
-      setErrorMsg(err.message || 'Something went wrong')
-      setPhase('error')
+      if (isRevisionRef.current) {
+        setProposalText(savedProposalRef.current)
+        setQuality(savedQualityRef.current)
+        setRevisionError(err.message || 'Revision failed. Please try again.')
+        setPhase('reviewing')
+        isRevisionRef.current = false
+      } else {
+        setErrorMsg(err.message || 'Something went wrong')
+        setPhase('error')
+      }
     }
   }
 
@@ -123,8 +152,12 @@ export default function GenerateProposal() {
 
   const submitRevision = () => {
     if (!revisionInput.trim()) return
+    savedProposalRef.current = proposalText
+    savedQualityRef.current  = quality
+    isRevisionRef.current    = true
     const instruction = revisionInput
     setRevisionInput('')
+    setRevisionError(null)
     setPhase('generating')
     setNodeStates(INIT_NODES)
     setProposalText('')
@@ -167,14 +200,14 @@ export default function GenerateProposal() {
             setFinalProposal(data.final_proposal || proposalText)
             setPhase('final')
           } else if (ev === 'error') {
-            setErrorMsg(data.message)
-            setPhase('error')
+            setRevisionError(data.message)
+            setPhase('reviewing')
           }
         }
       }
     } catch (err) {
-      setErrorMsg(err.message || 'Failed to finalize proposal')
-      setPhase('error')
+      setRevisionError(err.message || 'Failed to finalize. Please try again.')
+      setPhase('reviewing')
     }
   }
 
@@ -291,6 +324,13 @@ export default function GenerateProposal() {
           {(phase === 'reviewing' || phase === 'revising') && (
             <div className="two-col anim" style={{ '--delay': '0ms' }}>
 
+              {revisionError && (
+                <div className="revision-error-banner">
+                  <span>⚠ {revisionError}</span>
+                  <button className="revision-error-dismiss" onClick={() => setRevisionError(null)}>✕</button>
+                </div>
+              )}
+
               {/* Light card — proposal text */}
               <div className="light-card proposal-col">
                 <div className="proposal-header">
@@ -311,8 +351,15 @@ export default function GenerateProposal() {
 
                 {phase === 'reviewing' && (
                   <div className="proposal-footer">
-                    <button className="btn-secondary revise-btn" onClick={() => setPhase('revising')}>
-                      ✎ Request Revision
+                    {revisionCount >= MAX_REVISIONS && (
+                      <span className="revision-limit-note">Revision limit reached</span>
+                    )}
+                    <button
+                      className="btn-secondary revise-btn"
+                      onClick={() => setPhase('revising')}
+                      disabled={revisionCount >= MAX_REVISIONS}
+                    >
+                      ✎ Request Revision {revisionCount > 0 && `(${revisionCount}/${MAX_REVISIONS})`}
                     </button>
                   </div>
                 )}
@@ -608,8 +655,9 @@ const css = `
     letter-spacing: -0.01em;
     white-space: nowrap;
   }
-  .btn-secondary:hover { transform: translateY(-2px); box-shadow: 0 4px 14px rgba(0,0,0,0.10); }
-  .btn-secondary:active { transform: translateY(0); box-shadow: none; }
+  .btn-secondary:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 4px 14px rgba(0,0,0,0.10); }
+  .btn-secondary:active:not(:disabled) { transform: translateY(0); box-shadow: none; }
+  .btn-secondary:disabled { opacity: 0.38; cursor: not-allowed; }
 
   /* ── Main ── */
   .gp-main {
@@ -918,7 +966,15 @@ const css = `
   .proposal-footer {
     flex-shrink: 0;
     display: flex;
+    align-items: center;
     justify-content: flex-end;
+    gap: 12px;
+  }
+  .revision-limit-note {
+    font-family: var(--font);
+    font-size: 12px;
+    color: var(--text-muted);
+    opacity: 0.7;
   }
 
   /* ── Revision panel ── */
@@ -1222,6 +1278,32 @@ const css = `
   .final-action-group { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
   .final-action-group .btn-secondary,
   .final-action-group .btn-primary { min-width: 152px; text-align: center; }
+
+  /* ── Inline revision error banner ── */
+  .revision-error-banner {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px 16px;
+    background: rgba(220, 80, 80, 0.12);
+    border: 1px solid rgba(220, 80, 80, 0.3);
+    border-radius: 8px;
+    font-family: var(--font);
+    font-size: 13px;
+    color: rgba(255, 180, 180, 0.9);
+  }
+  .revision-error-dismiss {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: rgba(255, 180, 180, 0.6);
+    font-size: 14px;
+    padding: 0 4px;
+    flex-shrink: 0;
+  }
+  .revision-error-dismiss:hover { color: rgba(255, 180, 180, 1); }
 
   /* ── Error ── */
   .error-card {

@@ -1,4 +1,5 @@
 import os
+from google.genai.errors import ServerError
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.messages import SystemMessage, HumanMessage
 from pitchforge.state import PitchforgeState
@@ -9,6 +10,10 @@ llm = ChatGoogleGenerativeAI(
     thinking_budget=0,
     max_output_tokens=700,
     streaming=True,
+).with_retry(
+    retry_if_exception_type=(ServerError,),
+    stop_after_attempt=3,
+    wait_exponential_jitter=True,
 )
 
 SYSTEM_PROMPT = """You write freelance proposals that win contracts. You have one rule above all others: every single claim in the proposal must be traceable to something real in the freelancer's profile. You do not invent past projects. You do not imply experience that isn't there. You do not pad with filler.

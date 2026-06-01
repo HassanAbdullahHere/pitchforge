@@ -68,6 +68,7 @@ async def stream_analysis(job_input: dict, db: AsyncSession, user_id: uuid.UUID)
         f"Platform: {job_input.get('platform', 'not mentioned')}\n"
     )
 
+    yield _sse("status", {"message": "Verifying request…"})
     if await check_injection(job_posting):
         yield _sse("error", {"message": "Request blocked."})
         return
@@ -198,6 +199,7 @@ MAX_HUMAN_REVISIONS = 2
 
 
 async def stream_revise(thread_id: str, feedback: str, db: AsyncSession) -> AsyncGenerator[str, None]:
+    yield _sse("status", {"message": "Verifying request…"})
     if await check_injection(feedback):
         yield _sse("error", {"message": "Request blocked."})
         return
