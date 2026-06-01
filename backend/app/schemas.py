@@ -1,5 +1,7 @@
+from datetime import datetime
 from typing import Optional, Literal
-from pydantic import BaseModel, Field
+from uuid import UUID
+from pydantic import BaseModel, ConfigDict, Field
 
 
 # --- Auth Models ---
@@ -62,6 +64,22 @@ class ProposalResponse(BaseModel):
 
 class FinalResponse(BaseModel):
     final_proposal: str
+
+
+class ProposalHistoryItem(BaseModel):
+    id: UUID
+    thread_id: str
+    job_title: str
+    platform: Optional[str] = None
+    budget: Optional[str] = None
+    fit_score: Optional[int] = None
+    recommendation: Optional[str] = None
+    quality_score: Optional[int] = None
+    final_proposal: Optional[str] = None
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
 
 
 class HealthResponse(BaseModel):

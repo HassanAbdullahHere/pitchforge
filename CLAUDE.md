@@ -28,6 +28,7 @@ PitchForge/
 | LLM wrapper | LangChain Google GenAI |
 | Database | PostgreSQL 16 via Docker (`pgvector/pgvector:pg16`) |
 | ORM | SQLAlchemy 2.0 async + asyncpg |
+| Graph checkpointer | `langgraph-checkpoint-postgres` (`AsyncPostgresSaver`) — psycopg3 pool |
 | Migrations | Alembic |
 | Backend | FastAPI |
 | Frontend | React 18 + Vite |
@@ -99,11 +100,11 @@ class PitchforgeState(TypedDict):
 - `user_id` FK on `Proposal` + Alembic migration (`fk_proposals_user_id_users`)
 - Proposal row created at `/analyze` (fit data), updated at `/finalize` (final proposal + scores)
 - Thread ownership enforced on all proposal endpoints (403 if thread_id doesn't belong to current user)
+- PostgreSQL checkpointer (`AsyncPostgresSaver`) — `graph.py` exposes `compile_graph(checkpointer)`; lifespan in `main.py` creates the pool, calls `setup()`, sets `runner.pitchforge_graph`. Checkpoint tables (`checkpoints`, `checkpoint_blobs`, `checkpoint_writes`, `checkpoint_migrations`) are self-managed by LangGraph, not Alembic. Threads survive backend restarts.
 
 **Next (in order):**
 
 *Data & persistence*
-- PostgreSQL checkpointer — replace `MemorySaver` in `graph.py` (threads die on restart)
 - `usage_events` table — per-user token/cost tracking (feeds rate limiting + admin)
 - `GET /api/proposals` endpoint + proposals history page in frontend
 - Migrate retriever's psycopg2 pgvector query to asyncpg — sync I/O blocks the event loop under concurrent load

@@ -10,6 +10,7 @@ from app.schemas import (
     FinalizeRequest,
     GenerateRequest,
     JobInputRequest,
+    ProposalHistoryItem,
     RefineRequest,
 )
 from app.runner import (
@@ -22,6 +23,19 @@ from app.runner import (
 router = APIRouter(prefix="/proposal", tags=["proposals"])
 
 _SSE_HEADERS = {"Cache-Control": "no-cache", "X-Accel-Buffering": "no"}
+
+
+@router.get("s", response_model=list[ProposalHistoryItem])
+async def list_proposals(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(Proposal)
+        .where(Proposal.user_id == current_user.id)
+        .order_by(Proposal.created_at.desc())
+    )
+    return result.scalars().all()
 
 
 @router.post("/analyze")

@@ -136,6 +136,10 @@ export default function Landing() {
                         </div>
                       </div>
                       <div className="menu-divider" />
+                      <button className="menu-item" onClick={() => { setMenuOpen(false); navigate('/proposals') }}>
+                        <span className="menu-item-icon">≡</span>
+                        My Proposals
+                      </button>
                       <button className="menu-item" onClick={() => setMenuOpen(false)}>
                         <span className="menu-item-icon">◎</span>
                         Profile
