@@ -1,10 +1,13 @@
 import json
+import logging
 import uuid
 from datetime import datetime, timezone
 from typing import AsyncGenerator
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+
+logger = logging.getLogger(__name__)
 
 from pitchforge.state import PitchforgeState
 
@@ -98,7 +101,8 @@ async def stream_analysis(job_input: dict, db: AsyncSession, user_id: uuid.UUID)
                 yield _sse("node_complete", {"node": name})
 
     except Exception as e:
-        yield _sse("error", {"message": str(e)})
+        logger.exception("stream_analysis failed: %s", e)
+        yield _sse("error", {"message": "Analysis failed. Please try again."})
         return
 
     snapshot = await pitchforge_graph.aget_state(config)
@@ -163,7 +167,8 @@ async def stream_generation(thread_id: str, should_apply: bool) -> AsyncGenerato
                                     yield _sse("token", {"token": part["text"]})
 
     except Exception as e:
-        yield _sse("error", {"message": str(e)})
+        logger.exception("stream_generation failed: %s", e)
+        yield _sse("error", {"message": "Generation failed. Please try again."})
         return
 
     if not should_apply:
@@ -218,7 +223,8 @@ async def stream_revise(thread_id: str, feedback: str) -> AsyncGenerator[str, No
                                     yield _sse("token", {"token": part["text"]})
 
     except Exception as e:
-        yield _sse("error", {"message": str(e)})
+        logger.exception("stream_revise failed: %s", e)
+        yield _sse("error", {"message": "Revision failed. Please try again."})
         return
 
     snapshot = await pitchforge_graph.aget_state(config)
@@ -250,7 +256,8 @@ async def stream_finalize(thread_id: str, db: AsyncSession) -> AsyncGenerator[st
                 yield _sse("node_complete", {"node": name})
 
     except Exception as e:
-        yield _sse("error", {"message": str(e)})
+        logger.exception("stream_finalize failed: %s", e)
+        yield _sse("error", {"message": "Finalization failed. Please try again."})
         return
 
     snapshot = await pitchforge_graph.aget_state(config)

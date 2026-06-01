@@ -112,7 +112,7 @@ class PitchforgeState(TypedDict):
 - `usage_events` table — per-user token/cost tracking (feeds rate limiting + admin) — deferred until admin panel
 
 *Security & hardening*
-- Sanitize error messages in `runner.py` — currently leaks `str(e)` to frontend, logs nothing server-side
+- ~~Sanitize error messages in `runner.py`~~ — done: `logger.exception()` server-side, generic message to frontend
 - Security headers middleware — CSP, X-Frame-Options, X-Content-Type-Options
 - Add timeout to `httpx.AsyncClient()` in `/api/auth/google` (currently can hang indefinitely)
 - Guard LLM call for prompt injection — cheap Gemini Flash classifier runs before `stream_analysis` and `stream_revise` in `runner.py`; live in `pitchforge/guardrail.py`; binary output (safe/injection); blocks the request if injection detected. Covers both job description and human feedback surfaces.
