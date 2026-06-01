@@ -33,10 +33,16 @@ async def google_auth(
       3. We call Google's userinfo endpoint to verify + get user details
       4. Upsert user row, return our signed JWT
     """
-    async with httpx.AsyncClient() as client:
-        resp = await client.get(
-            GOOGLE_USERINFO_URL,
-            headers={"Authorization": f"Bearer {request.access_token}"},
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            resp = await client.get(
+                GOOGLE_USERINFO_URL,
+                headers={"Authorization": f"Bearer {request.access_token}"},
+            )
+    except httpx.TimeoutException:
+        raise HTTPException(
+            status_code=status.HTTP_504_GATEWAY_TIMEOUT,
+            detail="Google authentication service timed out",
         )
 
     if resp.status_code != 200:
