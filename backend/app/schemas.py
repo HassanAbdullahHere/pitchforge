@@ -82,6 +82,27 @@ class ProposalHistoryItem(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+class ProposalDetailResponse(BaseModel):
+    id: UUID
+    thread_id: str
+    job_title: str
+    platform: Optional[str] = None
+    budget: Optional[str] = None
+    timeline: Optional[str] = None
+    fit_score: Optional[int] = None
+    suggested_price: Optional[str] = None
+    matched_skills: Optional[list[str]] = None
+    missing_skills: Optional[list[str]] = None
+    recommendation: Optional[str] = None
+    quality_score: Optional[int] = None
+    iteration_count: Optional[int] = None
+    final_proposal: Optional[str] = None
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 class HealthResponse(BaseModel):
     status: str
     db_connected: bool

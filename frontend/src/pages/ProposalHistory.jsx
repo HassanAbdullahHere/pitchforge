@@ -36,8 +36,6 @@ export default function ProposalHistory() {
   const [proposals, setProposals] = useState([])
   const [loading, setLoading]     = useState(true)
   const [error, setError]         = useState(null)
-  const [modal, setModal]         = useState(null)
-  const [copied, setCopied]       = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -50,16 +48,6 @@ export default function ProposalHistory() {
       .catch(err => { if (!cancelled) { setError(err.message); setLoading(false) } })
     return () => { cancelled = true }
   }, [])
-
-  const openModal = p => { setModal(p); setCopied(false) }
-  const closeModal = () => setModal(null)
-
-  const copyProposal = () => {
-    navigator.clipboard.writeText(modal.final_proposal).then(() => {
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
-    })
-  }
 
   return (
     <>
@@ -121,8 +109,8 @@ export default function ProposalHistory() {
                   <div
                     key={p.id}
                     className={`ph-card${done ? ' ph-card--done' : ''}`}
-                    onClick={() => done && openModal(p)}
-                    title={done ? 'Click to view proposal' : 'Proposal incomplete'}
+                    onClick={() => navigate(`/proposals/${p.id}`)}
+                    title="View details"
                   >
                     <div className="ph-card-top">
                       <span className={`ph-status-pill${done ? ' ph-status-pill--done' : ''}`}>
@@ -158,9 +146,7 @@ export default function ProposalHistory() {
                       </div>
                     )}
 
-                    {done && (
-                      <div className="ph-view-hint">View proposal →</div>
-                    )}
+                    <div className="ph-view-hint">View details →</div>
                   </div>
                 )
               })}
@@ -168,58 +154,6 @@ export default function ProposalHistory() {
           )}
         </main>
 
-        {/* ── Modal ── */}
-        {modal && (
-          <div className="ph-overlay" onClick={closeModal}>
-            <div className="ph-modal" onClick={e => e.stopPropagation()}>
-              <div className="ph-modal-header">
-                <div>
-                  <p className="ph-modal-eyebrow">Final Proposal</p>
-                  <h2 className="ph-modal-title">{modal.job_title}</h2>
-                </div>
-                <div className="ph-modal-actions">
-                  <button className="btn-secondary" onClick={copyProposal}>
-                    {copied ? 'Copied!' : 'Copy'}
-                  </button>
-                  <button className="btn-secondary ph-close-btn" onClick={closeModal}>✕</button>
-                </div>
-              </div>
-
-              {(modal.fit_score != null || modal.quality_score != null || modal.recommendation) && (
-                <div className="ph-modal-meta">
-                  {modal.fit_score != null && (
-                    <div className="ph-meta-item">
-                      <span className="ph-meta-label">Fit Score</span>
-                      <span className="ph-meta-val" style={{ color: scoreColor(modal.fit_score) }}>
-                        {modal.fit_score}
-                      </span>
-                    </div>
-                  )}
-                  {modal.quality_score != null && (
-                    <div className="ph-meta-item">
-                      <span className="ph-meta-label">Quality</span>
-                      <span className="ph-meta-val" style={{ color: scoreColor(modal.quality_score) }}>
-                        {modal.quality_score}
-                      </span>
-                    </div>
-                  )}
-                  {modal.recommendation && (
-                    <div className="ph-meta-item">
-                      <span className="ph-meta-label">Recommendation</span>
-                      <span className="ph-badge" style={recColor(modal.recommendation)}>
-                        {modal.recommendation}
-                      </span>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              <div className="ph-modal-body">
-                <pre className="ph-proposal-text">{modal.final_proposal}</pre>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
     </>
   )
@@ -395,14 +329,14 @@ const css = `
     animation: fadeUp 350ms ease both;
     transition: transform 200ms, box-shadow 200ms;
   }
-  .ph-card--done {
+  .ph-card {
     cursor: pointer;
   }
-  .ph-card--done:hover {
+  .ph-card:hover {
     transform: translateY(-3px);
     box-shadow: 0 8px 28px rgba(0,0,0,0.10);
   }
-  .ph-card--done:active {
+  .ph-card:active {
     transform: translateY(0);
     box-shadow: none;
   }
@@ -503,136 +437,12 @@ const css = `
     opacity: 0;
     transition: opacity 200ms;
   }
-  .ph-card--done:hover .ph-view-hint { opacity: 1; }
-
-  /* ── Modal overlay ── */
-  .ph-overlay {
-    position: fixed;
-    inset: 0;
-    background: rgba(10,9,8,0.55);
-    backdrop-filter: blur(6px);
-    z-index: 100;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 24px;
-    animation: fadeUp 200ms ease both;
-  }
-
-  .ph-modal {
-    background: rgba(232,230,227,0.92);
-    backdrop-filter: blur(28px);
-    border: 1px solid rgba(212,210,208,0.95);
-    border-radius: 20px;
-    padding: 28px 32px;
-    max-width: 720px;
-    width: 100%;
-    max-height: 85vh;
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-    animation: fadeUp 250ms ease both;
-  }
-
-  .ph-modal-header {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 16px;
-    flex-shrink: 0;
-  }
-  .ph-modal-eyebrow {
-    font-family: var(--font);
-    font-size: 11px;
-    font-weight: 500;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    color: var(--text-muted);
-    margin: 0 0 4px;
-  }
-  .ph-modal-title {
-    font-family: var(--font);
-    font-size: 20px;
-    font-weight: 700;
-    letter-spacing: -0.03em;
-    color: var(--text-dark);
-    margin: 0;
-    line-height: 1.2;
-  }
-  .ph-modal-actions {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    flex-shrink: 0;
-    margin-top: 4px;
-  }
-  .ph-close-btn {
-    padding: 10px 14px;
-    font-size: 14px;
-    line-height: 1;
-  }
-
-  .ph-modal-meta {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 20px;
-    flex-shrink: 0;
-    padding: 14px 16px;
-    background: rgba(255,255,255,0.45);
-    border-radius: 12px;
-    border: 1px solid rgba(30,36,25,0.06);
-  }
-  .ph-meta-item {
-    display: flex;
-    flex-direction: column;
-    gap: 3px;
-  }
-  .ph-meta-label {
-    font-family: var(--font);
-    font-size: 10px;
-    font-weight: 500;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    color: var(--text-muted);
-  }
-  .ph-meta-val {
-    font-family: var(--font);
-    font-size: 22px;
-    font-weight: 700;
-    letter-spacing: -0.03em;
-  }
-
-  .ph-modal-body {
-    flex: 1;
-    overflow-y: auto;
-    border-radius: 12px;
-    border: 1px solid rgba(30,36,25,0.06);
-    background: rgba(255,255,255,0.35);
-    padding: 20px 22px;
-    min-height: 0;
-  }
-  .ph-modal-body::-webkit-scrollbar { width: 3px; }
-  .ph-modal-body::-webkit-scrollbar-thumb { background: rgba(30,36,25,0.12); border-radius: 2px; }
-
-  .ph-proposal-text {
-    font-family: var(--font);
-    font-size: 14px;
-    font-weight: 400;
-    letter-spacing: -0.01em;
-    line-height: 1.75;
-    color: var(--text-dark);
-    white-space: pre-wrap;
-    word-break: break-word;
-    margin: 0;
-  }
+  .ph-card:hover .ph-view-hint { opacity: 1; }
 
   /* ── Mobile ── */
   @media (max-width: 640px) {
     .ph-nav  { padding: 16px 20px; }
     .ph-main { padding: 8px 20px 40px; }
     .ph-grid { grid-template-columns: 1fr; }
-    .ph-modal { padding: 20px 20px; max-height: 92vh; }
-    .ph-modal-header { flex-direction: column; gap: 12px; }
-    .ph-modal-actions { align-self: flex-end; }
   }
 `

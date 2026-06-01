@@ -1,3 +1,5 @@
+from uuid import UUID as PyUUID
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy import select
@@ -10,6 +12,7 @@ from app.schemas import (
     FinalizeRequest,
     GenerateRequest,
     JobInputRequest,
+    ProposalDetailResponse,
     ProposalHistoryItem,
     RefineRequest,
 )
@@ -36,6 +39,21 @@ async def list_proposals(
         .order_by(Proposal.created_at.desc())
     )
     return result.scalars().all()
+
+
+@router.get("s/{proposal_id}", response_model=ProposalDetailResponse)
+async def get_proposal(
+    proposal_id: PyUUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(select(Proposal).where(Proposal.id == proposal_id))
+    proposal = result.scalar_one_or_none()
+    if proposal is None:
+        raise HTTPException(status_code=404, detail="Proposal not found")
+    if proposal.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Access denied")
+    return proposal
 
 
 @router.post("/analyze")
