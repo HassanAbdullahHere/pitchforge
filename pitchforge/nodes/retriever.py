@@ -4,9 +4,9 @@ from pathlib import Path
 from dotenv import load_dotenv
 load_dotenv(Path(__file__).parent.parent / ".env")
 
+import asyncpg
 import numpy as np
-import psycopg2
-from pgvector.psycopg2 import register_vector
+from pgvector.asyncpg import register_vector
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
 from rank_bm25 import BM25Okapi
 from flashrank import Ranker, RerankRequest
@@ -18,8 +18,8 @@ embeddings = GoogleGenerativeAIEmbeddings(
     google_api_key=os.getenv("GEMINI_API_KEY")
 )
 
-# Lazy-loaded globals — DB connection replaces ChromaDB client/collection
-_conn = None
+# Lazy-loaded globals
+_pool: asyncpg.Pool | None = None
 _bm25 = None
 _corpus_texts = None
 _corpus_ids = None
@@ -29,26 +29,25 @@ _N_CANDIDATES = 6
 _N_FINAL = 4
 
 
-def _get_conn():
-    """Return a cached psycopg2 connection with pgvector type registered."""
-    global _conn
-    if _conn is None or _conn.closed:
-        _conn = psycopg2.connect(os.environ["DATABASE_URL_SYNC"])
-        register_vector(_conn)  # must be called on every new connection
-    return _conn
+async def _get_pool() -> asyncpg.Pool:
+    global _pool
+    if _pool is None:
+        _pool = await asyncpg.create_pool(
+            os.environ["DATABASE_URL_SYNC"],
+            init=register_vector,  # registers vector codec on every new connection
+        )
+    return _pool
 
 
-def _get_bm25():
+async def _get_bm25():
     """Load BM25 corpus from DB on first call, cache globally."""
     global _bm25, _corpus_texts, _corpus_ids
     if _bm25 is None:
-        conn = _get_conn()
-        cur = conn.cursor()
-        cur.execute("SELECT id, text FROM profile_chunks ORDER BY id")
-        rows = cur.fetchall()
-        cur.close()
-        _corpus_ids = [row[0] for row in rows]
-        _corpus_texts = [row[1] for row in rows]
+        pool = await _get_pool()
+        async with pool.acquire() as conn:
+            rows = await conn.fetch("SELECT id, text FROM profile_chunks ORDER BY id")
+        _corpus_ids = [row["id"] for row in rows]
+        _corpus_texts = [row["text"] for row in rows]
         _bm25 = BM25Okapi([t.lower().split() for t in _corpus_texts])
     return _bm25
 
@@ -68,7 +67,7 @@ def _rrf_fuse(ranked_lists: list[list[str]], k: int = 60) -> list[str]:
     return sorted(scores, key=lambda d: scores[d], reverse=True)
 
 
-def retrieve_profile(state: PitchforgeState) -> dict:
+async def retrieve_profile(state: PitchforgeState) -> dict:
     """
     Node 2 — Hybrid RAG retrieval: BM25 + pgvector search, RRF fusion, FlashRank re-ranking.
 
@@ -85,7 +84,7 @@ def retrieve_profile(state: PitchforgeState) -> dict:
     )
 
     # 1. BM25 keyword retrieval (corpus loaded from DB on first call)
-    bm25 = _get_bm25()
+    bm25 = await _get_bm25()
     bm25_scores = bm25.get_scores(query.lower().split())
     bm25_ids = [_corpus_ids[i] for i in np.argsort(bm25_scores)[::-1][:_N_CANDIDATES]]
     print(f"  BM25 top IDs: {bm25_ids}")
@@ -93,16 +92,15 @@ def retrieve_profile(state: PitchforgeState) -> dict:
     # 2. pgvector cosine similarity search
     # <=> is cosine distance — correct for Gemini's L2-normalized embeddings
     query_vector = np.array(embeddings.embed_query(query), dtype=np.float32)
-    conn = _get_conn()
-    cur = conn.cursor()
-    cur.execute(
-        "SELECT id, text FROM profile_chunks ORDER BY embedding <=> %s LIMIT %s",
-        (query_vector, _N_CANDIDATES)
-    )
-    vec_rows = cur.fetchall()
-    cur.close()
-    vec_ids = [row[0] for row in vec_rows]
-    vec_id_to_text = {row[0]: row[1] for row in vec_rows}
+    pool = await _get_pool()
+    async with pool.acquire() as conn:
+        vec_rows = await conn.fetch(
+            "SELECT id, text FROM profile_chunks ORDER BY embedding <=> $1 LIMIT $2",
+            query_vector.tolist(),  # pgvector.asyncpg encodes list → vector after register_vector
+            _N_CANDIDATES,
+        )
+    vec_ids = [row["id"] for row in vec_rows]
+    vec_id_to_text = {row["id"]: row["text"] for row in vec_rows}
     print(f"  Vector top IDs: {vec_ids}")
 
     # 3. RRF fusion

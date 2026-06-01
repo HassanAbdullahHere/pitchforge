@@ -66,7 +66,6 @@ export default function Landing() {
     onSuccess: async (tokenResponse) => {
       try {
         await login(tokenResponse.access_token)
-        navigate('/new')
       } catch {
         console.error('Login failed')
       }

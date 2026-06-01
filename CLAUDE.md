@@ -101,13 +101,15 @@ class PitchforgeState(TypedDict):
 - Proposal row created at `/analyze` (fit data), updated at `/finalize` (final proposal + scores)
 - Thread ownership enforced on all proposal endpoints (403 if thread_id doesn't belong to current user)
 - PostgreSQL checkpointer (`AsyncPostgresSaver`) — `graph.py` exposes `compile_graph(checkpointer)`; lifespan in `main.py` creates the pool, calls `setup()`, sets `runner.pitchforge_graph`. Checkpoint tables (`checkpoints`, `checkpoint_blobs`, `checkpoint_writes`, `checkpoint_migrations`) are self-managed by LangGraph, not Alembic. Threads survive backend restarts.
+- `GET /api/proposals` + `GET /api/proposals/{id}` — list and detail endpoints with ownership checks (403/404)
+- Proposals history page (`/proposals`) — card grid with fit score, quality score, recommendation badges, relative timestamps
+- Proposal detail page (`/proposals/:id`) — full layout: scores strip, "You Bring"/"Gaps to Bridge" skills, formatted proposal text, copy + download buttons
+- Async retriever — swapped psycopg2 (sync, blocked event loop) to asyncpg pool with `pgvector.asyncpg` codec; `retrieve_profile` is now `async def`, yields event loop during both DB queries
 
 **Next (in order):**
 
 *Data & persistence*
-- `usage_events` table — per-user token/cost tracking (feeds rate limiting + admin)
-- `GET /api/proposals` endpoint + proposals history page in frontend
-- Migrate retriever's psycopg2 pgvector query to asyncpg — sync I/O blocks the event loop under concurrent load
+- `usage_events` table — per-user token/cost tracking (feeds rate limiting + admin) — deferred until admin panel
 
 *Security & hardening*
 - Sanitize error messages in `runner.py` — currently leaks `str(e)` to frontend, logs nothing server-side
