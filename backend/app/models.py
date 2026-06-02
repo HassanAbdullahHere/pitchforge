@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 
 from pgvector.sqlalchemy import Vector
 from sqlalchemy import JSON, Boolean, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -109,6 +110,9 @@ class User(Base):
     profile_chunks: Mapped[list["ProfileChunk"]] = relationship(
         "ProfileChunk", back_populates="user", cascade="all, delete-orphan"
     )
+    profile: Mapped["UserProfile | None"] = relationship(
+        "UserProfile", back_populates="user", cascade="all, delete-orphan", uselist=False
+    )
 
 
 class ProfileChunk(Base):
@@ -135,3 +139,42 @@ class ProfileChunk(Base):
     embedding: Mapped[list] = mapped_column(Vector(3072), nullable=False)
 
     user: Mapped["User"] = relationship("User", back_populates="profile_chunks")
+
+
+class UserProfile(Base):
+    """
+    Raw structured profile for one user — source of truth for display and editing.
+    profile_chunks stores the RAG-optimized version derived from this.
+    One row per user (enforced by UNIQUE on user_id).
+    """
+
+    __tablename__ = "user_profiles"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        unique=True,
+        index=True,
+    )
+    title: Mapped[str | None] = mapped_column(String(150), nullable=True)
+    bio: Mapped[str | None] = mapped_column(Text, nullable=True)
+    skills: Mapped[list | None] = mapped_column(JSONB, nullable=True)
+    projects: Mapped[list | None] = mapped_column(JSONB, nullable=True)
+    experience: Mapped[list | None] = mapped_column(JSONB, nullable=True)
+    niches: Mapped[list | None] = mapped_column(JSONB, nullable=True)
+    rates: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc),
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+    )
+
+    user: Mapped["User"] = relationship("User", back_populates="profile")

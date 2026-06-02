@@ -113,3 +113,47 @@ class HealthResponse(BaseModel):
     db_connected: bool
     chromadb_connected: bool
     gemini_reachable: bool
+
+
+# --- Profile Models ---
+
+class ProfileRates(BaseModel):
+    hourly_min: int = Field(0, ge=0)
+    hourly_max: int = Field(0, ge=0)
+    fixed_min: int = Field(0, ge=0)
+
+
+class ProfileProject(BaseModel):
+    name: str = Field(..., min_length=1, max_length=150)
+    description: str = Field(..., min_length=1, max_length=1000)
+    tech: list[str] = Field(default_factory=list)
+    outcome: Optional[str] = Field(None, max_length=500)
+
+
+class ProfileInput(BaseModel):
+    title: str = Field(..., min_length=1, max_length=150)
+    bio: str = Field(..., min_length=10, max_length=1000)
+    skills: list[str] = Field(..., min_length=1)
+    projects: list[ProfileProject] = Field(default_factory=list)
+    experience: list[str] = Field(default_factory=list)
+    niches: list[str] = Field(default_factory=list)
+    rates: ProfileRates = Field(default_factory=ProfileRates)
+
+
+class ProfileResponse(BaseModel):
+    title: Optional[str] = None
+    bio: Optional[str] = None
+    skills: list[str] = Field(default_factory=list)
+    projects: list[dict] = Field(default_factory=list)
+    experience: list[str] = Field(default_factory=list)
+    niches: list[str] = Field(default_factory=list)
+    rates: Optional[dict] = None
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class ResumeParseResponse(BaseModel):
+    parsed: Optional[dict] = None
+    error: Optional[str] = None

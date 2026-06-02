@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Logo from '../components/Logo'
+import { useAuth } from '../context/AuthContext'
 
 function Wheel({ options, value, onChange }) {
   const [rolling, setRolling] = useState(null) // 'up' | 'down'
@@ -38,10 +39,23 @@ const INITIAL_FORM = {
 
 export default function JobDetails() {
   const navigate = useNavigate()
+  const { authHeaders } = useAuth()
 
   const [form, setForm] = useState(INITIAL_FORM)
   const [errors, setErrors] = useState({})
   const [shake, setShake] = useState(false)
+  const [profileChecked, setProfileChecked] = useState(false)
+
+  useEffect(() => {
+    fetch('/api/profile', { headers: authHeaders() })
+      .then(r => {
+        if (r.status === 404) navigate('/profile/edit?onboarding=true', { replace: true })
+        else setProfileChecked(true)
+      })
+      .catch(() => setProfileChecked(true))
+  }, [])
+
+  if (!profileChecked) return null
 
   const set = (key, val) => setForm((f) => ({ ...f, [key]: val }))
   const handleReset = () => { setForm(INITIAL_FORM); setErrors({}) }

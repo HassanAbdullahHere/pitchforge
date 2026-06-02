@@ -23,6 +23,8 @@ from dotenv import load_dotenv
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
 from pgvector.psycopg2 import register_vector
 
+from pitchforge.profile_utils import build_chunks
+
 load_dotenv(Path(__file__).parent / ".env")
 
 if len(sys.argv) != 2:
@@ -45,38 +47,7 @@ embeddings = GoogleGenerativeAIEmbeddings(
 with open(Path(__file__).parent / "profile" / "profile.json", "r") as f:
     profile = json.load(f)
 
-# Build chunks
-chunks = []
-
-chunks.append({
-    "chunk_key": "skills",
-    "text": f"Skills: {', '.join(profile['skills'])}"
-})
-
-for i, project in enumerate(profile["projects"]):
-    chunks.append({
-        "chunk_key": f"project_{i}",
-        "text": f"Project: {project['name']}. {project['description']}. Tech: {', '.join(project['tech'])}"
-    })
-
-for i, exp in enumerate(profile["experience"]):
-    chunks.append({
-        "chunk_key": f"experience_{i}",
-        "text": f"Experience: {exp}"
-    })
-
-chunks.append({
-    "chunk_key": "niches",
-    "text": f"Specializes in: {', '.join(profile['niches'])}"
-})
-
-chunks.append({
-    "chunk_key": "rates",
-    "text": (
-        f"Hourly rate: ${profile['rates']['hourly_min']}-${profile['rates']['hourly_max']}. "
-        f"Minimum fixed: ${profile['rates']['fixed_min']}"
-    )
-})
+chunks = build_chunks(profile)
 
 # Connect to PostgreSQL and register pgvector type adapter
 conn = psycopg2.connect(os.environ["DATABASE_URL_SYNC"])
