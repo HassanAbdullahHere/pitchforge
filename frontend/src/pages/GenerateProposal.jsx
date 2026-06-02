@@ -325,14 +325,15 @@ export default function GenerateProposal() {
 
           {/* ══ REVIEWING / REVISING ══ */}
           {(phase === 'reviewing' || phase === 'revising') && (
-            <div className="two-col anim" style={{ '--delay': '0ms' }}>
-
+            <>
               {revisionError && (
                 <div className="revision-error-banner">
                   <span>⚠ {revisionError}</span>
                   <button className="revision-error-dismiss" onClick={() => setRevisionError(null)}>✕</button>
                 </div>
               )}
+
+            <div className="two-col anim" style={{ '--delay': '0ms' }}>
 
               {/* Light card — proposal text */}
               <div className="light-card proposal-col">
@@ -458,6 +459,7 @@ export default function GenerateProposal() {
                 )}
               </div>
             </div>
+            </>
           )}
 
           {/* ══ FINALIZING ══ */}
@@ -666,8 +668,10 @@ const css = `
   .gp-main {
     flex: 1;
     display: flex;
+    flex-direction: column;
     overflow: hidden;
     padding: 0 24px 24px;
+    gap: 10px;
   }
 
   /* ── Two column layout ── */
@@ -675,6 +679,7 @@ const css = `
     display: flex;
     gap: 16px;
     flex: 1;
+    min-height: 0;
     overflow: hidden;
     width: 100%;
   }
@@ -1285,18 +1290,19 @@ const css = `
 
   /* ── Inline revision error banner ── */
   .revision-error-banner {
-    grid-column: 1 / -1;
+    flex-shrink: 0;
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 12px;
-    padding: 12px 16px;
+    padding: 10px 16px;
     background: rgba(220, 80, 80, 0.12);
     border: 1px solid rgba(220, 80, 80, 0.3);
     border-radius: 8px;
     font-family: var(--font);
     font-size: 13px;
-    color: rgba(255, 180, 180, 0.9);
+    color: rgba(220, 100, 100, 0.95);
+    animation: fadeUp 250ms ease both;
   }
   .revision-error-dismiss {
     background: none;

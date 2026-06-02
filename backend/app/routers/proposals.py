@@ -26,6 +26,7 @@ from app.runner import (
     stream_generation,
     stream_revise,
 )
+from pitchforge.guardrail import check_injection
 
 router = APIRouter(prefix="/proposal", tags=["proposals"])
 
@@ -158,6 +159,11 @@ async def revise(
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Thread not found or access denied",
+        )
+    if await check_injection(body.instruction):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Request blocked.",
         )
     # Atomic increment — prevents concurrent requests from bypassing the revision cap.
     # Uses a WHERE clause on the count so only one concurrent request can succeed per slot.

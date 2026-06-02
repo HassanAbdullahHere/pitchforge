@@ -203,11 +203,6 @@ MAX_HUMAN_REVISIONS = 2
 
 
 async def stream_revise(thread_id: str, feedback: str, db: AsyncSession) -> AsyncGenerator[str, None]:
-    yield _sse("status", {"message": "Verifying request…"})
-    if await check_injection(feedback):
-        yield _sse("error", {"message": "Request blocked."})
-        return
-
     config = _config(thread_id)
     # human_checkpoint is the node being resumed FROM — suppress its completion
     # so the frontend doesn't show it as ticked at the start of a revision pass
