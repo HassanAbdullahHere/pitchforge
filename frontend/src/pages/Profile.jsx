@@ -78,6 +78,36 @@ export default function Profile() {
                 </div>
               )}
 
+              {/* ── Niches ── */}
+              {profile.niches?.length > 0 && (
+                <div className="section glass-card">
+                  <div className="section-label">Specializations</div>
+                  <div className="tag-cloud">
+                    {profile.niches.map((n, i) => (
+                      <span key={i} className="tag tag--niche">{n}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* ── Rates ── */}
+              {profile.rates && (
+                <div className="section glass-card rates-card">
+                  <div className="section-label">Rates</div>
+                  <div className="rates-row">
+                    <div className="rate-item">
+                      <span className="rate-val">${profile.rates.hourly_min}–${profile.rates.hourly_max}</span>
+                      <span className="rate-label">per hour</span>
+                    </div>
+                    <div className="rate-divider" />
+                    <div className="rate-item">
+                      <span className="rate-val">${profile.rates.fixed_min}+</span>
+                      <span className="rate-label">fixed min</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* ── Projects ── */}
               {profile.projects?.length > 0 && (
                 <div className="section glass-card">
@@ -111,35 +141,6 @@ export default function Profile() {
                 </div>
               )}
 
-              {/* ── Niches ── */}
-              {profile.niches?.length > 0 && (
-                <div className="section glass-card">
-                  <div className="section-label">Specializations</div>
-                  <div className="tag-cloud">
-                    {profile.niches.map((n, i) => (
-                      <span key={i} className="tag tag--niche">{n}</span>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* ── Rates ── */}
-              {profile.rates && (
-                <div className="section glass-card rates-card">
-                  <div className="section-label">Rates</div>
-                  <div className="rates-row">
-                    <div className="rate-item">
-                      <span className="rate-val">${profile.rates.hourly_min}–${profile.rates.hourly_max}</span>
-                      <span className="rate-label">per hour</span>
-                    </div>
-                    <div className="rate-divider" />
-                    <div className="rate-item">
-                      <span className="rate-val">${profile.rates.fixed_min}+</span>
-                      <span className="rate-label">fixed min</span>
-                    </div>
-                  </div>
-                </div>
-              )}
             </div>
           </div>
         ) : (
@@ -155,11 +156,11 @@ export default function Profile() {
 
 const css = `
   :root {
-    --text-dark:        rgba(30,36,25,0.85);
-    --text-muted:       rgba(30,36,25,0.45);
-    --glass-light:      rgba(226,225,222,0.76);
-    --glass-light-b:    rgba(212,210,208,0.90);
-    --accent:           #7ab87a;
+    --text-dark:        rgba(30,36,25,0.95);
+    --text-muted:       rgba(30,36,25,0.62);
+    --glass-light:      rgba(230,229,226,0.93);
+    --glass-light-b:    rgba(215,213,210,0.97);
+    --accent:           #5fa85f;
     --font:             'Instrument Sans', sans-serif;
   }
 
@@ -304,7 +305,7 @@ const css = `
   .profile-bio {
     font-family: var(--font);
     font-size: 14px;
-    color: rgba(30,36,25,0.65);
+    color: rgba(30,36,25,0.78);
     margin: 0;
     line-height: 1.6;
   }
@@ -324,19 +325,19 @@ const css = `
   /* ── Tags ── */
   .tag-cloud { display: flex; flex-wrap: wrap; gap: 8px; }
   .tag {
-    background: rgba(255,255,255,0.7);
-    border: 1px solid rgba(30,36,25,0.1);
+    background: rgba(255,255,255,0.88);
+    border: 1px solid rgba(30,36,25,0.14);
     border-radius: 100px;
     padding: 5px 12px;
     font-family: var(--font);
     font-size: 13px;
-    color: rgba(30,36,25,0.75);
-    font-weight: 400;
+    color: rgba(30,36,25,0.88);
+    font-weight: 500;
   }
   .tag--niche {
-    background: rgba(122,184,122,0.12);
-    border-color: rgba(122,184,122,0.3);
-    color: rgba(60,110,60,0.85);
+    background: rgba(95,168,95,0.15);
+    border-color: rgba(95,168,95,0.4);
+    color: rgba(40,90,40,0.92);
   }
   .tag-cloud--sm { margin-top: 10px; }
   .tag--sm { font-size: 11px; padding: 3px 9px; }
@@ -348,8 +349,8 @@ const css = `
     gap: 12px;
   }
   .project-card {
-    background: rgba(255,255,255,0.55);
-    border: 1px solid rgba(30,36,25,0.08);
+    background: rgba(255,255,255,0.75);
+    border: 1px solid rgba(30,36,25,0.1);
     border-radius: 14px;
     padding: 18px 20px;
   }
@@ -364,14 +365,14 @@ const css = `
   .project-desc {
     font-family: var(--font);
     font-size: 13px;
-    color: rgba(30,36,25,0.6);
+    color: rgba(30,36,25,0.75);
     line-height: 1.5;
     margin: 0 0 6px;
   }
   .project-outcome {
     font-family: var(--font);
     font-size: 12px;
-    color: rgba(60,110,60,0.8);
+    color: rgba(40,90,40,0.85);
     font-style: italic;
     margin: 0;
     line-height: 1.4;
@@ -382,7 +383,7 @@ const css = `
   .exp-item {
     font-family: var(--font);
     font-size: 14px;
-    color: rgba(30,36,25,0.7);
+    color: rgba(30,36,25,0.82);
     line-height: 1.5;
     padding-left: 16px;
     position: relative;

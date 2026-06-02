@@ -18,7 +18,7 @@ export default function ProfileForm() {
   const isOnboarding = new URLSearchParams(location.search).get('onboarding') === 'true'
 
   const [form, setForm]           = useState(EMPTY_FORM)
-  const [loading, setLoading]     = useState(!isOnboarding)
+  const [loading, setLoading]     = useState(true)
   const [saving, setSaving]       = useState(false)
   const [parsing, setParsing]     = useState(false)
   const [error, setError]         = useState(null)
@@ -29,9 +29,8 @@ export default function ProfileForm() {
 
   const fileRef = useRef(null)
 
-  // Load existing profile when editing
+  // Always fetch existing profile — pre-fills in edit mode, no-op on 404 in onboarding
   useEffect(() => {
-    if (isOnboarding) return
     fetch('/api/profile', { headers: authHeaders() })
       .then(r => r.ok ? r.json() : null)
       .then(data => {
@@ -255,6 +254,52 @@ export default function ProfileForm() {
               </div>
             </div>
 
+            {/* ── Niches ── */}
+            <div className="glass-card section-card">
+              <div className="section-label">Specializations</div>
+              <div className="tag-cloud">
+                {form.niches.map((n, i) => (
+                  <span key={i} className="tag tag--niche">
+                    {n}
+                    <button type="button" className="tag-remove" onClick={() => removeTag('niches', i)}>×</button>
+                  </span>
+                ))}
+              </div>
+              <div className="tag-input-row">
+                <input className="field-input" type="text" placeholder="Add specialization (press Enter)"
+                  value={nicheInput}
+                  onChange={e => setNicheInput(e.target.value)}
+                  onKeyDown={e => onTagKey(e, 'niches', nicheInput, setNicheInput)}
+                />
+                <button type="button" className="btn-add" onClick={() => addTag('niches', nicheInput, setNicheInput)}>Add</button>
+              </div>
+            </div>
+
+            {/* ── Rates ── */}
+            <div className="glass-card section-card">
+              <div className="section-label">Rates</div>
+              <div className="rates-row">
+                <div className="field">
+                  <label className="field-label">Hourly Min ($)</label>
+                  <input className="field-input" type="number" min={0} placeholder="15"
+                    value={form.rates.hourly_min || ''}
+                    onChange={e => setForm(f => ({ ...f, rates: { ...f.rates, hourly_min: +e.target.value || 0 } }))} />
+                </div>
+                <div className="field">
+                  <label className="field-label">Hourly Max ($)</label>
+                  <input className="field-input" type="number" min={0} placeholder="40"
+                    value={form.rates.hourly_max || ''}
+                    onChange={e => setForm(f => ({ ...f, rates: { ...f.rates, hourly_max: +e.target.value || 0 } }))} />
+                </div>
+                <div className="field">
+                  <label className="field-label">Fixed Min ($)</label>
+                  <input className="field-input" type="number" min={0} placeholder="100"
+                    value={form.rates.fixed_min || ''}
+                    onChange={e => setForm(f => ({ ...f, rates: { ...f.rates, fixed_min: +e.target.value || 0 } }))} />
+                </div>
+              </div>
+            </div>
+
             {/* ── Projects ── */}
             <div className="glass-card section-card">
               <div className="section-label-row">
@@ -328,52 +373,6 @@ export default function ProfileForm() {
               ))}
             </div>
 
-            {/* ── Niches ── */}
-            <div className="glass-card section-card">
-              <div className="section-label">Specializations</div>
-              <div className="tag-cloud">
-                {form.niches.map((n, i) => (
-                  <span key={i} className="tag tag--niche">
-                    {n}
-                    <button type="button" className="tag-remove" onClick={() => removeTag('niches', i)}>×</button>
-                  </span>
-                ))}
-              </div>
-              <div className="tag-input-row">
-                <input className="field-input" type="text" placeholder="Add specialization (press Enter)"
-                  value={nicheInput}
-                  onChange={e => setNicheInput(e.target.value)}
-                  onKeyDown={e => onTagKey(e, 'niches', nicheInput, setNicheInput)}
-                />
-                <button type="button" className="btn-add" onClick={() => addTag('niches', nicheInput, setNicheInput)}>Add</button>
-              </div>
-            </div>
-
-            {/* ── Rates ── */}
-            <div className="glass-card section-card">
-              <div className="section-label">Rates</div>
-              <div className="rates-row">
-                <div className="field">
-                  <label className="field-label">Hourly Min ($)</label>
-                  <input className="field-input" type="number" min={0} placeholder="15"
-                    value={form.rates.hourly_min || ''}
-                    onChange={e => setForm(f => ({ ...f, rates: { ...f.rates, hourly_min: +e.target.value || 0 } }))} />
-                </div>
-                <div className="field">
-                  <label className="field-label">Hourly Max ($)</label>
-                  <input className="field-input" type="number" min={0} placeholder="40"
-                    value={form.rates.hourly_max || ''}
-                    onChange={e => setForm(f => ({ ...f, rates: { ...f.rates, hourly_max: +e.target.value || 0 } }))} />
-                </div>
-                <div className="field">
-                  <label className="field-label">Fixed Min ($)</label>
-                  <input className="field-input" type="number" min={0} placeholder="100"
-                    value={form.rates.fixed_min || ''}
-                    onChange={e => setForm(f => ({ ...f, rates: { ...f.rates, fixed_min: +e.target.value || 0 } }))} />
-                </div>
-              </div>
-            </div>
-
             {error && <div className="error-bar">{error}</div>}
 
             {/* ── Actions ── */}
@@ -395,11 +394,11 @@ export default function ProfileForm() {
 
 const css = `
   :root {
-    --text-dark:        rgba(30,36,25,0.85);
-    --text-muted:       rgba(30,36,25,0.45);
-    --glass-light:      rgba(226,225,222,0.76);
-    --glass-light-b:    rgba(212,210,208,0.90);
-    --accent:           #7ab87a;
+    --text-dark:        rgba(30,36,25,0.95);
+    --text-muted:       rgba(30,36,25,0.62);
+    --glass-light:      rgba(230,229,226,0.93);
+    --glass-light-b:    rgba(215,213,210,0.97);
+    --accent:           #5fa85f;
     --font:             'Instrument Sans', sans-serif;
   }
 
@@ -509,34 +508,34 @@ const css = `
     letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-muted);
   }
   .field-input {
-    background: rgba(255,255,255,0.7); border: 1px solid rgba(30,36,25,0.1);
+    background: rgba(255,255,255,0.9); border: 1px solid rgba(30,36,25,0.14);
     border-radius: 10px; padding: 11px 14px; font-family: var(--font); font-size: 14px;
-    color: rgba(30,36,25,0.8); outline: none; transition: border-color 200ms; width: 100%;
+    color: rgba(30,36,25,0.92); outline: none; transition: border-color 200ms; width: 100%;
   }
-  .field-input::placeholder { color: rgba(30,36,25,0.3); }
-  .field-input:focus { border-color: rgba(122,184,122,0.5); box-shadow: 0 0 0 3px rgba(122,184,122,0.1); }
+  .field-input::placeholder { color: rgba(30,36,25,0.35); }
+  .field-input:focus { border-color: rgba(95,168,95,0.55); box-shadow: 0 0 0 3px rgba(95,168,95,0.12); }
   input[type=number].field-input { -moz-appearance: textfield; }
   input[type=number].field-input::-webkit-outer-spin-button,
   input[type=number].field-input::-webkit-inner-spin-button { -webkit-appearance: none; }
 
   .field-textarea {
-    background: rgba(255,255,255,0.7); border: 1px solid rgba(30,36,25,0.1);
+    background: rgba(255,255,255,0.9); border: 1px solid rgba(30,36,25,0.14);
     border-radius: 10px; padding: 11px 14px; font-family: var(--font); font-size: 14px;
-    color: rgba(30,36,25,0.8); outline: none; resize: vertical; transition: border-color 200ms; width: 100%;
+    color: rgba(30,36,25,0.92); outline: none; resize: vertical; transition: border-color 200ms; width: 100%;
     line-height: 1.6;
   }
-  .field-textarea::placeholder { color: rgba(30,36,25,0.3); }
-  .field-textarea:focus { border-color: rgba(122,184,122,0.5); box-shadow: 0 0 0 3px rgba(122,184,122,0.1); }
+  .field-textarea::placeholder { color: rgba(30,36,25,0.35); }
+  .field-textarea:focus { border-color: rgba(95,168,95,0.55); box-shadow: 0 0 0 3px rgba(95,168,95,0.12); }
 
   /* ── Tags ── */
   .tag-cloud { display: flex; flex-wrap: wrap; gap: 8px; min-height: 8px; }
   .tag {
-    background: rgba(255,255,255,0.7); border: 1px solid rgba(30,36,25,0.1);
+    background: rgba(255,255,255,0.9); border: 1px solid rgba(30,36,25,0.14);
     border-radius: 100px; padding: 5px 10px 5px 12px; font-family: var(--font);
-    font-size: 13px; color: rgba(30,36,25,0.75); display: flex; align-items: center; gap: 6px;
+    font-size: 13px; color: rgba(30,36,25,0.9); display: flex; align-items: center; gap: 6px; font-weight: 500;
   }
   .tag--niche {
-    background: rgba(122,184,122,0.12); border-color: rgba(122,184,122,0.3); color: rgba(60,110,60,0.85);
+    background: rgba(95,168,95,0.15); border-color: rgba(95,168,95,0.4); color: rgba(40,90,40,0.92);
   }
   .tag--sm { font-size: 11px; padding: 3px 7px 3px 9px; }
   .tag-remove {
@@ -564,7 +563,7 @@ const css = `
 
   /* ── Item card (project) ── */
   .item-card {
-    background: rgba(255,255,255,0.5); border: 1px solid rgba(30,36,25,0.07);
+    background: rgba(255,255,255,0.72); border: 1px solid rgba(30,36,25,0.1);
     border-radius: 14px; padding: 18px 20px; display: flex; flex-direction: column; gap: 14px;
   }
   .item-card-header { display: flex; align-items: center; justify-content: space-between; }

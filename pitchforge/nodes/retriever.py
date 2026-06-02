@@ -29,11 +29,19 @@ _N_CANDIDATES = 6
 _N_FINAL = 4
 
 
+def _pg_url() -> str:
+    # Backend sets DATABASE_URL (postgresql+asyncpg://...)
+    # Standalone pitchforge sets DATABASE_URL_SYNC (postgresql+psycopg2:// or plain postgresql://)
+    # asyncpg needs a plain postgresql:// URL — strip any driver prefix
+    raw = os.environ.get("DATABASE_URL") or os.environ["DATABASE_URL_SYNC"]
+    return raw.replace("postgresql+asyncpg://", "postgresql://").replace("postgresql+psycopg2://", "postgresql://")
+
+
 async def _get_pool() -> asyncpg.Pool:
     global _pool
     if _pool is None:
         _pool = await asyncpg.create_pool(
-            os.environ["DATABASE_URL_SYNC"],
+            _pg_url(),
             init=register_vector,  # registers vector codec on every new connection
         )
     return _pool

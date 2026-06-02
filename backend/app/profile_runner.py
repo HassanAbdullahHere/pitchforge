@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import ProfileChunk, UserProfile
 from app.schemas import ProfileInput
+from pitchforge.nodes.retriever import _bm25_cache
 from pitchforge.profile_utils import build_chunks
 
 logger = logging.getLogger(__name__)
@@ -26,7 +27,7 @@ _resume_llm = ChatGoogleGenerativeAI(
     model="gemini-2.5-flash",
     google_api_key=os.getenv("GEMINI_API_KEY"),
     thinking_budget=0,
-    max_output_tokens=800,
+    max_output_tokens=2048,
 )
 
 _RESUME_PROMPT = """\
@@ -107,6 +108,9 @@ async def save_profile(user_id: uuid.UUID, data: ProfileInput, db: AsyncSession)
             text=chunk["text"],
             embedding=np.array(vector, dtype=np.float32).tolist(),
         ))
+
+    # Invalidate BM25 cache so next proposal uses the new chunks
+    _bm25_cache.pop(str(user_id), None)
 
     await db.flush()
     return user_profile
