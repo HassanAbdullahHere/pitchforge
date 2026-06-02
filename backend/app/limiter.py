@@ -18,4 +18,19 @@ def _get_client_ip(request) -> str:
     return request.client.host if request.client else "unknown"
 
 
+def _get_user_id(request) -> str:
+    token = request.headers.get("Authorization", "")
+    if token.startswith("Bearer "):
+        token = token[7:].strip()
+        if token:
+            try:
+                from app.jwt_utils import verify_token
+                payload = verify_token(token)
+                if payload and payload.get("sub"):
+                    return f"user:{payload['sub']}"
+            except Exception:
+                pass
+    return _get_client_ip(request)
+
+
 limiter = Limiter(key_func=_get_client_ip)

@@ -105,25 +105,30 @@ class PitchforgeState(TypedDict):
 - Proposals history page (`/proposals`) — card grid with fit score, quality score, recommendation badges, relative timestamps
 - Proposal detail page (`/proposals/:id`) — full layout: scores strip, "You Bring"/"Gaps to Bridge" skills, formatted proposal text, copy + download buttons
 - Async retriever — swapped psycopg2 (sync, blocked event loop) to asyncpg pool with `pgvector.asyncpg` codec; `retrieve_profile` is now `async def`, yields event loop during both DB queries
-- ~~Sanitize error messages in `runner.py`~~ — `logger.exception()` server-side, generic message to frontend
-- ~~Security headers middleware~~ — pure ASGI middleware in `main.py`; X-Frame-Options, X-Content-Type-Options, CSP on all responses
-- ~~Add timeout to `httpx.AsyncClient()`~~ — 10s timeout in `auth.py`, returns 504 on `TimeoutException`
-- ~~Guard LLM call for prompt injection~~ — `pitchforge/guardrail.py` with `check_injection()`; Gemini Flash classifier, `thinking_budget=0`, `max_output_tokens=10`; blocks `stream_analysis` + `stream_revise` before any graph call; fails open on error; emits `status` SSE event immediately so stream opens before check runs
-- ~~Gemini 503 retry~~ — `.with_retry(retry_if_exception_type=(ServerError,), stop_after_attempt=3, wait_exponential_jitter=True)` on all 5 LLM instances (analyzer, scorer, generator, critic, guardrail)
-- ~~Human revision limit~~ — `MAX_HUMAN_REVISIONS = 2`; `revision_count` column on `Proposal` (Alembic migration `6a1b277087aa`); enforced server-side in `/revise` router before stream starts (HTTP 429); incremented in `stream_revise` after successful completion; frontend disables "Request Revision" button at limit with `(2/2)` counter; revision errors restore proposal text inline instead of full error screen
-- ~~Verifying node in AnalyzePipeline~~ — `status` SSE event activates it; transitions to done on first `node_start`
+- Sanitize error messages in `runner.py` — `logger.exception()` server-side, generic message to frontend
+- Security headers middleware — pure ASGI middleware in `main.py`; X-Frame-Options, X-Content-Type-Options, CSP on all responses
+- Timeout on `httpx.AsyncClient()` — 10s timeout in `auth.py`, returns 504 on `TimeoutException`
+- Prompt injection guard — `pitchforge/guardrail.py` with `check_injection()`; Gemini Flash classifier, `thinking_budget=0`, `max_output_tokens=10`; blocks `stream_analysis` + `stream_revise` before any graph call; fails open on error; emits `status` SSE event immediately so stream opens before check runs
+- Gemini 503 retry — `.with_retry(retry_if_exception_type=(ServerError,), stop_after_attempt=3, wait_exponential_jitter=True)` on all 5 LLM instances (analyzer, scorer, generator, critic, guardrail)
+- Human revision limit — `MAX_HUMAN_REVISIONS = 2`; `revision_count` column on `Proposal` (Alembic migration `6a1b277087aa`); enforced server-side in `/revise` router before stream starts (HTTP 429); incremented in `stream_revise` after successful completion; frontend disables "Request Revision" button at limit with `(2/2)` counter; revision errors restore proposal text inline instead of full error screen
+- Verifying node in AnalyzePipeline — `status` SSE event activates it; transitions to done on first `node_start`
+- Rate limiting (`slowapi`) — `/analyze`: 7/day per user (DB count) + 14/day per IP; `/auth/google`: 10/hour per IP; `app/limiter.py` holds the shared `Limiter` instance
+- Rate limiting IP fix — CDN/proxy-aware key function in `app/limiter.py`; checks `CF-Connecting-IP` → `X-Real-IP` (nginx) → `X-Forwarded-For` → `request.client.host`; nginx must set `proxy_set_header X-Real-IP $remote_addr`
+- Per-user profile system:
+  - `user_profiles` table (Alembic migration) — one row per user; stores raw structured profile (title, bio, skills, projects, experience, niches, rates) as JSONB for display/edit
+  - `user_id` FK on `profile_chunks` (Alembic migration) — retriever filters `WHERE user_id = $1`, each user's proposals use only their own chunks
+  - `pitchforge/profile_utils.py` — `build_chunks()` shared chunking logic (bio, skills, project_N, experience_N, niches, rates keys); used by `profile_runner.py` and `setup_rag.py`
+  - `GET /api/profile` + `POST /api/profile` — retrieve and upsert profile; `save_profile()` in `profile_runner.py` upserts `user_profiles`, deletes old chunks, re-embeds new ones in parallel via `asyncio.gather()`, invalidates per-user BM25 cache (`_bm25_cache.pop`)
+  - `POST /api/profile/parse-resume` — PDF/DOCX extraction (pdfplumber, python-docx) + Gemini structured extraction (`max_output_tokens=2048`); returns pre-filled profile JSON, no DB write
+  - Pipeline gate — `JobDetails.jsx` calls `GET /api/profile` on mount; 404 → redirect to `/profile/edit?onboarding=true`
+  - Profile view (`/profile`) and form (`/profile/edit`) — shared form for onboarding + editing; resume upload drag-drop zone pre-fills all fields; section order: Identity → Skills → Specializations → Rates → Projects → Experience
+  - ProfileForm UX polish — textareas auto-resize on input and on pre-fill (edit mode); "Add Project" scrolls to new card; `resize: none; overflow: hidden` + `autoResize()` JS; CSS: larger border-radius (12px/16px), tighter spacing, `box-sizing: border-box` on all inputs
+  - Retriever `_pg_url()` helper — tries `DATABASE_URL` first (backend env), falls back to `DATABASE_URL_SYNC` (standalone); strips SQLAlchemy driver prefix so asyncpg gets plain `postgresql://` URL
 
 **Next (in order):**
 
-*Core product (blocking for real users)*
-- Per-user profile — `profile_chunks` currently has no `user_id`; every user's proposals are generated from the same global profile. Needs: (1) `user_id` FK on `profile_chunks` + Alembic migration, (2) `POST /api/profile` — accepts profile input, chunks + embeds + stores per user, (3) `GET /api/profile` — returns current user's profile, (4) retriever node filters `profile_chunks` by `user_id`, (5) profile setup page in frontend, (6) gate pipeline — redirect to profile setup if no profile exists. `setup_rag.py` becomes the dev seed tool only.
-
 *Data & persistence*
 - `usage_events` table — per-user token/cost tracking (feeds rate limiting + admin) — deferred until admin panel
-
-*Security & hardening*
-- ~~Rate limiting (`slowapi`)~~ — `/analyze`: 7/day per user (DB count) + 14/day per IP; `/auth/google`: 10/hour per IP; `app/limiter.py` holds the shared `Limiter` instance
-- ~~Rate limiting IP fix~~ — CDN/proxy-aware key function in `app/limiter.py`; checks `CF-Connecting-IP` → `X-Real-IP` (nginx) → `X-Forwarded-For` → `request.client.host`; nginx must set `proxy_set_header X-Real-IP $remote_addr`
 
 *Observability*
 - Structured logging — replace all `print()` with structlog JSON (nodes + runner + requests)
@@ -155,14 +160,14 @@ docker-compose up -d
 # 2. Apply DB migrations
 cd backend && uv run alembic upgrade head
 
-# 3. One-time RAG setup (re-run after editing profile/profile.json)
-cd pitchforge && uv run python setup_rag.py
-
-# 4. FastAPI backend
+# 3. FastAPI backend
 cd backend && uv run uvicorn app.main:app --reload
 
-# 5. Frontend
+# 4. Frontend
 cd frontend && npm run dev
+
+# Dev seed only (optional — seeds profile_chunks from pitchforge/profile/profile.json for a specific user_id)
+cd pitchforge && uv run python setup_rag.py
 ```
 
 ---
