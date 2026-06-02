@@ -163,17 +163,35 @@ export default function Landing() {
                         </div>
                       )}
                       <div className="menu-divider" />
-                      <button className="menu-item" onClick={() => { setMenuOpen(false); navigate('/proposals') }}>
-                        <span className="menu-item-icon">≡</span>
-                        My Proposals
-                      </button>
                       <button className="menu-item" onClick={() => { setMenuOpen(false); navigate('/profile') }}>
-                        <span className="menu-item-icon">◎</span>
+                        <span className="menu-item-icon">
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <circle cx="12" cy="8" r="4"/>
+                            <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
+                          </svg>
+                        </span>
                         Profile
+                      </button>
+                      <button className="menu-item" onClick={() => { setMenuOpen(false); navigate('/proposals') }}>
+                        <span className="menu-item-icon">
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <rect x="4" y="3" width="16" height="18" rx="2"/>
+                            <line x1="8" y1="9" x2="16" y2="9"/>
+                            <line x1="8" y1="13" x2="16" y2="13"/>
+                            <line x1="8" y1="17" x2="12" y2="17"/>
+                          </svg>
+                        </span>
+                        My Proposals
                       </button>
                       <div className="menu-divider" />
                       <button className="menu-item menu-item--danger" onClick={handleLogout}>
-                        <span className="menu-item-icon">→</span>
+                        <span className="menu-item-icon">
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+                            <polyline points="16 17 21 12 16 7"/>
+                            <line x1="21" y1="12" x2="9" y2="12"/>
+                          </svg>
+                        </span>
                         Sign Out
                       </button>
                     </div>
@@ -475,20 +493,20 @@ const css = `
     position: absolute;
     top: calc(100% + 10px);
     right: 0;
-    width: 240px;
-    background: rgba(255,255,255,0.92);
-    backdrop-filter: blur(24px);
-    -webkit-backdrop-filter: blur(24px);
-    border: 1px solid rgba(255,255,255,0.95);
-    border-radius: 16px;
-    box-shadow: 0 8px 32px rgba(30,36,25,0.14), 0 2px 8px rgba(30,36,25,0.06);
+    width: 256px;
+    background: rgba(255,255,255,0.94);
+    backdrop-filter: blur(28px);
+    -webkit-backdrop-filter: blur(28px);
+    border: 1px solid rgba(255,255,255,0.98);
+    border-radius: 18px;
+    box-shadow: 0 12px 40px rgba(30,36,25,0.13), 0 2px 8px rgba(30,36,25,0.05);
     padding: 8px;
     z-index: 200;
-    animation: menuFadeIn 160ms ease both;
+    animation: menuFadeIn 180ms cubic-bezier(0.16, 1, 0.3, 1) both;
   }
   @keyframes menuFadeIn {
-    from { opacity: 0; transform: translateY(-6px); }
-    to   { opacity: 1; transform: translateY(0); }
+    from { opacity: 0; transform: translateY(-8px) scale(0.97); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
   }
 
   /* User info block */
@@ -616,9 +634,13 @@ const css = `
     color: rgba(185,40,40,1);
   }
   .menu-item-icon {
-    font-size: 13px;
-    opacity: 0.6;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
     flex-shrink: 0;
+    opacity: 0.55;
   }
   .menu-item-soon {
     margin-left: auto;

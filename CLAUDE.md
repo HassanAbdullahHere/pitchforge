@@ -110,10 +110,11 @@ class PitchforgeState(TypedDict):
 - Timeout on `httpx.AsyncClient()` — 10s timeout in `auth.py`, returns 504 on `TimeoutException`
 - Prompt injection guard — `pitchforge/guardrail.py` with `check_injection()`; Gemini Flash classifier, `thinking_budget=0`, `max_output_tokens=10`; blocks `stream_analysis` + `stream_revise` before any graph call; fails open on error; emits `status` SSE event immediately so stream opens before check runs
 - Gemini 503 retry — `.with_retry(retry_if_exception_type=(ServerError,), stop_after_attempt=3, wait_exponential_jitter=True)` on all 5 LLM instances (analyzer, scorer, generator, critic, guardrail)
-- Human revision limit — `MAX_HUMAN_REVISIONS = 2`; `revision_count` column on `Proposal` (Alembic migration `6a1b277087aa`); enforced server-side in `/revise` router before stream starts (HTTP 429); incremented in `stream_revise` after successful completion; frontend disables "Request Revision" button at limit with `(2/2)` counter; revision errors restore proposal text inline instead of full error screen
+- Human revision limit — `MAX_HUMAN_REVISIONS = 2`; `revision_count` column on `Proposal` (Alembic migration `6a1b277087aa`); enforced via atomic `UPDATE ... WHERE revision_count < MAX RETURNING id` in `/revise` router (race-condition-proof — concurrent requests can't both slip through); HTTP 429 if at limit; frontend disables "Request Revision" button at limit with `(2/2)` counter; revision errors restore proposal text inline instead of full error screen
 - Verifying node in AnalyzePipeline — `status` SSE event activates it; transitions to done on first `node_start`
-- Rate limiting (`slowapi`) — `/analyze`: 7/day per user (DB count) + 14/day per IP; `/auth/google`: 10/hour per IP; `app/limiter.py` holds the shared `Limiter` instance
+- Rate limiting (`slowapi`) — `/analyze`: 7/day per user (DB count) + 14/day per IP; `/auth/google`: 10/hour per IP; `POST /api/profile`: 8/day IP + 4/day per-user; `POST /api/profile/parse-resume`: 4/day IP + 2/day per-user; `app/limiter.py` holds the shared `Limiter` instance
 - Rate limiting IP fix — CDN/proxy-aware key function in `app/limiter.py`; checks `CF-Connecting-IP` → `X-Real-IP` (nginx) → `X-Forwarded-For` → `request.client.host`; nginx must set `proxy_set_header X-Real-IP $remote_addr`
+- Per-user rate limiting key — `_get_user_id()` in `app/limiter.py`; decodes JWT Bearer token via `verify_token()`, returns `"user:{sub}"`; falls back to IP if token missing/invalid; used as `key_func` on profile endpoint `@limiter.limit` decorators
 - Per-user profile system:
   - `user_profiles` table (Alembic migration) — one row per user; stores raw structured profile (title, bio, skills, projects, experience, niches, rates) as JSONB for display/edit
   - `user_id` FK on `profile_chunks` (Alembic migration) — retriever filters `WHERE user_id = $1`, each user's proposals use only their own chunks
@@ -124,6 +125,9 @@ class PitchforgeState(TypedDict):
   - Profile view (`/profile`) and form (`/profile/edit`) — shared form for onboarding + editing; resume upload drag-drop zone pre-fills all fields; section order: Identity → Skills → Specializations → Rates → Projects → Experience
   - ProfileForm UX polish — textareas auto-resize on input and on pre-fill (edit mode); "Add Project" scrolls to new card; `resize: none; overflow: hidden` + `autoResize()` JS; CSS: larger border-radius (12px/16px), tighter spacing, `box-sizing: border-box` on all inputs
   - Retriever `_pg_url()` helper — tries `DATABASE_URL` first (backend env), falls back to `DATABASE_URL_SYNC` (standalone); strips SQLAlchemy driver prefix so asyncpg gets plain `postgresql://` URL
+  - ProfileForm 429/error handling — floating fixed-position toast (auto-dismiss 4.5s, click to dismiss); 429 surfaces `"Daily resume autofill limit reached"` / `"Daily profile save limit reached"`; no inline error bars; loader text is `"Autofilling…"` (not "Parsing")
+- Avatar dropdown polish — Profile item moved above My Proposals; unicode placeholder icons replaced with inline SVGs (person silhouette, document list, logout arrow); entrance animation is scale+fade (`scale(0.97→1)`) via spring easing; menu width 256px
+- Input validation hardening (`schemas.py`) — `thread_id` capped at `max_length=64` on all three thread request models; `level`/`platform` capped at `max_length=50` in `JobInputRequest`; `ProfileInput` list bounds: skills ≤60 items each ≤100 chars, projects ≤20, experience/niches ≤20 items each ≤200 chars (Pydantic v2 `Annotated` per-item types)
 
 **Next (in order):**
 

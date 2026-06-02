@@ -21,8 +21,8 @@ export default function ProfileForm() {
   const [loading, setLoading]     = useState(true)
   const [saving, setSaving]       = useState(false)
   const [parsing, setParsing]     = useState(false)
-  const [error, setError]         = useState(null)
   const [parseError, setParseError] = useState(null)
+  const [toast, setToast]         = useState(null)
   const [skillInput, setSkillInput] = useState('')
   const [nicheInput, setNicheInput] = useState('')
   const [techInputs, setTechInputs] = useState({}) // project index → string
@@ -40,6 +40,12 @@ export default function ProfileForm() {
   useEffect(() => {
     if (!loading) setTimeout(() => document.querySelectorAll('.field-textarea').forEach(autoResize), 0)
   }, [loading])
+
+  useEffect(() => {
+    if (!toast) return
+    const t = setTimeout(() => setToast(null), 4500)
+    return () => clearTimeout(t)
+  }, [toast])
 
   // Always fetch existing profile — pre-fills in edit mode, no-op on 404 in onboarding
   useEffect(() => {
@@ -118,8 +124,13 @@ export default function ProfileForm() {
       const fd = new FormData()
       fd.append('file', file)
       const r = await fetch('/api/profile/parse-resume', { method: 'POST', headers: authHeaders(), body: fd })
+      if (!r.ok) {
+        if (r.status === 429) { setToast('Daily resume autofill limit reached. Try again tomorrow.'); return }
+        const data = await r.json().catch(() => ({}))
+        setToast(data.detail ?? 'Autofill failed. Please try again.')
+        return
+      }
       const data = await r.json()
-      if (!r.ok) { setParseError(data.detail ?? 'Parsing failed.'); return }
       const p = data.parsed
       if (p) {
         setForm({
@@ -136,14 +147,13 @@ export default function ProfileForm() {
         })
         setTimeout(() => document.querySelectorAll('.field-textarea').forEach(autoResize), 0)
       }
-    } catch { setParseError('Could not reach the server. Try again.') }
+    } catch { setToast('Could not reach the server. Try again.') }
     finally { setParsing(false) }
   }
 
   // ── Save ──
   async function handleSave(e) {
     e.preventDefault()
-    setError(null)
     setSaving(true)
     try {
       const body = {
@@ -164,12 +174,13 @@ export default function ProfileForm() {
         body: JSON.stringify(body),
       })
       if (!r.ok) {
+        if (r.status === 429) { setToast('Daily profile save limit reached. Try again tomorrow.'); return }
         const d = await r.json().catch(() => ({}))
-        setError(d.detail ?? 'Failed to save profile.')
+        setToast(d.detail ?? 'Failed to save profile.')
         return
       }
       navigate('/profile', { replace: true })
-    } catch { setError('Could not reach the server. Try again.') }
+    } catch { setToast('Could not reach the server. Try again.') }
     finally { setSaving(false) }
   }
 
@@ -219,7 +230,7 @@ export default function ProfileForm() {
             {parsing ? (
               <div className="parse-loading">
                 <div className="spinner" />
-                <span className="parse-text">Parsing resume…</span>
+                <span className="parse-text">Autofilling…</span>
               </div>
             ) : (
               <>
@@ -394,8 +405,6 @@ export default function ProfileForm() {
               ))}
             </div>
 
-            {error && <div className="error-bar">{error}</div>}
-
             {/* ── Actions ── */}
             <div className="form-actions">
               <button type="button" className="btn-secondary" onClick={handleCancel} disabled={saving}>
@@ -409,6 +418,12 @@ export default function ProfileForm() {
           </form>
         </div>
       </div>
+
+      {toast && (
+        <div className="toast" onClick={() => setToast(null)}>
+          {toast}
+        </div>
+      )}
     </>
   )
 }
@@ -621,11 +636,27 @@ const css = `
     font-style: italic; margin: 0;
   }
 
-  /* ── Error bar ── */
+  /* ── Error bar (file validation only) ── */
   .error-bar {
     background: rgba(220,80,80,0.1); border: 1px solid rgba(220,80,80,0.25);
     border-radius: 10px; padding: 12px 16px; font-family: var(--font); font-size: 13px;
     color: rgba(200,50,50,0.9);
+  }
+
+  /* ── Toast ── */
+  @keyframes toastIn {
+    from { opacity: 0; transform: translateX(-50%) translateY(12px); }
+    to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+  }
+  .toast {
+    position: fixed; bottom: 32px; left: 50%; transform: translateX(-50%);
+    background: rgba(34,28,24,0.94); backdrop-filter: blur(16px);
+    color: rgba(255,255,255,0.92); border-radius: 12px; padding: 14px 22px;
+    font-family: var(--font); font-size: 14px; font-weight: 500; line-height: 1.4;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.28); z-index: 9999;
+    cursor: pointer; max-width: 420px; text-align: center; white-space: pre-wrap;
+    animation: toastIn 220ms ease forwards;
+    border: 1px solid rgba(255,255,255,0.1);
   }
 
   /* ── Form actions ── */

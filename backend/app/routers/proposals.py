@@ -3,7 +3,7 @@ from uuid import UUID as PyUUID
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import StreamingResponse
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update as sql_update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -144,11 +144,23 @@ async def revise(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Thread not found or access denied",
         )
-    if proposal.revision_count >= MAX_HUMAN_REVISIONS:
+    # Atomic increment — prevents concurrent requests from bypassing the revision cap.
+    # Uses a WHERE clause on the count so only one concurrent request can succeed per slot.
+    updated = await db.execute(
+        sql_update(Proposal)
+        .where(Proposal.id == proposal.id, Proposal.revision_count < MAX_HUMAN_REVISIONS)
+        .values(
+            revision_count=Proposal.revision_count + 1,
+            updated_at=datetime.now(timezone.utc),
+        )
+        .returning(Proposal.id)
+    )
+    if updated.scalar_one_or_none() is None:
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             detail=f"Revision limit reached ({MAX_HUMAN_REVISIONS} revisions per proposal)",
         )
+    await db.flush()
     return StreamingResponse(
         stream_revise(body.thread_id, body.instruction, db),
         media_type="text/event-stream",

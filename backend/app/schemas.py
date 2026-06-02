@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Optional, Literal
+from typing import Annotated, Optional, Literal
 from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -27,21 +27,21 @@ class JobInputRequest(BaseModel):
     description: str = Field(..., min_length=50, max_length=8000)
     budget: str = Field("", max_length=30)
     timeline: str = Field("", max_length=20)
-    level: str
-    platform: str
+    level: str = Field("", max_length=50)
+    platform: str = Field("", max_length=50)
 
 class GenerateRequest(BaseModel):
-    thread_id: str
+    thread_id: str = Field(..., max_length=64)
     should_apply: bool
 
 
 class RefineRequest(BaseModel):
-    thread_id: str
+    thread_id: str = Field(..., max_length=64)
     instruction: str = Field(..., min_length=5, max_length=2000)
 
 
 class FinalizeRequest(BaseModel):
-    thread_id: str
+    thread_id: str = Field(..., max_length=64)
 
 
 # --- Response Models ---
@@ -130,13 +130,17 @@ class ProfileProject(BaseModel):
     outcome: Optional[str] = Field(None, max_length=500)
 
 
+_BoundedStr100 = Annotated[str, Field(min_length=1, max_length=100)]
+_BoundedStr200 = Annotated[str, Field(min_length=1, max_length=200)]
+
+
 class ProfileInput(BaseModel):
     title: str = Field(..., min_length=1, max_length=150)
     bio: str = Field(..., min_length=10, max_length=1000)
-    skills: list[str] = Field(..., min_length=1)
-    projects: list[ProfileProject] = Field(default_factory=list)
-    experience: list[str] = Field(default_factory=list)
-    niches: list[str] = Field(default_factory=list)
+    skills: list[_BoundedStr100] = Field(..., min_length=1, max_length=60)
+    projects: list[ProfileProject] = Field(default_factory=list, max_length=20)
+    experience: list[_BoundedStr200] = Field(default_factory=list, max_length=20)
+    niches: list[_BoundedStr100] = Field(default_factory=list, max_length=20)
     rates: ProfileRates = Field(default_factory=ProfileRates)
 
 
