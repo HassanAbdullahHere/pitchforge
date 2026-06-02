@@ -1,8 +1,9 @@
 import os
+import uuid
 from pathlib import Path
 
 from dotenv import load_dotenv
-load_dotenv(Path(__file__).parent.parent / ".env")
+load_dotenv(Path(__file__).parent.parent.parent / ".env")
 
 import asyncpg
 import numpy as np
@@ -20,9 +21,8 @@ embeddings = GoogleGenerativeAIEmbeddings(
 
 # Lazy-loaded globals
 _pool: asyncpg.Pool | None = None
-_bm25 = None
-_corpus_texts = None
-_corpus_ids = None
+# Per-user BM25 cache: user_id → (bm25_instance, corpus_ids, corpus_texts)
+_bm25_cache: dict[str, tuple] = {}
 _reranker = None
 
 _N_CANDIDATES = 6
@@ -39,17 +39,20 @@ async def _get_pool() -> asyncpg.Pool:
     return _pool
 
 
-async def _get_bm25():
-    """Load BM25 corpus from DB on first call, cache globally."""
-    global _bm25, _corpus_texts, _corpus_ids
-    if _bm25 is None:
+async def _load_corpus(user_id: str) -> tuple:
+    """Load BM25 corpus from DB for a specific user, cache by user_id."""
+    if user_id not in _bm25_cache:
         pool = await _get_pool()
         async with pool.acquire() as conn:
-            rows = await conn.fetch("SELECT id, text FROM profile_chunks ORDER BY id")
-        _corpus_ids = [row["id"] for row in rows]
-        _corpus_texts = [row["text"] for row in rows]
-        _bm25 = BM25Okapi([t.lower().split() for t in _corpus_texts])
-    return _bm25
+            rows = await conn.fetch(
+                "SELECT chunk_key, text FROM profile_chunks WHERE user_id = $1 ORDER BY chunk_key",
+                uuid.UUID(user_id),
+            )
+        corpus_ids = [row["chunk_key"] for row in rows]
+        corpus_texts = [row["text"] for row in rows]
+        bm25 = BM25Okapi([t.lower().split() for t in corpus_texts])
+        _bm25_cache[user_id] = (bm25, corpus_ids, corpus_texts)
+    return _bm25_cache[user_id]
 
 
 def _get_reranker():
@@ -71,11 +74,12 @@ async def retrieve_profile(state: PitchforgeState) -> dict:
     """
     Node 2 — Hybrid RAG retrieval: BM25 + pgvector search, RRF fusion, FlashRank re-ranking.
 
-    Reads:  state["job_analysis"]
+    Reads:  state["job_analysis"], state["user_id"]
     Writes: state["profile_matches"]
     """
     print("\n[Node 2] Hybrid retrieval: BM25 + pgvector + re-ranking...")
 
+    user_id: str = state["user_id"]
     job = state["job_analysis"]
     query = (
         f"Required skills: {', '.join(job.get('skills_required', []))}. "
@@ -83,24 +87,25 @@ async def retrieve_profile(state: PitchforgeState) -> dict:
         f"Experience level: {job.get('experience_level', '')}."
     )
 
-    # 1. BM25 keyword retrieval (corpus loaded from DB on first call)
-    bm25 = await _get_bm25()
+    # 1. BM25 keyword retrieval (corpus loaded from DB per user, cached)
+    bm25, corpus_ids, corpus_texts = await _load_corpus(user_id)
     bm25_scores = bm25.get_scores(query.lower().split())
-    bm25_ids = [_corpus_ids[i] for i in np.argsort(bm25_scores)[::-1][:_N_CANDIDATES]]
+    bm25_ids = [corpus_ids[i] for i in np.argsort(bm25_scores)[::-1][:_N_CANDIDATES]]
     print(f"  BM25 top IDs: {bm25_ids}")
 
-    # 2. pgvector cosine similarity search
+    # 2. pgvector cosine similarity search, filtered to this user's chunks
     # <=> is cosine distance — correct for Gemini's L2-normalized embeddings
     query_vector = np.array(embeddings.embed_query(query), dtype=np.float32)
     pool = await _get_pool()
     async with pool.acquire() as conn:
         vec_rows = await conn.fetch(
-            "SELECT id, text FROM profile_chunks ORDER BY embedding <=> $1 LIMIT $2",
+            "SELECT chunk_key, text FROM profile_chunks WHERE user_id = $1 ORDER BY embedding <=> $2 LIMIT $3",
+            uuid.UUID(user_id),
             query_vector.tolist(),  # pgvector.asyncpg encodes list → vector after register_vector
             _N_CANDIDATES,
         )
-    vec_ids = [row["id"] for row in vec_rows]
-    vec_id_to_text = {row["id"]: row["text"] for row in vec_rows}
+    vec_ids = [row["chunk_key"] for row in vec_rows]
+    vec_id_to_text = {row["chunk_key"]: row["text"] for row in vec_rows}
     print(f"  Vector top IDs: {vec_ids}")
 
     # 3. RRF fusion
@@ -108,7 +113,7 @@ async def retrieve_profile(state: PitchforgeState) -> dict:
     print(f"  RRF fused order: {fused_ids}")
 
     # Build id→text map (BM25 corpus as base, vector results override)
-    id_to_text = dict(zip(_corpus_ids, _corpus_texts))
+    id_to_text = dict(zip(corpus_ids, corpus_texts))
     id_to_text.update(vec_id_to_text)
     fused_passages = [id_to_text[i] for i in fused_ids if i in id_to_text]
 

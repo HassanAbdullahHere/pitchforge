@@ -88,6 +88,7 @@ async def stream_analysis(job_input: dict, db: AsyncSession, user_id: uuid.UUID)
         "missing_skills": [],
         "clarifying_questions": [],
         "final_proposal": "",
+        "user_id": str(user_id),
         "should_apply": False,
         "human_approved": False,
         "human_feedback": "",

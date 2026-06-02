@@ -4,9 +4,9 @@ import uuid
 from datetime import datetime, timezone
 
 from pgvector.sqlalchemy import Vector
-from sqlalchemy import JSON, Boolean, DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy import JSON, Boolean, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
 
@@ -106,19 +106,32 @@ class User(Base):
         DateTime(timezone=True), nullable=True
     )
 
+    profile_chunks: Mapped[list["ProfileChunk"]] = relationship(
+        "ProfileChunk", back_populates="user", cascade="all, delete-orphan"
+    )
+
 
 class ProfileChunk(Base):
     """
-    Stores embedded profile chunks for pgvector similarity search.
-    Replaces the ChromaDB PersistentClient used by the retriever node.
-    8 rows total (skills, projects, experiences, niches, rates).
-    Sequential scan is faster than IVFFlat at this scale.
+    Stores per-user embedded profile chunks for pgvector similarity search.
+    chunk_key is the semantic label ("skills", "project_0", etc.).
+    Unique per (user_id, chunk_key) — one chunk type per user.
     """
 
     __tablename__ = "profile_chunks"
+    __table_args__ = (
+        UniqueConstraint("user_id", "chunk_key", name="uq_profile_chunks_user_chunk"),
+    )
 
-    # String ID — chunk IDs are "skills", "project_0", etc., not UUIDs
-    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    chunk_key: Mapped[str] = mapped_column(String(64), nullable=False)
     text: Mapped[str] = mapped_column(Text, nullable=False)
-    # 3072-dim Gemini embeddings (gemini-embedding-2-preview)
     embedding: Mapped[list] = mapped_column(Vector(3072), nullable=False)
+
+    user: Mapped["User"] = relationship("User", back_populates="profile_chunks")

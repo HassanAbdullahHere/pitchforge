@@ -1,18 +1,20 @@
 """
-setup_rag.py — One-time script: chunks profile.json and upserts into
-the PostgreSQL profile_chunks table.
+setup_rag.py — Dev seed tool: chunks profile.json and upserts into
+the PostgreSQL profile_chunks table for a specific user.
 
 Run from pitchforge/ directory:
-    uv run python setup_rag.py
+    uv run python setup_rag.py <user_uuid>
 
 Prerequisites:
     - Docker container running (docker-compose up -d from project root)
     - Alembic migrations applied (cd backend && uv run alembic upgrade head)
-    - DATABASE_URL and GEMINI_API_KEY set in pitchforge/.env
+    - DATABASE_URL_SYNC and GEMINI_API_KEY set in pitchforge/.env
 """
 
 import os
+import sys
 import json
+import uuid
 from pathlib import Path
 
 import numpy as np
@@ -23,6 +25,17 @@ from pgvector.psycopg2 import register_vector
 
 load_dotenv(Path(__file__).parent / ".env")
 
+if len(sys.argv) != 2:
+    print("Usage: uv run python setup_rag.py <user_uuid>")
+    print("  user_uuid — UUID of the user whose profile you are seeding")
+    sys.exit(1)
+
+try:
+    user_id = str(uuid.UUID(sys.argv[1]))
+except ValueError:
+    print(f"Error: '{sys.argv[1]}' is not a valid UUID")
+    sys.exit(1)
+
 embeddings = GoogleGenerativeAIEmbeddings(
     model="gemini-embedding-2-preview",
     google_api_key=os.getenv("GEMINI_API_KEY")
@@ -32,33 +45,33 @@ embeddings = GoogleGenerativeAIEmbeddings(
 with open(Path(__file__).parent / "profile" / "profile.json", "r") as f:
     profile = json.load(f)
 
-# Build chunks — same structure as before
+# Build chunks
 chunks = []
 
 chunks.append({
-    "id": "skills",
+    "chunk_key": "skills",
     "text": f"Skills: {', '.join(profile['skills'])}"
 })
 
 for i, project in enumerate(profile["projects"]):
     chunks.append({
-        "id": f"project_{i}",
+        "chunk_key": f"project_{i}",
         "text": f"Project: {project['name']}. {project['description']}. Tech: {', '.join(project['tech'])}"
     })
 
 for i, exp in enumerate(profile["experience"]):
     chunks.append({
-        "id": f"experience_{i}",
+        "chunk_key": f"experience_{i}",
         "text": f"Experience: {exp}"
     })
 
 chunks.append({
-    "id": "niches",
+    "chunk_key": "niches",
     "text": f"Specializes in: {', '.join(profile['niches'])}"
 })
 
 chunks.append({
-    "id": "rates",
+    "chunk_key": "rates",
     "text": (
         f"Hourly rate: ${profile['rates']['hourly_min']}-${profile['rates']['hourly_max']}. "
         f"Minimum fixed: ${profile['rates']['fixed_min']}"
@@ -70,7 +83,7 @@ conn = psycopg2.connect(os.environ["DATABASE_URL_SYNC"])
 register_vector(conn)  # must be called after connect, before any vector ops
 cur = conn.cursor()
 
-print(f"Upserting {len(chunks)} chunks into profile_chunks...")
+print(f"Upserting {len(chunks)} chunks for user {user_id}...")
 
 for chunk in chunks:
     # embed_query returns list[float] (float64) — convert to float32 for pgvector
@@ -78,18 +91,18 @@ for chunk in chunks:
 
     cur.execute(
         """
-        INSERT INTO profile_chunks (id, text, embedding)
-        VALUES (%s, %s, %s)
-        ON CONFLICT (id) DO UPDATE
+        INSERT INTO profile_chunks (user_id, chunk_key, text, embedding)
+        VALUES (%s, %s, %s, %s)
+        ON CONFLICT (user_id, chunk_key) DO UPDATE
             SET text      = EXCLUDED.text,
                 embedding = EXCLUDED.embedding
         """,
-        (chunk["id"], chunk["text"], vector)
+        (user_id, chunk["chunk_key"], chunk["text"], vector)
     )
-    print(f"  + Upserted: {chunk['id']}")
+    print(f"  + Upserted: {chunk['chunk_key']}")
 
 conn.commit()
 cur.close()
 conn.close()
 
-print(f"\nDone — {len(chunks)} chunks stored in PostgreSQL profile_chunks table")
+print(f"\nDone — {len(chunks)} chunks stored for user {user_id}")

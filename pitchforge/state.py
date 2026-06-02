@@ -25,6 +25,9 @@ class PitchforgeState(TypedDict):
     clarifying_questions: list    # questions to ask the client
     final_proposal: str           # approved final proposal
 
+    # Identity — injected at stream start, propagates through checkpoint
+    user_id: str
+
     # Control
     should_apply: bool            # Human decision after seeing fit score
     human_approved: bool          # has human approved the draft

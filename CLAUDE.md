@@ -115,11 +115,15 @@ class PitchforgeState(TypedDict):
 
 **Next (in order):**
 
+*Core product (blocking for real users)*
+- Per-user profile — `profile_chunks` currently has no `user_id`; every user's proposals are generated from the same global profile. Needs: (1) `user_id` FK on `profile_chunks` + Alembic migration, (2) `POST /api/profile` — accepts profile input, chunks + embeds + stores per user, (3) `GET /api/profile` — returns current user's profile, (4) retriever node filters `profile_chunks` by `user_id`, (5) profile setup page in frontend, (6) gate pipeline — redirect to profile setup if no profile exists. `setup_rag.py` becomes the dev seed tool only.
+
 *Data & persistence*
 - `usage_events` table — per-user token/cost tracking (feeds rate limiting + admin) — deferred until admin panel
 
 *Security & hardening*
 - ~~Rate limiting (`slowapi`)~~ — `/analyze`: 7/day per user (DB count) + 14/day per IP; `/auth/google`: 10/hour per IP; `app/limiter.py` holds the shared `Limiter` instance
+- ~~Rate limiting IP fix~~ — CDN/proxy-aware key function in `app/limiter.py`; checks `CF-Connecting-IP` → `X-Real-IP` (nginx) → `X-Forwarded-For` → `request.client.host`; nginx must set `proxy_set_header X-Real-IP $remote_addr`
 
 *Observability*
 - Structured logging — replace all `print()` with structlog JSON (nodes + runner + requests)
