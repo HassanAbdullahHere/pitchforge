@@ -580,7 +580,7 @@ const css = `
     margin-bottom: 7px;
   }
   .usage-label {
-    font-family: var(--font-display);
+    font-family: var(--font);
     font-size: 11px;
     font-weight: 500;
     letter-spacing: 0.05em;
@@ -588,7 +588,7 @@ const css = `
     color: rgba(30,36,25,0.45);
   }
   .usage-count {
-    font-family: var(--font-display);
+    font-family: var(--font);
     font-size: 11px;
     font-weight: 600;
     color: rgba(30,36,25,0.65);

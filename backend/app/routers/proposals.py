@@ -75,6 +75,22 @@ async def get_proposal(
     return proposal
 
 
+@router.delete("s/{proposal_id}", status_code=204)
+async def delete_proposal(
+    proposal_id: PyUUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(select(Proposal).where(Proposal.id == proposal_id))
+    proposal = result.scalar_one_or_none()
+    if proposal is None:
+        raise HTTPException(status_code=404, detail="Proposal not found")
+    if proposal.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Access denied")
+    await db.delete(proposal)
+    await db.commit()
+
+
 @router.post("/analyze")
 @limiter.limit("14/day")
 async def analyze(

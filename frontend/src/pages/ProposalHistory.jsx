@@ -33,9 +33,36 @@ export default function ProposalHistory() {
   const navigate = useNavigate()
   const { authHeaders } = useAuth()
 
-  const [proposals, setProposals] = useState([])
-  const [loading, setLoading]     = useState(true)
-  const [error, setError]         = useState(null)
+  const [proposals, setProposals]           = useState([])
+  const [loading, setLoading]               = useState(true)
+  const [error, setError]                   = useState(null)
+  const [confirmDeleteId, setConfirmDeleteId] = useState(null)
+  const [deleting, setDeleting]             = useState(false)
+  const [toast, setToast]                   = useState(null)
+
+  const showToast = (msg) => {
+    setToast(msg)
+    setTimeout(() => setToast(null), 4500)
+  }
+
+  const handleDelete = async () => {
+    if (!confirmDeleteId) return
+    setDeleting(true)
+    try {
+      const res = await fetch(`/api/proposals/${confirmDeleteId}`, {
+        method: 'DELETE',
+        headers: authHeaders(),
+      })
+      if (!res.ok) throw new Error(res.status === 403 ? 'Access denied' : 'Delete failed')
+      setProposals(prev => prev.filter(p => p.id !== confirmDeleteId))
+      setConfirmDeleteId(null)
+    } catch (e) {
+      setConfirmDeleteId(null)
+      showToast(e.message || 'Failed to delete proposal')
+    } finally {
+      setDeleting(false)
+    }
+  }
 
   useEffect(() => {
     let cancelled = false
@@ -100,6 +127,39 @@ export default function ProposalHistory() {
             </div>
           )}
 
+          {/* Confirm delete modal */}
+          {confirmDeleteId && (
+            <div className="ph-modal-overlay" onClick={() => !deleting && setConfirmDeleteId(null)}>
+              <div className="ph-modal" onClick={e => e.stopPropagation()}>
+                <p className="ph-modal-title">Delete this proposal?</p>
+                <p className="ph-modal-sub">This action cannot be undone.</p>
+                <div className="ph-modal-actions">
+                  <button
+                    className="btn-secondary"
+                    onClick={() => setConfirmDeleteId(null)}
+                    disabled={deleting}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    className="btn-danger"
+                    onClick={handleDelete}
+                    disabled={deleting}
+                  >
+                    {deleting ? 'Deleting…' : 'Delete'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Toast */}
+          {toast && (
+            <div className="ph-toast" onClick={() => setToast(null)}>
+              {toast}
+            </div>
+          )}
+
           {/* Proposal cards */}
           {!loading && !error && proposals.length > 0 && (
             <div className="ph-grid">
@@ -116,7 +176,18 @@ export default function ProposalHistory() {
                       <span className={`ph-status-pill${done ? ' ph-status-pill--done' : ''}`}>
                         {done ? 'Completed' : 'In Progress'}
                       </span>
-                      <span className="ph-time">{relativeTime(p.created_at)}</span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span className="ph-time">{relativeTime(p.created_at)}</span>
+                        <button
+                          className="ph-delete-btn"
+                          title="Delete proposal"
+                          onClick={e => { e.stopPropagation(); setConfirmDeleteId(p.id) }}
+                        >
+                          <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                            <path d="M1.75 3.5h10.5M5.25 3.5V2.333a.583.583 0 0 1 .583-.583h2.334a.583.583 0 0 1 .583.583V3.5M11.667 3.5l-.584 7.583a.583.583 0 0 1-.583.584H3.5a.583.583 0 0 1-.583-.584L2.333 3.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
+                          </svg>
+                        </button>
+                      </div>
                     </div>
 
                     <h3 className="ph-job-title">{p.job_title}</h3>
@@ -438,6 +509,108 @@ const css = `
     transition: opacity 200ms;
   }
   .ph-card:hover .ph-view-hint { opacity: 1; }
+
+  /* ── Delete button on card ── */
+  .ph-delete-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    border-radius: 6px;
+    border: none;
+    background: transparent;
+    color: rgba(30,36,25,0.3);
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 180ms, background 180ms, color 180ms;
+    padding: 0;
+  }
+  .ph-card:hover .ph-delete-btn { opacity: 1; }
+  .ph-delete-btn:hover {
+    background: rgba(220,60,60,0.1);
+    color: rgba(200,50,50,0.85);
+  }
+  .ph-delete-btn:active { transform: scale(0.93); }
+
+  /* ── Confirm modal ── */
+  .ph-modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(10,9,8,0.55);
+    backdrop-filter: blur(4px);
+    z-index: 200;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    animation: fadeUp 160ms ease both;
+  }
+  .ph-modal {
+    background: rgba(240,238,234,0.96);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(212,210,208,0.9);
+    border-radius: 16px;
+    padding: 28px 32px;
+    max-width: 360px;
+    width: 90%;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .ph-modal-title {
+    font-family: var(--font);
+    font-size: 17px;
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    color: var(--text-dark);
+    margin: 0;
+  }
+  .ph-modal-sub {
+    font-family: var(--font);
+    font-size: 13px;
+    color: var(--text-muted);
+    margin: 0 0 8px;
+  }
+  .ph-modal-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+  }
+  .btn-danger {
+    border-radius: 100px;
+    background: rgba(200,50,50,0.88);
+    color: rgba(255,255,255,0.95);
+    border: none;
+    padding: 10px 22px;
+    font-family: var(--font);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: transform 180ms, box-shadow 180ms;
+    white-space: nowrap;
+  }
+  .btn-danger:hover { transform: translateY(-1px); box-shadow: 0 4px 14px rgba(180,30,30,0.25); }
+  .btn-danger:active { transform: translateY(0); box-shadow: none; }
+  .btn-danger:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+
+  /* ── Toast ── */
+  .ph-toast {
+    position: fixed;
+    bottom: 28px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(22,26,20,0.92);
+    color: rgba(255,255,255,0.88);
+    font-family: var(--font);
+    font-size: 13px;
+    font-weight: 500;
+    padding: 12px 20px;
+    border-radius: 100px;
+    z-index: 300;
+    cursor: pointer;
+    animation: fadeUp 220ms ease both;
+    white-space: nowrap;
+  }
 
   /* ── Mobile ── */
   @media (max-width: 640px) {

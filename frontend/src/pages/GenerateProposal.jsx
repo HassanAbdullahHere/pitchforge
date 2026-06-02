@@ -79,7 +79,6 @@ export default function GenerateProposal() {
   const savedProposalRef = useRef('')
   const savedQualityRef  = useRef(null)
   const isRevisionRef    = useRef(false)
-
   useEffect(() => {
     if (draftRef.current) {
       draftRef.current.scrollTop = draftRef.current.scrollHeight
@@ -95,6 +94,10 @@ export default function GenerateProposal() {
       if (data.node === 'generator') setProposalText('')
     } else if (ev === 'node_complete') {
       setNodeStates(p => ({ ...p, [data.node]: 'done' }))
+    } else if (ev === 'interrupt') {
+      if (data.type === 'human_checkpoint') {
+        setNodeStates(p => ({ ...p, human_checkpoint: 'done' }))
+      }
     } else if (ev === 'token') {
       setProposalText(p => p + data.token)
     } else if (ev === 'done' && data.proposal_draft !== undefined) {
@@ -942,10 +945,11 @@ const css = `
 
   .proposal-scroll {
     flex: 1;
+    min-height: 0;
     overflow-y: auto;
     border-radius: 12px;
-    border: 1px solid rgba(30,36,25,0.06);
-    background: rgba(255,255,255,0.3);
+    border: 1px solid rgba(30,36,25,0.08);
+    background: rgba(255,255,255,0.62);
     padding: 20px 22px;
   }
   .proposal-scroll::-webkit-scrollbar { width: 3px; }
@@ -1322,20 +1326,32 @@ const css = `
 
   /* ── Mobile ── */
   @media (max-width: 768px) {
-    .nav { padding: 16px 20px; }
-    .gp-main { padding: 0 12px 16px; }
+    /* Let the page grow and scroll instead of clipping to 100vh */
+    .page { height: auto; overflow: auto; }
+    .gp-main { overflow: visible; flex: unset; padding: 0 12px 32px; }
 
-    .two-col { flex-direction: column; overflow-y: auto; gap: 12px; }
+    .nav { padding: 16px 20px; }
+
+    .two-col {
+      flex-direction: column;
+      overflow: visible;
+      gap: 12px;
+      height: auto;
+    }
 
     .pipeline-col { flex: unset; }
-    .critique-col { flex: unset; }
+    .critique-col { flex: unset; overflow: visible; }
 
     .dark-card, .light-card { padding: 20px 18px; gap: 14px; }
+
+    /* Proposal scroll: fixed height so it's always readable, doesn't eat the whole screen */
+    .proposal-scroll { max-height: 42vh; min-height: 160px; }
 
     .proposal-header { flex-direction: column; }
     .approve-btn { align-self: stretch; text-align: center; }
 
-    .final-layout { max-width: 100%; }
+    .final-layout { max-width: 100%; overflow: visible; }
+    .final-scroll { max-height: 40vh; }
     .meta-strip { flex-direction: column; }
     .meta-item { border-right: none; border-bottom: 1px solid rgba(255,255,255,0.06); }
     .meta-item:last-child { border-bottom: none; }
@@ -1345,5 +1361,7 @@ const css = `
     .btn-secondary, .btn-primary { text-align: center; }
 
     .rev-actions { flex-direction: column-reverse; align-items: stretch; }
+
+    .avatar-menu { right: -8px; }
   }
 `

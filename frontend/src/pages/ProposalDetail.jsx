@@ -35,10 +35,12 @@ export default function ProposalDetail() {
   const navigate  = useNavigate()
   const { authHeaders } = useAuth()
 
-  const [proposal, setProposal] = useState(null)
-  const [loading, setLoading]   = useState(true)
-  const [error, setError]       = useState(null)
-  const [copied, setCopied]     = useState(false)
+  const [proposal, setProposal]   = useState(null)
+  const [loading, setLoading]     = useState(true)
+  const [error, setError]         = useState(null)
+  const [copied, setCopied]       = useState(false)
+  const [deleteState, setDeleteState] = useState('idle') // 'idle' | 'confirm' | 'deleting' | 'error'
+  const [deleteError, setDeleteError] = useState(null)
 
   useEffect(() => {
     let cancelled = false
@@ -68,6 +70,21 @@ export default function ProposalDetail() {
     a.download = `proposal-${slug}.txt`
     a.click()
     URL.revokeObjectURL(url)
+  }
+
+  const handleDelete = async () => {
+    setDeleteState('deleting')
+    try {
+      const res = await fetch(`/api/proposals/${id}`, {
+        method: 'DELETE',
+        headers: authHeaders(),
+      })
+      if (!res.ok) throw new Error(res.status === 403 ? 'Access denied' : 'Delete failed')
+      navigate('/proposals')
+    } catch (e) {
+      setDeleteError(e.message || 'Failed to delete proposal')
+      setDeleteState('error')
+    }
   }
 
   const done = proposal?.final_proposal != null
@@ -220,6 +237,11 @@ export default function ProposalDetail() {
                 </div>
               )}
 
+              {/* ── Delete error ── */}
+              {deleteState === 'error' && deleteError && (
+                <div className="pd-delete-error">{deleteError}</div>
+              )}
+
               {/* ── Proposal text ── */}
               {done ? (
                 <div className="pd-proposal-card">
@@ -231,6 +253,9 @@ export default function ProposalDetail() {
                       </button>
                       <button className="btn-secondary pd-copy-btn" onClick={download}>
                         ↓ Download
+                      </button>
+                      <button className="btn-danger pd-copy-btn" onClick={() => { setDeleteState('confirm'); setDeleteError(null) }}>
+                        Delete
                       </button>
                     </div>
                   </div>
@@ -252,6 +277,33 @@ export default function ProposalDetail() {
           )}
 
         </main>
+
+        {/* ── Confirm delete modal ── */}
+        {(deleteState === 'confirm' || deleteState === 'deleting') && (
+          <div className="pd-modal-overlay" onClick={() => deleteState !== 'deleting' && setDeleteState('idle')}>
+            <div className="pd-modal" onClick={e => e.stopPropagation()}>
+              <p className="pd-modal-title">Delete this proposal?</p>
+              <p className="pd-modal-sub">This action cannot be undone.</p>
+              <div className="pd-modal-actions">
+                <button
+                  className="btn-secondary"
+                  onClick={() => setDeleteState('idle')}
+                  disabled={deleteState === 'deleting'}
+                >
+                  Cancel
+                </button>
+                <button
+                  className="btn-danger"
+                  onClick={handleDelete}
+                  disabled={deleteState === 'deleting'}
+                >
+                  {deleteState === 'deleting' ? 'Deleting…' : 'Delete'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
       </div>
     </>
   )
@@ -618,7 +670,7 @@ const css = `
     color: var(--text-muted);
     margin: 0;
   }
-  .pd-proposal-actions { display: flex; gap: 8px; }
+  .pd-proposal-actions { display: flex; gap: 8px; flex-wrap: wrap; }
   .pd-copy-btn { font-size: 12px; padding: 7px 16px; }
   .pd-proposal-body {
     padding: 24px 28px 28px;
@@ -649,6 +701,79 @@ const css = `
     margin: 0;
   }
 
+  /* ── Delete error ── */
+  .pd-delete-error {
+    font-family: var(--font);
+    font-size: 13px;
+    font-weight: 500;
+    color: rgba(180,50,50,0.88);
+    background: rgba(220,60,60,0.08);
+    border: 1px solid rgba(220,60,60,0.18);
+    border-radius: 10px;
+    padding: 10px 16px;
+  }
+
+  /* ── Confirm modal ── */
+  .pd-modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(10,9,8,0.55);
+    backdrop-filter: blur(4px);
+    z-index: 200;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    animation: fadeUp 160ms ease both;
+  }
+  .pd-modal {
+    background: rgba(240,238,234,0.96);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(212,210,208,0.9);
+    border-radius: 16px;
+    padding: 28px 32px;
+    max-width: 360px;
+    width: 90%;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .pd-modal-title {
+    font-family: var(--font);
+    font-size: 17px;
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    color: var(--text-dark);
+    margin: 0;
+  }
+  .pd-modal-sub {
+    font-family: var(--font);
+    font-size: 13px;
+    color: var(--text-muted);
+    margin: 0 0 8px;
+  }
+  .pd-modal-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+  }
+  .btn-danger {
+    border-radius: 100px;
+    background: rgba(200,50,50,0.88);
+    color: rgba(255,255,255,0.95);
+    border: none;
+    padding: 9px 20px;
+    font-family: var(--font);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: transform 180ms, box-shadow 180ms;
+    white-space: nowrap;
+    letter-spacing: -0.01em;
+  }
+  .btn-danger:hover { transform: translateY(-1px); box-shadow: 0 4px 14px rgba(180,30,30,0.25); }
+  .btn-danger:active { transform: translateY(0); box-shadow: none; }
+  .btn-danger:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+
   /* ── Mobile ── */
   @media (max-width: 640px) {
     .pd-nav  { padding: 16px 20px; }
@@ -658,7 +783,8 @@ const css = `
     .pd-score-num  { font-size: 26px; }
     .pd-skills-card { grid-template-columns: 1fr; }
     .pd-skill-col:first-child:not(:last-child) { border-right: none; border-bottom: 1px solid rgba(30,36,25,0.07); }
-    .pd-proposal-header { padding: 14px 18px; }
+    .pd-proposal-header { padding: 14px 18px; flex-wrap: wrap; gap: 10px; }
     .pd-proposal-body   { padding: 18px 18px 22px; }
+    .pd-copy-btn { padding: 7px 13px; }
   }
 `
