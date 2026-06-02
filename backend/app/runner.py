@@ -1,13 +1,13 @@
 import json
-import logging
 import uuid
 from datetime import datetime, timezone
 from typing import AsyncGenerator
 
+import structlog
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-logger = logging.getLogger(__name__)
+log = structlog.get_logger(__name__)
 
 from pitchforge.guardrail import check_injection
 from pitchforge.state import PitchforgeState
@@ -59,6 +59,9 @@ async def stream_analysis(job_input: dict, db: AsyncSession, user_id: uuid.UUID)
     thread_id = create_thread_id()
     config = _config(thread_id)
 
+    structlog.contextvars.clear_contextvars()
+    structlog.contextvars.bind_contextvars(thread_id=thread_id, user_id=str(user_id))
+
     job_posting = (
         f"Job Title: {job_input.get('title', '')}\n"
         f"Description: {job_input.get('description', '')}\n"
@@ -108,7 +111,7 @@ async def stream_analysis(job_input: dict, db: AsyncSession, user_id: uuid.UUID)
                 yield _sse("node_complete", {"node": name})
 
     except Exception as e:
-        logger.exception("stream_analysis failed: %s", e)
+        log.exception("stream_analysis_failed", error=str(e))
         yield _sse("error", {"message": "Analysis failed. Please try again."})
         return
 
@@ -174,7 +177,7 @@ async def stream_generation(thread_id: str, should_apply: bool) -> AsyncGenerato
                                     yield _sse("token", {"token": part["text"]})
 
     except Exception as e:
-        logger.exception("stream_generation failed: %s", e)
+        log.exception("stream_generation_failed", error=str(e))
         yield _sse("error", {"message": "Generation failed. Please try again."})
         return
 
@@ -238,7 +241,7 @@ async def stream_revise(thread_id: str, feedback: str, db: AsyncSession) -> Asyn
                                     yield _sse("token", {"token": part["text"]})
 
     except Exception as e:
-        logger.exception("stream_revise failed: %s", e)
+        log.exception("stream_revise_failed", error=str(e))
         yield _sse("error", {"message": "Revision failed. Please try again."})
         return
 
@@ -271,7 +274,7 @@ async def stream_finalize(thread_id: str, db: AsyncSession) -> AsyncGenerator[st
                 yield _sse("node_complete", {"node": name})
 
     except Exception as e:
-        logger.exception("stream_finalize failed: %s", e)
+        log.exception("stream_finalize_failed", error=str(e))
         yield _sse("error", {"message": "Finalization failed. Please try again."})
         return
 

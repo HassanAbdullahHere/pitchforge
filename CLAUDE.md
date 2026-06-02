@@ -128,6 +128,9 @@ class PitchforgeState(TypedDict):
   - ProfileForm 429/error handling — floating fixed-position toast (auto-dismiss 4.5s, click to dismiss); 429 surfaces `"Daily resume autofill limit reached"` / `"Daily profile save limit reached"`; no inline error bars; loader text is `"Autofilling…"` (not "Parsing")
 - Avatar dropdown polish — Profile item moved above My Proposals; unicode placeholder icons replaced with inline SVGs (person silhouette, document list, logout arrow); entrance animation is scale+fade (`scale(0.97→1)`) via spring easing; menu width 256px
 - Input validation hardening (`schemas.py`) — `thread_id` capped at `max_length=64` on all three thread request models; `level`/`platform` capped at `max_length=50` in `JobInputRequest`; `ProfileInput` list bounds: skills ≤60 items each ≤100 chars, projects ≤20, experience/niches ≤20 items each ≤200 chars (Pydantic v2 `Annotated` per-item types)
+- Delete proposal — `DELETE /api/proposals/{id}` (404 if not found, 403 if wrong owner, 204 on success; hard delete); `ProposalDetail` has a Delete button in the Copy/Download action row → glass-morphism confirm modal → navigates to `/proposals` on success, inline red error banner on failure; `ProposalHistory` has a trash icon on card hover (stop-propagation) → same confirm modal → removes card from local state on success, floating toast on failure; action row wraps on mobile
+- Structured logging — `pitchforge/logging_config.py` configures structlog once at FastAPI startup; pretty colored output in dev, JSON (CloudWatch-ready) in prod via `LOG_FORMAT=json` env var; all 8 pipeline nodes (`analyzer`, `retriever`, `scorer`, `generator`, `critic`, `compiler`, `fit_checkpoint`, `human_checkpoint`) migrated from `print()` to `log.info/debug/warning`; `runner.py` binds `thread_id` + `user_id` as structlog contextvars at request start so every node log line in that request carries them automatically; token usage logged at `debug` level, parse errors at `warning`; `collect_job_input()` CLI prints intentionally left as-is
+- Fixed `/health` endpoint — replaced hardcoded `False` fields with real checks: `SELECT 1` for DB connectivity + `SELECT 1 FROM pg_extension WHERE extname = 'vector'` for pgvector; returns HTTP 503 when degraded (load balancers stop routing), 200 when healthy; removed stale `chromadb_connected` and `gemini_reachable` fields; response: `{"status", "db_connected", "pgvector_extension"}`
 
 **Next (in order):**
 
@@ -135,8 +138,6 @@ class PitchforgeState(TypedDict):
 - `usage_events` table — per-user token/cost tracking (feeds rate limiting + admin) — deferred until admin panel
 
 *Observability*
-- Structured logging — replace all `print()` with structlog JSON (nodes + runner + requests)
-- Fix `/health` — remove hardcoded `False` fields, add pgvector extension check
 - Admin view — `/api/admin/stats`, `is_admin` flag on `User`, protected admin page in frontend
 
 *Tests*

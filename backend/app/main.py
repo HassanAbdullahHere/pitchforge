@@ -22,6 +22,7 @@ from app.routers.profile import router as profile_router
 from app.limiter import limiter
 from app.schemas import HealthResponse
 from pitchforge.graph import compile_graph
+from pitchforge.logging_config import configure_logging
 import app.runner as runner_module
 
 
@@ -57,6 +58,7 @@ async def lifespan(app: FastAPI):
     Creates the PostgreSQL checkpointer (and its tables if missing), compiles
     the LangGraph, then disposes connections on shutdown.
     """
+    configure_logging()
     conn_str = _pg_conn_str(DATABASE_URL)
     async with AsyncPostgresSaver.from_conn_string(conn_str) as checkpointer:
         await checkpointer.setup()
@@ -95,21 +97,25 @@ app.include_router(profile_router, prefix="/api")
 
 @app.get("/health", response_model=HealthResponse)
 async def health() -> HealthResponse:
-    """
-    Health check. Verifies the PostgreSQL connection is alive via SELECT 1.
-    chromadb_connected and gemini_reachable are wired in Step 2 (pgvector migration).
-    """
     db_ok = False
+    pgvector_ok = False
     try:
         async with AsyncSessionLocal() as session:
             await session.execute(text("SELECT 1"))
-        db_ok = True
+            db_ok = True
+            result = await session.execute(
+                text("SELECT 1 FROM pg_extension WHERE extname = 'vector'")
+            )
+            pgvector_ok = result.fetchone() is not None
     except Exception:
-        db_ok = False
+        pass
 
-    return HealthResponse(
-        status="ok" if db_ok else "degraded",
+    healthy = db_ok and pgvector_ok
+    response_data = HealthResponse(
+        status="ok" if healthy else "degraded",
         db_connected=db_ok,
-        chromadb_connected=False,
-        gemini_reachable=False,
+        pgvector_extension=pgvector_ok,
     )
+    if not healthy:
+        return JSONResponse(status_code=503, content=response_data.model_dump())
+    return response_data

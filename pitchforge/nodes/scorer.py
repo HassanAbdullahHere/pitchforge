@@ -1,9 +1,12 @@
 import os
 import json
+import structlog
 from google.genai.errors import ServerError
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.messages import SystemMessage, HumanMessage
 from pitchforge.state import PitchforgeState
+
+log = structlog.get_logger(__name__)
 
 llm = ChatGoogleGenerativeAI(
     model="gemini-2.5-flash",
@@ -31,7 +34,7 @@ def score_fit(state: PitchforgeState) -> dict:
     Writes: state["fit_score"], state["suggested_price"],
             state["matched_skills"], state["missing_skills"]
     """
-    print("\n[Node 3] Scoring job fit...")
+    log.info("scoring_start")
 
     job = state["job_analysis"]
     profile = "\n".join(state["profile_matches"])
@@ -123,7 +126,7 @@ Follow these rules in strict order of priority:
     response = llm.invoke([SystemMessage(content=SYSTEM_PROMPT), HumanMessage(content=prompt)])
 
     if hasattr(response, 'usage_metadata') and response.usage_metadata:
-        print(f"[Node 3 scorer] tokens — input: {response.usage_metadata.get('input_tokens')} | output: {response.usage_metadata.get('output_tokens')}")
+        log.debug("tokens", input=response.usage_metadata.get('input_tokens'), output=response.usage_metadata.get('output_tokens'))
 
     try:
         raw = response.content
@@ -136,7 +139,7 @@ Follow these rules in strict order of priority:
                 raw = raw[4:]
         result = json.loads(raw.strip())
     except Exception as e:
-        print(f"[Node 3 scorer] JSON parse error: {e} — raw: {response.content!r}")
+        log.warning("json_parse_error", error=str(e), raw_preview=str(response.content)[:200])
         result = {
             "fit_score": 50,
             "fit_reasoning": "Could not parse scoring result.",
@@ -149,12 +152,15 @@ Follow these rules in strict order of priority:
     fit_score        = result.get("fit_score", 0)
     suggested_price  = result.get("suggested_price", "unknown")
 
-    print(f"[Node 3] Fit score:         {fit_score}/100")
-    print(f"[Node 3] Fit reasoning:     {result.get('fit_reasoning')}")
-    print(f"[Node 3] Matched:           {result.get('matched_skills')}")
-    print(f"[Node 3] Missing:           {result.get('missing_skills')}")
-    print(f"[Node 3] Suggested price:   {suggested_price}")
-    print(f"[Node 3] Pricing reasoning: {result.get('pricing_reasoning')}")
+    log.info(
+        "scoring_done",
+        fit_score=fit_score,
+        suggested_price=suggested_price,
+        matched=result.get("matched_skills"),
+        missing=result.get("missing_skills"),
+        fit_reasoning=result.get("fit_reasoning"),
+        pricing_reasoning=result.get("pricing_reasoning"),
+    )
 
     return {
         "fit_score":      fit_score,

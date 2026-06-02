@@ -1,5 +1,6 @@
 import os
 import uuid
+import structlog
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -13,6 +14,8 @@ from rank_bm25 import BM25Okapi
 from flashrank import Ranker, RerankRequest
 
 from pitchforge.state import PitchforgeState
+
+log = structlog.get_logger(__name__)
 
 embeddings = GoogleGenerativeAIEmbeddings(
     model="gemini-embedding-2-preview",
@@ -85,7 +88,7 @@ async def retrieve_profile(state: PitchforgeState) -> dict:
     Reads:  state["job_analysis"], state["user_id"]
     Writes: state["profile_matches"]
     """
-    print("\n[Node 2] Hybrid retrieval: BM25 + pgvector + re-ranking...")
+    log.info("retrieval_start")
 
     user_id: str = state["user_id"]
     job = state["job_analysis"]
@@ -99,7 +102,7 @@ async def retrieve_profile(state: PitchforgeState) -> dict:
     bm25, corpus_ids, corpus_texts = await _load_corpus(user_id)
     bm25_scores = bm25.get_scores(query.lower().split())
     bm25_ids = [corpus_ids[i] for i in np.argsort(bm25_scores)[::-1][:_N_CANDIDATES]]
-    print(f"  BM25 top IDs: {bm25_ids}")
+    log.debug("bm25_results", ids=bm25_ids)
 
     # 2. pgvector cosine similarity search, filtered to this user's chunks
     # <=> is cosine distance — correct for Gemini's L2-normalized embeddings
@@ -114,11 +117,11 @@ async def retrieve_profile(state: PitchforgeState) -> dict:
         )
     vec_ids = [row["chunk_key"] for row in vec_rows]
     vec_id_to_text = {row["chunk_key"]: row["text"] for row in vec_rows}
-    print(f"  Vector top IDs: {vec_ids}")
+    log.debug("vector_results", ids=vec_ids)
 
     # 3. RRF fusion
     fused_ids = _rrf_fuse([bm25_ids, vec_ids])
-    print(f"  RRF fused order: {fused_ids}")
+    log.debug("rrf_fused", ids=fused_ids)
 
     # Build id→text map (BM25 corpus as base, vector results override)
     id_to_text = dict(zip(corpus_ids, corpus_texts))
@@ -137,8 +140,6 @@ async def retrieve_profile(state: PitchforgeState) -> dict:
     # 5. Return top N
     profile_matches = reranked_texts[:_N_FINAL]
 
-    print(f"[Node 2] Returning {len(profile_matches)} re-ranked chunks")
-    for match in profile_matches:
-        print(f"  > {match[:80]}...")
+    log.info("retrieval_done", count=len(profile_matches))
 
     return {"profile_matches": profile_matches}

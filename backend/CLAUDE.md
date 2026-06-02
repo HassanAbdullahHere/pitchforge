@@ -82,7 +82,7 @@ Only file that calls `pitchforge_graph`. All functions are async generators yiel
 
 SSE frame: `event: <name>\ndata: <json>\n\n` via `_sse(event, data)`.  
 `token` events are emitted only during `generator` node (`on_chat_model_stream`).  
-Exceptions: currently leak `str(e)` to frontend and log nothing — **pending structured logging**.
+Exceptions: logged via structlog (`log.exception`) server-side, generic message to frontend.
 
 ---
 
@@ -94,6 +94,8 @@ Exceptions: currently leak `str(e)` to frontend and log nothing — **pending st
 | GET | `/api/auth/me` | JWT | Returns current user profile |
 | GET | `/api/proposals` | JWT | Lists finalized proposals for current user (final_proposal IS NOT NULL) |
 | GET | `/api/proposals/{id}` | JWT | Proposal detail — 403 if not owner, 404 if not found |
+| DELETE | `/api/proposals/{id}` | JWT | Hard delete — 403 if not owner, 404 if not found, 204 on success |
+| GET | `/health` | none | `{"status","db_connected","pgvector_extension"}` — 200 healthy, 503 degraded |
 | POST | `/api/proposal/analyze` | JWT | Starts new thread, streams fit analysis |
 | POST | `/api/proposal/generate` | JWT | Resumes thread, streams generation |
 | POST | `/api/proposal/revise` | JWT | Resumes with feedback, streams revision (limit: 2/proposal) |

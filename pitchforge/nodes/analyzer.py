@@ -1,9 +1,12 @@
 import os
 import json
+import structlog
 from google.genai.errors import ServerError
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.messages import SystemMessage, HumanMessage
 from pitchforge.state import PitchforgeState
+
+log = structlog.get_logger(__name__)
 
 llm = ChatGoogleGenerativeAI(
     model="gemini-2.5-flash",
@@ -53,7 +56,7 @@ def analyze_job(state: PitchforgeState) -> dict:
     Reads:  state["job_posting"]
     Writes: state["job_analysis"]
     """
-    print("\n[Node 1] Analyzing job posting...")
+    log.info("analyzing_job_posting")
 
     prompt = f"""Parse the following job posting and return ONLY valid JSON. No explanation. No markdown. No code fences.
 
@@ -89,7 +92,7 @@ Job posting:
 
     response = llm.invoke([SystemMessage(content=SYSTEM_PROMPT), HumanMessage(content=prompt)])
     if hasattr(response, 'usage_metadata') and response.usage_metadata:
-        print(f"[Node 1 analyzer] tokens — input: {response.usage_metadata.get('input_tokens')} | output: {response.usage_metadata.get('output_tokens')}")
+        log.debug("tokens", input=response.usage_metadata.get('input_tokens'), output=response.usage_metadata.get('output_tokens'))
 
     try:
         raw = response.content
@@ -102,7 +105,7 @@ Job posting:
                 raw = raw[4:]
         job_analysis = json.loads(raw.strip())
     except Exception as e:
-        print(f"[Node 1 analyzer] JSON parse error: {e} — raw: {str(response.content)[:200]!r}")
+        log.warning("json_parse_error", error=str(e), raw_preview=str(response.content)[:200])
         job_analysis = {
             "title": "Unknown",
             "skills_required": [],
@@ -114,6 +117,6 @@ Job posting:
             "client_identifiable": False,
         }
 
-    print(f"[Node 1] Done — {job_analysis.get('title')} | {len(job_analysis.get('skills_required', []))} skills extracted")
+    log.info("analyze_done", title=job_analysis.get('title'), skills_count=len(job_analysis.get('skills_required', [])))
 
     return {"job_analysis": job_analysis}

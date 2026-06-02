@@ -80,7 +80,7 @@ max_output_tokens=N
 | generator | 700 |
 | critic | 800 |
 
-Token usage logged via `print()` after every `llm.invoke()` — **pending replacement with structlog**.  
+Token usage logged via `log.debug("tokens", ...)` after every `llm.invoke()` — structlog, `LOG_FORMAT=json` in prod.  
 Critic does NOT receive profile chunks — saves ~1,800 tokens/call.
 
 ---

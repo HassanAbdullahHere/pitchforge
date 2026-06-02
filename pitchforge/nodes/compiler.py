@@ -1,4 +1,7 @@
+import structlog
 from pitchforge.state import PitchforgeState
+
+log = structlog.get_logger(__name__)
 
 
 def compile_final(state: PitchforgeState) -> dict:
@@ -8,10 +11,7 @@ def compile_final(state: PitchforgeState) -> dict:
     Reads: proposal_draft, job_analysis, suggested_price
     Writes: final_proposal
     """
-    print("\n[Node 7] Compiling final proposal...")
-
+    log.info("compile_start")
     draft = state["proposal_draft"]
-
-    print("[Node 7] Final proposal compiled.")
-
+    log.info("compile_done")
     return {"final_proposal": draft}

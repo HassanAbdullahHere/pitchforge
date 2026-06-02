@@ -1,5 +1,8 @@
+import structlog
 from langgraph.types import interrupt
 from pitchforge.state import PitchforgeState
+
+log = structlog.get_logger(__name__)
 
 
 def human_fit_checkpoint(state: PitchforgeState) -> dict:
@@ -21,17 +24,16 @@ def human_fit_checkpoint(state: PitchforgeState) -> dict:
     else:
         recommendation = "Poor match — not recommended"
 
-    print("\n" + "=" * 50)
-    print("  FIT SCORE REPORT")
-    print("=" * 50)
-    print(f"  Job      : {job.get('title', 'N/A')}")
-    print(f"  Score    : {fit_score}/100")
-    print(f"  Verdict  : {recommendation}")
-    print(f"  Price    : {state['suggested_price']}")
-    print("=" * 50)
+    log.info(
+        "fit_report",
+        title=job.get("title", "N/A"),
+        fit_score=fit_score,
+        recommendation=recommendation,
+        suggested_price=state["suggested_price"],
+    )
 
     if fit_score < 40:
-        print("Score too low — cancelling.")
+        log.info("fit_cancelled", fit_score=fit_score)
         return {"should_apply": False}
 
     answer = interrupt({
@@ -44,8 +46,8 @@ def human_fit_checkpoint(state: PitchforgeState) -> dict:
     should_apply = str(answer).strip().lower() == "y"
 
     if should_apply:
-        print("Proceeding to proposal generation...")
+        log.info("fit_approved")
     else:
-        print("Cancelled.")
+        log.info("fit_declined")
 
     return {"should_apply": should_apply}

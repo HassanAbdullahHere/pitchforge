@@ -111,8 +111,7 @@ class UsageResponse(BaseModel):
 class HealthResponse(BaseModel):
     status: str
     db_connected: bool
-    chromadb_connected: bool
-    gemini_reachable: bool
+    pgvector_extension: bool
 
 
 # --- Profile Models ---

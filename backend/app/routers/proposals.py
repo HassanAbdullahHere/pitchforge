@@ -88,7 +88,6 @@ async def delete_proposal(
     if proposal.user_id != current_user.id:
         raise HTTPException(status_code=403, detail="Access denied")
     await db.delete(proposal)
-    await db.commit()
 
 
 @router.post("/analyze")

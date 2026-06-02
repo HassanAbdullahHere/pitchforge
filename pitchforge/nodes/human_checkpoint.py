@@ -1,5 +1,8 @@
+import structlog
 from langgraph.types import interrupt
 from pitchforge.state import PitchforgeState
+
+log = structlog.get_logger(__name__)
 
 
 def human_proposal_checkpoint(state: PitchforgeState) -> dict:
@@ -9,21 +12,17 @@ def human_proposal_checkpoint(state: PitchforgeState) -> dict:
     Reads: proposal_draft, quality_score, job_analysis, iteration_count
     Writes: human_approved
     """
-    draft = state["proposal_draft"]
     quality_score = state["quality_score"]
     job = state["job_analysis"]
     iteration = state["iteration_count"]
+    draft = state["proposal_draft"]
 
-    print("\n" + "=" * 60)
-    print("  PROPOSAL READY FOR REVIEW")
-    print("=" * 60)
-    print(f"  Job        : {job.get('title', 'N/A')}")
-    print(f"  Quality    : {quality_score}/100")
-    print(f"  Iterations : {iteration}")
-    print("=" * 60)
-    print("\n--- PROPOSAL DRAFT ---\n")
-    print(draft)
-    print("\n" + "-" * 60)
+    log.info(
+        "proposal_ready",
+        title=job.get("title", "N/A"),
+        quality_score=quality_score,
+        iteration=iteration,
+    )
 
     answer = interrupt({
         "proposal_draft": draft,
@@ -34,10 +33,10 @@ def human_proposal_checkpoint(state: PitchforgeState) -> dict:
     answer_str = str(answer).strip()
 
     if answer_str.lower() == "y":
-        print("Proposal approved — compiling final output...")
+        log.info("proposal_approved")
         return {"human_approved": True}
 
-    print(f"Revision requested — routing back to generator...")
+    log.info("revision_requested")
     return {
         "human_approved": False,
         "human_feedback": answer_str,

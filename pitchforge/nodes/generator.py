@@ -1,8 +1,11 @@
 import os
+import structlog
 from google.genai.errors import ServerError
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.messages import SystemMessage, HumanMessage
 from pitchforge.state import PitchforgeState
+
+log = structlog.get_logger(__name__)
 
 llm = ChatGoogleGenerativeAI(
     model="gemini-2.5-flash",
@@ -32,7 +35,7 @@ def generate_proposal(state: PitchforgeState) -> dict:
     Writes: proposal_draft, iteration_count
     """
     iteration      = state["iteration_count"]
-    print(f"\n[Node 4] Generating proposal draft (iteration {iteration + 1})...")
+    log.info("generation_start", iteration=iteration + 1)
 
     job             = state["job_analysis"]
     profile         = "\n".join(state["profile_matches"])
@@ -168,7 +171,7 @@ A 200-word proposal with four specific facts beats a 320-word proposal with thre
 
     response = llm.invoke([SystemMessage(content=SYSTEM_PROMPT), HumanMessage(content=prompt)])
     if hasattr(response, 'usage_metadata') and response.usage_metadata:
-        print(f"[Node 4 generator] tokens — input: {response.usage_metadata.get('input_tokens')} | output: {response.usage_metadata.get('output_tokens')}")
+        log.debug("tokens", input=response.usage_metadata.get('input_tokens'), output=response.usage_metadata.get('output_tokens'))
 
     proposal_draft = response.content
     if isinstance(proposal_draft, list):
@@ -178,7 +181,7 @@ A 200-word proposal with four specific facts beats a 320-word proposal with thre
         )
     proposal_draft = proposal_draft.strip()
 
-    print(f"[Node 4] Draft generated ({len(proposal_draft.split())} words)")
+    log.info("generation_done", word_count=len(proposal_draft.split()))
 
     return {
         "proposal_draft":  proposal_draft,

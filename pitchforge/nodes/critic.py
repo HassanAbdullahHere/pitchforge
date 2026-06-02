@@ -1,9 +1,12 @@
 import os
 import json
+import structlog
 from google.genai.errors import ServerError
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.messages import SystemMessage, HumanMessage
 from pitchforge.state import PitchforgeState
+
+log = structlog.get_logger(__name__)
 
 llm = ChatGoogleGenerativeAI(
     model="gemini-2.5-flash",
@@ -28,7 +31,7 @@ def critique_proposal(state: PitchforgeState) -> dict:
     Writes: critic_feedback, quality_score
     """
     iteration = state["iteration_count"]
-    print(f"\n[Node 5] Critiquing proposal draft (iteration {iteration})...")
+    log.info("critique_start", iteration=iteration)
 
     job     = state["job_analysis"]
     draft   = state["proposal_draft"]
@@ -140,7 +143,7 @@ Iteration 3 exception: if score >= 65, return PASS — do not loop indefinitely 
 
     response = llm.invoke([SystemMessage(content=SYSTEM_PROMPT), HumanMessage(content=prompt)])
     if hasattr(response, 'usage_metadata') and response.usage_metadata:
-        print(f"[Node 5 critic] tokens — input: {response.usage_metadata.get('input_tokens')} | output: {response.usage_metadata.get('output_tokens')}")
+        log.debug("tokens", input=response.usage_metadata.get('input_tokens'), output=response.usage_metadata.get('output_tokens'))
 
     try:
         raw = response.content
@@ -153,7 +156,7 @@ Iteration 3 exception: if score >= 65, return PASS — do not loop indefinitely 
                 raw = raw[4:]
         result = json.loads(raw.strip())
     except Exception as e:
-        print(f"[Node 5 critic] JSON parse error: {e} — raw: {str(response.content)[:200]!r}")
+        log.warning("json_parse_error", error=str(e), raw_preview=str(response.content)[:200])
         result = {
             "quality_score": 60,
             "feedback": "Could not parse critic response.",
@@ -174,9 +177,17 @@ Iteration 3 exception: if score >= 65, return PASS — do not loop indefinitely 
         failed_lines = "\n".join(f"- {item}" for item in failed)
         feedback = f"{feedback}\n\nFix these specifically:\n{failed_lines}"
 
-    print(f"[Node 5] Score: {quality_score}/100 — {verdict}")
-    print(f"[Node 5] Breakdown: hook={scores.get('hook')} evidence={scores.get('evidence')} approach={scores.get('approach')} honesty={scores.get('honesty')} closing={scores.get('closing')}")
-    print(f"[Node 5] Feedback: {feedback}")
+    log.info(
+        "critique_done",
+        quality_score=quality_score,
+        verdict=verdict,
+        hook=scores.get("hook"),
+        evidence=scores.get("evidence"),
+        approach=scores.get("approach"),
+        honesty=scores.get("honesty"),
+        closing=scores.get("closing"),
+    )
+    log.debug("critique_feedback", feedback=feedback)
 
     return {
         "critic_feedback": feedback,
