@@ -47,6 +47,7 @@ export default function Landing() {
   const [usage, setUsage]           = useState(null)
   const [avatarError, setAvatarError]   = useState(false)
   const [avatarLoaded, setAvatarLoaded] = useState(false)
+  const [loginError, setLoginError] = useState(null)
   const menuRef                     = useRef(null)
 
   useEffect(() => {
@@ -77,11 +78,13 @@ export default function Landing() {
     onSuccess: async (tokenResponse) => {
       try {
         await login(tokenResponse.access_token)
-      } catch {
-        console.error('Login failed')
+      } catch (e) {
+        if (e.message === 'account_blocked') {
+          setLoginError('Your account has been suspended. Contact support.')
+        }
       }
     },
-    onError: () => console.error('Google login error'),
+    onError: () => {},
   })
 
   function handleGetStarted() {
@@ -351,6 +354,17 @@ export default function Landing() {
         </section>
 
       </div>
+
+      {loginError && (
+        <div className="login-error-toast" onClick={() => setLoginError(null)}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{flexShrink:0}}>
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="12" y1="8" x2="12" y2="12"/>
+            <line x1="12" y1="16" x2="12.01" y2="16"/>
+          </svg>
+          {loginError}
+        </div>
+      )}
     </>
   )
 }
@@ -1071,5 +1085,31 @@ const css = `
     .hiw-grid {
       grid-template-columns: 1fr;
     }
+  }
+
+  .login-error-toast {
+    position: fixed;
+    bottom: 28px;
+    left: 0;
+    right: 0;
+    margin: 0 auto;
+    width: fit-content;
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 13px 20px;
+    background: rgba(30, 12, 12, 0.96);
+    border: 1px solid rgba(220, 80, 80, 0.35);
+    border-radius: 10px;
+    color: #e07070;
+    font-size: 13px;
+    font-weight: 500;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+    cursor: pointer;
+    white-space: nowrap;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    animation: fadeUp 200ms ease forwards;
   }
 `

@@ -66,6 +66,11 @@ async def google_auth(
 
     now = datetime.now(timezone.utc)
     if user:
+        if not user.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="account_blocked",
+            )
         user.last_login_at = now
     else:
         user = User(

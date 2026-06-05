@@ -63,6 +63,18 @@ async def admin_list_users(
     _: User = Depends(get_admin_user),
     db: AsyncSession = Depends(get_db),
 ):
+    proposal_count_sq = (
+        select(func.count(Proposal.id))
+        .where(Proposal.user_id == User.id)
+        .correlate(User)
+        .scalar_subquery()
+    )
+    total_cost_sq = (
+        select(func.coalesce(func.sum(UsageEvent.cost_usd), 0.0))
+        .where(UsageEvent.user_id == User.id)
+        .correlate(User)
+        .scalar_subquery()
+    )
     rows = await db.execute(
         select(
             User.id,
@@ -72,14 +84,8 @@ async def admin_list_users(
             User.is_admin,
             User.created_at,
             User.last_login_at,
-            func.count(Proposal.id).label("proposal_count"),
-            func.coalesce(func.sum(UsageEvent.cost_usd), 0.0).label("total_cost_usd"),
-        )
-        .outerjoin(Proposal, Proposal.user_id == User.id)
-        .outerjoin(UsageEvent, UsageEvent.user_id == User.id)
-        .group_by(
-            User.id, User.email, User.name, User.is_active,
-            User.is_admin, User.created_at, User.last_login_at,
+            proposal_count_sq.label("proposal_count"),
+            total_cost_sq.label("total_cost_usd"),
         )
         .order_by(User.created_at.desc())
     )

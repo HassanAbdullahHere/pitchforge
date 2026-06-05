@@ -180,6 +180,8 @@ const css = `
   * { box-sizing: border-box; margin: 0; padding: 0; }
 
   .adm-page {
+    position: relative;
+    z-index: 1;
     min-height: 100vh;
     background: #0a0908;
     color: #f5f0e8;

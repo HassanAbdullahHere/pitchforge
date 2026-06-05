@@ -34,7 +34,10 @@ export function AuthProvider({ children }) {
       headers: { 'Content-Type': 'application/json' },
       body:    JSON.stringify({ access_token: googleAccessToken }),
     })
-    if (!res.ok) throw new Error('Auth failed')
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}))
+      throw new Error(body.detail === 'account_blocked' ? 'account_blocked' : 'Auth failed')
+    }
 
     const { access_token } = await res.json()
     localStorage.setItem(TOKEN_KEY, access_token)
