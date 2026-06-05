@@ -45,6 +45,7 @@ Every skill claim traces back to your retrieved profile. Every AI-slop phrase ge
 - [Hybrid RAG: Profile Retrieval](#hybrid-rag-profile-retrieval)
 - [Database](#database)
 - [Frontend](#frontend)
+- [Admin Panel](#admin-panel)
 - [API Reference](#api-reference)
   - [Endpoints](#endpoints)
   - [SSE Event Stream](#sse-event-stream)
@@ -169,6 +170,8 @@ class PitchforgeState(TypedDict):
     iteration_count: int      # 0 → max 3 auto-iterations
     quality_score: int        # 0–100; ≥85 exits loop
 
+    clarifying_questions: list # questions the Analyzer surfaces about the job
+
     # ── Human checkpoints ─────────────────────────────────────────
     should_apply: bool        # set at fit_checkpoint interrupt
     human_approved: bool      # set at human_checkpoint interrupt
@@ -231,7 +234,7 @@ flowchart LR
     D --> E["Top 4 Profile Chunks\n→ Generator + Scorer"]
 ```
 
-- **BM25** catches exact skill-name matches semantics misses (`asyncpg` vs "async database")
+- **BM25** catches exact skill-name matches that semantics misses (`asyncpg` vs "async database")
 - **pgvector** catches conceptual overlap ("infrastructure automation" → Docker + CI chunks)
 - **RRF** merges both ranked lists without score normalization
 - **FlashRank** cross-encoder is the final arbiter — full pairwise relevance comparison
@@ -298,9 +301,22 @@ erDiagram
         vector_3072 embedding
     }
 
+    usage_events {
+        UUID id PK
+        UUID user_id FK
+        UUID proposal_id FK
+        string phase
+        int input_tokens
+        int output_tokens
+        float cost_usd
+        timestamp created_at
+    }
+
     users ||--o{ proposals : "owns"
     users ||--o| user_profiles : "has one"
     users ||--o{ profile_chunks : "has many"
+    users ||--o{ usage_events : "has many"
+    proposals ||--o{ usage_events : "has many"
 ```
 
 The `Proposal` row is written in two phases: created at `/analyze` with fit data, updated at `/finalize` with the approved proposal text and scores.
@@ -323,6 +339,7 @@ The `Proposal` row is written in two phases: created at `/analyze` with fit data
 | `/proposals/:id` | Proposal Detail | ✓ | Scores strip · skills columns · formatted proposal · copy / download / delete |
 | `/profile` | Profile View | ✓ | Structured profile display — title, bio, skills, projects, niches, rates |
 | `/profile/edit` | Profile Form | ✓ | Full editor with resume drag-drop autofill · onboarding mode |
+| `/admin` | Admin Panel | ✓ (admin only) | Platform metrics · activity charts · token usage · user management |
 
 ### UX Highlights
 
@@ -334,6 +351,25 @@ The `Proposal` row is written in two phases: created at `/analyze` with fit data
 - Textareas auto-resize on input and on form pre-fill
 - 4.5-second auto-dismiss toasts for copy success · save errors · rate limit hits
 - Avatar dropdown: usage progress bar · SVG icons · scale-fade entrance animation
+
+---
+
+## Admin Panel
+
+A single-page dashboard for monitoring the whole platform at a glance. Access requires `is_admin` set directly in the database — the flag is re-checked on every request, so banning an admin takes effect immediately.
+
+<img src="docs/admin-overview.png" alt="Admin dashboard — stats, activity trends, distributions" width="100%"/>
+
+<img src="docs/admin-users.png" alt="Admin panel — token usage by phase and user management table" width="100%"/>
+
+**What's observable:**
+
+- **8 stat cards** — total users, proposals, cost, today's activity, avg fit score, avg quality, finalization rate, total revisions
+- **14-day activity trends** — proposals/day, cost/day, new signups/day (area charts, zero-filled)
+- **Distributions** — fit score histogram (5 buckets) + recommendation breakdown (Strong / Careful / Skip)
+- **Breakdowns** — proposal count by platform and by iteration depth (1 / 2 / 3+)
+- **Token usage by phase** — input tokens, output tokens, and cost split across Analysis / Generation / Finalization
+- **User management** — proposal count and spend per user; one-click ban / unban; self-ban blocked
 
 ---
 
@@ -357,6 +393,9 @@ The `Proposal` row is written in two phases: created at `/analyze` with fit data
 | `GET` | `/api/profile` | JWT | — | Retrieve saved profile |
 | `POST` | `/api/profile` | JWT | 8/day · IP · 4/day · user | Save profile + re-embed all chunks |
 | `POST` | `/api/profile/parse-resume` | JWT | 4/day · IP · 2/day · user | PDF / DOCX → structured profile JSON |
+| `GET` | `/api/admin/stats` | JWT (admin) | — | Aggregate metrics, 14-day time-series, distributions |
+| `GET` | `/api/admin/users` | JWT (admin) | — | All users with proposal count + spend |
+| `PATCH` | `/api/admin/users/{id}` | JWT (admin) | — | Ban / unban user (`is_active` only) |
 
 ### SSE Event Stream
 
