@@ -136,7 +136,7 @@ async def generate(
             detail="Thread not found or access denied",
         )
     return StreamingResponse(
-        stream_generation(body.thread_id, body.should_apply),
+        stream_generation(body.thread_id, body.should_apply, db, current_user.id),
         media_type="text/event-stream",
         headers=_SSE_HEADERS,
     )
@@ -183,7 +183,7 @@ async def revise(
         )
     await db.flush()
     return StreamingResponse(
-        stream_revise(body.thread_id, body.instruction, db),
+        stream_revise(body.thread_id, body.instruction, db, current_user.id),
         media_type="text/event-stream",
         headers=_SSE_HEADERS,
     )
@@ -207,7 +207,7 @@ async def finalize(
             detail="Thread not found or access denied",
         )
     return StreamingResponse(
-        stream_finalize(body.thread_id, db),
+        stream_finalize(body.thread_id, db, current_user.id),
         media_type="text/event-stream",
         headers=_SSE_HEADERS,
     )

@@ -18,6 +18,7 @@ class UserResponse(BaseModel):
     email: str
     name: str
     avatar_url: Optional[str] = None
+    is_admin: bool = False
 
 
 # --- Request Models ---
@@ -160,3 +161,36 @@ class ProfileResponse(BaseModel):
 class ResumeParseResponse(BaseModel):
     parsed: Optional[dict] = None
     error: Optional[str] = None
+
+
+# --- Admin Models ---
+
+class AdminPhaseBreakdown(BaseModel):
+    phase: str
+    total_input_tokens: int
+    total_output_tokens: int
+    total_cost_usd: float
+
+
+class AdminStatsResponse(BaseModel):
+    total_users: int
+    total_proposals: int
+    total_cost_usd: float
+    proposals_today: int
+    phase_breakdown: list[AdminPhaseBreakdown]
+
+
+class AdminUserItem(BaseModel):
+    id: UUID
+    email: str
+    name: str
+    is_active: bool
+    is_admin: bool
+    created_at: datetime
+    last_login_at: Optional[datetime]
+    proposal_count: int
+    total_cost_usd: float
+
+
+class AdminUserPatch(BaseModel):
+    is_active: bool

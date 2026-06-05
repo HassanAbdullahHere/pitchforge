@@ -15,7 +15,20 @@ from pitchforge.state import PitchforgeState
 # Set during app lifespan in main.py once the PostgreSQL checkpointer is ready.
 pitchforge_graph = None
 from langgraph.types import Command
-from app.models import Proposal
+from app.models import Proposal, UsageEvent
+
+INPUT_TOKEN_COST  = 0.075 / 1_000_000
+OUTPUT_TOKEN_COST = 0.30  / 1_000_000
+
+
+def _accumulate_tokens(event: dict, total_input: int, total_output: int) -> tuple[int, int]:
+    if event["event"] == "on_chat_model_end":
+        output = event["data"].get("output")
+        if output and hasattr(output, "usage_metadata") and output.usage_metadata:
+            meta = output.usage_metadata
+            total_input  += meta.get("input_tokens", 0)
+            total_output += meta.get("output_tokens", 0)
+    return total_input, total_output
 
 
 GRAPH_NODES = {
@@ -98,6 +111,7 @@ async def stream_analysis(job_input: dict, db: AsyncSession, user_id: uuid.UUID)
         "is_human_revision": False,
     }
 
+    total_input = total_output = 0
     try:
         async for event in pitchforge_graph.astream_events(
             initial_state, config=config, version="v2"
@@ -109,6 +123,7 @@ async def stream_analysis(job_input: dict, db: AsyncSession, user_id: uuid.UUID)
                 yield _sse("node_start", {"node": name, "label": NODE_LABELS.get(name, name)})
             elif kind == "on_chain_end" and name in GRAPH_NODES:
                 yield _sse("node_complete", {"node": name})
+            total_input, total_output = _accumulate_tokens(event, total_input, total_output)
 
     except Exception as e:
         log.exception("stream_analysis_failed", error=str(e))
@@ -144,14 +159,25 @@ async def stream_analysis(job_input: dict, db: AsyncSession, user_id: uuid.UUID)
     db.add(proposal)
     await db.flush()
 
+    db.add(UsageEvent(
+        user_id=user_id,
+        proposal_id=proposal.id,
+        phase="analysis",
+        input_tokens=total_input,
+        output_tokens=total_output,
+        cost_usd=total_input * INPUT_TOKEN_COST + total_output * OUTPUT_TOKEN_COST,
+    ))
+    await db.flush()
+
     yield _sse("interrupt", {"type": "fit_checkpoint", **fit_data})
     yield _sse("done", fit_data)
 
 
-async def stream_generation(thread_id: str, should_apply: bool) -> AsyncGenerator[str, None]:
+async def stream_generation(thread_id: str, should_apply: bool, db: AsyncSession, user_id: uuid.UUID) -> AsyncGenerator[str, None]:
     config = _config(thread_id)
     answer = "y" if should_apply else "n"
 
+    total_input = total_output = 0
     try:
         async for event in pitchforge_graph.astream_events(
             Command(resume=answer), config=config, version="v2"
@@ -175,6 +201,7 @@ async def stream_generation(thread_id: str, should_apply: bool) -> AsyncGenerato
                             for part in content:
                                 if isinstance(part, dict) and part.get("type") == "text":
                                     yield _sse("token", {"token": part["text"]})
+            total_input, total_output = _accumulate_tokens(event, total_input, total_output)
 
     except Exception as e:
         log.exception("stream_generation_failed", error=str(e))
@@ -185,6 +212,18 @@ async def stream_generation(thread_id: str, should_apply: bool) -> AsyncGenerato
         yield _sse("done", {"proposal_draft": "", "quality_score": 0,
                             "critic_feedback": None, "iteration_count": 0})
         return
+
+    result = await db.execute(select(Proposal).where(Proposal.thread_id == thread_id))
+    proposal = result.scalar_one_or_none()
+    db.add(UsageEvent(
+        user_id=user_id,
+        proposal_id=proposal.id if proposal else None,
+        phase="generation",
+        input_tokens=total_input,
+        output_tokens=total_output,
+        cost_usd=total_input * INPUT_TOKEN_COST + total_output * OUTPUT_TOKEN_COST,
+    ))
+    await db.flush()
 
     snapshot = await pitchforge_graph.aget_state(config)
     values = snapshot.values
@@ -202,12 +241,13 @@ async def stream_generation(thread_id: str, should_apply: bool) -> AsyncGenerato
 MAX_HUMAN_REVISIONS = 2
 
 
-async def stream_revise(thread_id: str, feedback: str, db: AsyncSession) -> AsyncGenerator[str, None]:
+async def stream_revise(thread_id: str, feedback: str, db: AsyncSession, user_id: uuid.UUID) -> AsyncGenerator[str, None]:
     config = _config(thread_id)
     # human_checkpoint is the node being resumed FROM — suppress its completion
     # so the frontend doesn't show it as ticked at the start of a revision pass
     skip_first_human_complete = True
 
+    total_input = total_output = 0
     try:
         async for event in pitchforge_graph.astream_events(
             Command(resume=feedback), config=config, version="v2"
@@ -234,11 +274,24 @@ async def stream_revise(thread_id: str, feedback: str, db: AsyncSession) -> Asyn
                             for part in content:
                                 if isinstance(part, dict) and part.get("type") == "text":
                                     yield _sse("token", {"token": part["text"]})
+            total_input, total_output = _accumulate_tokens(event, total_input, total_output)
 
     except Exception as e:
         log.exception("stream_revise_failed", error=str(e))
         yield _sse("error", {"message": "Revision failed. Please try again."})
         return
+
+    result = await db.execute(select(Proposal).where(Proposal.thread_id == thread_id))
+    proposal = result.scalar_one_or_none()
+    db.add(UsageEvent(
+        user_id=user_id,
+        proposal_id=proposal.id if proposal else None,
+        phase="revision",
+        input_tokens=total_input,
+        output_tokens=total_output,
+        cost_usd=total_input * INPUT_TOKEN_COST + total_output * OUTPUT_TOKEN_COST,
+    ))
+    await db.flush()
 
     snapshot = await pitchforge_graph.aget_state(config)
     values = snapshot.values
@@ -253,9 +306,10 @@ async def stream_revise(thread_id: str, feedback: str, db: AsyncSession) -> Asyn
     yield _sse("done", proposal_data)
 
 
-async def stream_finalize(thread_id: str, db: AsyncSession) -> AsyncGenerator[str, None]:
+async def stream_finalize(thread_id: str, db: AsyncSession, user_id: uuid.UUID) -> AsyncGenerator[str, None]:
     config = _config(thread_id)
 
+    total_input = total_output = 0
     try:
         async for event in pitchforge_graph.astream_events(
             Command(resume="y"), config=config, version="v2"
@@ -267,6 +321,7 @@ async def stream_finalize(thread_id: str, db: AsyncSession) -> AsyncGenerator[st
                 yield _sse("node_start", {"node": name, "label": NODE_LABELS.get(name, name)})
             elif kind == "on_chain_end" and name in GRAPH_NODES:
                 yield _sse("node_complete", {"node": name})
+            total_input, total_output = _accumulate_tokens(event, total_input, total_output)
 
     except Exception as e:
         log.exception("stream_finalize_failed", error=str(e))
@@ -286,5 +341,15 @@ async def stream_finalize(thread_id: str, db: AsyncSession) -> AsyncGenerator[st
         proposal.iteration_count = values.get("iteration_count", 0)
         proposal.updated_at = datetime.now(timezone.utc)
         await db.flush()
+
+    db.add(UsageEvent(
+        user_id=user_id,
+        proposal_id=proposal.id if proposal else None,
+        phase="finalization",
+        input_tokens=total_input,
+        output_tokens=total_output,
+        cost_usd=total_input * INPUT_TOKEN_COST + total_output * OUTPUT_TOKEN_COST,
+    ))
+    await db.flush()
 
     yield _sse("done", {"final_proposal": final_proposal_text})
