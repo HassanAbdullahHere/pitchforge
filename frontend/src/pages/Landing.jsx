@@ -43,9 +43,11 @@ export default function Landing() {
   const navigate    = useNavigate()
   const hiwRef      = useRef(null)
   const { user, loading, login, logout, authHeaders } = useAuth()
-  const [menuOpen, setMenuOpen]   = useState(false)
-  const [usage, setUsage]         = useState(null)
-  const menuRef                   = useRef(null)
+  const [menuOpen, setMenuOpen]     = useState(false)
+  const [usage, setUsage]           = useState(null)
+  const [avatarError, setAvatarError]   = useState(false)
+  const [avatarLoaded, setAvatarLoaded] = useState(false)
+  const menuRef                     = useRef(null)
 
   useEffect(() => {
     if (!menuOpen || !user) return
@@ -124,19 +126,31 @@ export default function Landing() {
               user ? (
                 <div className="avatar-wrap" ref={menuRef}>
                   <div className="nav-avatar" onClick={() => setMenuOpen(o => !o)}>
-                    {user.avatar_url
-                      ? <img src={user.avatar_url} alt={user.name} className="avatar-img" />
-                      : <span className="avatar-initial">{user.name[0].toUpperCase()}</span>
-                    }
+                    <span className="avatar-initial">{user.name[0].toUpperCase()}</span>
+                    {user.avatar_url && !avatarError && (
+                      <img
+                        src={user.avatar_url}
+                        alt={user.name}
+                        className="avatar-img"
+                        style={{ opacity: avatarLoaded ? 1 : 0 }}
+                        onLoad={() => setAvatarLoaded(true)}
+                        onError={() => setAvatarError(true)}
+                      />
+                    )}
                   </div>
                   {menuOpen && (
                     <div className="avatar-menu">
                       <div className="menu-user-info">
                         <div className="menu-avatar-lg">
-                          {user.avatar_url
-                            ? <img src={user.avatar_url} alt={user.name} className="avatar-img" />
-                            : <span className="menu-initial">{user.name[0].toUpperCase()}</span>
-                          }
+                          <span className="menu-initial">{user.name[0].toUpperCase()}</span>
+                          {user.avatar_url && !avatarError && (
+                            <img
+                              src={user.avatar_url}
+                              alt={user.name}
+                              className="avatar-img"
+                              style={{ opacity: avatarLoaded ? 1 : 0 }}
+                            />
+                          )}
                         </div>
                         <div className="menu-user-text">
                           <span className="menu-name">{user.name}</span>
@@ -457,6 +471,7 @@ const css = `
   }
 
   .nav-avatar {
+    position: relative;
     width: 44px;
     height: 44px;
     border-radius: 50%;
@@ -475,9 +490,12 @@ const css = `
     box-shadow: 0 4px 14px rgba(0,0,0,0.18);
   }
   .avatar-img {
+    position: absolute;
+    inset: 0;
     width: 100%;
     height: 100%;
     object-fit: cover;
+    transition: opacity 150ms ease;
   }
   .avatar-initial {
     font-family: var(--font);
@@ -517,6 +535,7 @@ const css = `
     padding: 10px 10px 12px;
   }
   .menu-avatar-lg {
+    position: relative;
     width: 40px;
     height: 40px;
     border-radius: 50%;
