@@ -1,5 +1,9 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import {
+  AreaChart, Area, BarChart, Bar,
+  XAxis, YAxis, Tooltip, ResponsiveContainer, Cell,
+} from 'recharts'
 import Logo from '../components/Logo'
 import { useAuth } from '../context/AuthContext'
 
@@ -51,6 +55,10 @@ export default function Admin() {
     }
   }
 
+  const dailyProposals = stats ? fillDays(stats.daily_proposals, 'count') : []
+  const dailyCost      = stats ? fillDays(stats.daily_cost, 'cost_usd') : []
+  const dailySignups   = stats ? fillDays(stats.daily_signups, 'count') : []
+
   return (
     <>
       <style>{css}</style>
@@ -72,13 +80,144 @@ export default function Admin() {
 
           {!loading && !error && stats && (
             <>
-              {/* Stats strip */}
+              {/* Stats strip — row 1 */}
               <div className="adm-stats">
-                <StatCard label="Total Users"      value={stats.total_users} />
-                <StatCard label="Total Proposals"  value={stats.total_proposals} />
-                <StatCard label="Total Cost"       value={`$${stats.total_cost_usd.toFixed(4)}`} />
+                <StatCard label="Total Users"       value={stats.total_users} />
+                <StatCard label="Total Proposals"   value={stats.total_proposals} />
+                <StatCard label="Total Cost"        value={`$${stats.total_cost_usd.toFixed(4)}`} />
                 <StatCard label="Today's Proposals" value={stats.proposals_today} />
               </div>
+
+              {/* Stats strip — row 2 */}
+              <div className="adm-stats" style={{ marginTop: '-24px' }}>
+                <StatCard label="Avg Fit Score"     value={stats.avg_fit_score != null ? stats.avg_fit_score.toFixed(1) : '—'} />
+                <StatCard label="Avg Quality"       value={stats.avg_quality_score != null ? stats.avg_quality_score.toFixed(1) : '—'} />
+                <StatCard label="Finalization Rate" value={`${(stats.finalization_rate * 100).toFixed(1)}%`} />
+                <StatCard label="Total Revisions"   value={stats.total_revisions} />
+              </div>
+
+              {/* Trend charts */}
+              <section className="adm-section">
+                <h2 className="adm-section-title">Activity — Last 14 Days</h2>
+                <div className="chart-row">
+                  <div className="chart-card">
+                    <p className="chart-label">Proposals / day</p>
+                    <ResponsiveContainer width="100%" height={130}>
+                      <AreaChart data={dailyProposals} margin={{ top: 4, right: 4, bottom: 0, left: -16 }}>
+                        <XAxis dataKey="date" tick={{ fontSize: 9, fill: 'rgba(245,240,232,0.35)' }} tickLine={false} axisLine={false} tickFormatter={d => d.slice(5)} interval="preserveStartEnd" />
+                        <YAxis tick={{ fontSize: 9, fill: 'rgba(245,240,232,0.35)' }} tickLine={false} axisLine={false} allowDecimals={false} width={20} />
+                        <Tooltip content={<ChartTip />} />
+                        <Area type="monotone" dataKey="count" stroke="#c9a84c" fill="rgba(201,168,76,0.1)" strokeWidth={1.5} dot={false} />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  </div>
+                  <div className="chart-card">
+                    <p className="chart-label">Cost / day ($)</p>
+                    <ResponsiveContainer width="100%" height={130}>
+                      <AreaChart data={dailyCost} margin={{ top: 4, right: 4, bottom: 0, left: -16 }}>
+                        <XAxis dataKey="date" tick={{ fontSize: 9, fill: 'rgba(245,240,232,0.35)' }} tickLine={false} axisLine={false} tickFormatter={d => d.slice(5)} interval="preserveStartEnd" />
+                        <YAxis tick={{ fontSize: 9, fill: 'rgba(245,240,232,0.35)' }} tickLine={false} axisLine={false} width={20} tickFormatter={v => `$${v.toFixed(3)}`} />
+                        <Tooltip content={<ChartTip fmt={v => `$${v.toFixed(5)}`} />} />
+                        <Area type="monotone" dataKey="cost_usd" stroke="#c9a84c" fill="rgba(201,168,76,0.1)" strokeWidth={1.5} dot={false} />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  </div>
+                  <div className="chart-card">
+                    <p className="chart-label">New Signups / day</p>
+                    <ResponsiveContainer width="100%" height={130}>
+                      <AreaChart data={dailySignups} margin={{ top: 4, right: 4, bottom: 0, left: -16 }}>
+                        <XAxis dataKey="date" tick={{ fontSize: 9, fill: 'rgba(245,240,232,0.35)' }} tickLine={false} axisLine={false} tickFormatter={d => d.slice(5)} interval="preserveStartEnd" />
+                        <YAxis tick={{ fontSize: 9, fill: 'rgba(245,240,232,0.35)' }} tickLine={false} axisLine={false} allowDecimals={false} width={20} />
+                        <Tooltip content={<ChartTip />} />
+                        <Area type="monotone" dataKey="count" stroke="#7ab87a" fill="rgba(122,184,122,0.1)" strokeWidth={1.5} dot={false} />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+              </section>
+
+              {/* Distribution charts */}
+              {(stats.fit_score_dist.length > 0 || stats.recommendation_breakdown.length > 0) && (
+                <section className="adm-section">
+                  <h2 className="adm-section-title">Distributions</h2>
+                  <div className="chart-row chart-row--2">
+                    {stats.fit_score_dist.length > 0 && (
+                      <div className="chart-card">
+                        <p className="chart-label">Fit Score Distribution</p>
+                        <ResponsiveContainer width="100%" height={130}>
+                          <BarChart data={stats.fit_score_dist} margin={{ top: 4, right: 4, bottom: 0, left: -16 }}>
+                            <XAxis dataKey="label" tick={{ fontSize: 9, fill: 'rgba(245,240,232,0.35)' }} tickLine={false} axisLine={false} />
+                            <YAxis tick={{ fontSize: 9, fill: 'rgba(245,240,232,0.35)' }} tickLine={false} axisLine={false} allowDecimals={false} width={20} />
+                            <Tooltip content={<ChartTip />} />
+                            <Bar dataKey="count" fill="rgba(201,168,76,0.7)" radius={[3, 3, 0, 0]} />
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </div>
+                    )}
+                    {stats.recommendation_breakdown.length > 0 && (
+                      <div className="chart-card">
+                        <p className="chart-label">Recommendation Breakdown</p>
+                        <ResponsiveContainer width="100%" height={130}>
+                          <BarChart data={stats.recommendation_breakdown} margin={{ top: 4, right: 4, bottom: 0, left: -16 }}>
+                            <XAxis dataKey="recommendation" tick={{ fontSize: 9, fill: 'rgba(245,240,232,0.35)' }} tickLine={false} axisLine={false} tickFormatter={v => v === 'Strong Apply' ? 'Strong' : v === 'Apply Carefully' ? 'Careful' : 'No'} />
+                            <YAxis tick={{ fontSize: 9, fill: 'rgba(245,240,232,0.35)' }} tickLine={false} axisLine={false} allowDecimals={false} width={20} />
+                            <Tooltip content={<ChartTip />} />
+                            <Bar dataKey="count" radius={[3, 3, 0, 0]}>
+                              {stats.recommendation_breakdown.map(r => (
+                                <Cell key={r.recommendation} fill={recColor(r.recommendation)} />
+                              ))}
+                            </Bar>
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </div>
+                    )}
+                  </div>
+                </section>
+              )}
+
+              {/* Platform + iteration breakdown tables */}
+              {(stats.platform_breakdown.length > 0 || stats.iteration_dist.length > 0) && (
+                <section className="adm-section">
+                  <div className="two-col">
+                    {stats.platform_breakdown.length > 0 && (
+                      <div>
+                        <h2 className="adm-section-title">By Platform</h2>
+                        <div className="adm-table-wrap">
+                          <table className="adm-table">
+                            <thead><tr><th>Platform</th><th>Proposals</th></tr></thead>
+                            <tbody>
+                              {stats.platform_breakdown.map(p => (
+                                <tr key={p.platform}>
+                                  <td><span className="phase-pill">{p.platform}</span></td>
+                                  <td>{p.count}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    )}
+                    {stats.iteration_dist.length > 0 && (
+                      <div>
+                        <h2 className="adm-section-title">Iterations per Proposal</h2>
+                        <div className="adm-table-wrap">
+                          <table className="adm-table">
+                            <thead><tr><th>Iterations</th><th>Proposals</th></tr></thead>
+                            <tbody>
+                              {stats.iteration_dist.map(r => (
+                                <tr key={r.label}>
+                                  <td>{r.label}</td>
+                                  <td>{r.count}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </section>
+              )}
 
               {/* Phase breakdown */}
               {stats.phase_breakdown.length > 0 && (
@@ -174,6 +313,40 @@ function StatCard({ label, value }) {
       <span className="stat-label">{label}</span>
     </div>
   )
+}
+
+function ChartTip({ active, payload, label, fmt }) {
+  if (!active || !payload?.length) return null
+  const val = payload[0].value
+  return (
+    <div style={{
+      background: '#1a1612',
+      border: '1px solid rgba(255,255,255,0.1)',
+      borderRadius: 8,
+      padding: '6px 10px',
+      fontSize: 11,
+      color: 'rgba(245,240,232,0.8)',
+    }}>
+      <div style={{ color: 'rgba(245,240,232,0.45)', marginBottom: 2 }}>{label}</div>
+      <div style={{ fontWeight: 600 }}>{fmt ? fmt(val) : val}</div>
+    </div>
+  )
+}
+
+function fillDays(sparse, key, days = 14) {
+  const map = Object.fromEntries((sparse || []).map(r => [r.date, r[key]]))
+  return Array.from({ length: days }, (_, i) => {
+    const d = new Date()
+    d.setUTCDate(d.getUTCDate() - (days - 1 - i))
+    const date = d.toISOString().slice(0, 10)
+    return { date, [key]: map[date] ?? 0 }
+  })
+}
+
+function recColor(rec) {
+  if (rec === 'Strong Apply') return 'rgba(122,184,122,0.75)'
+  if (rec === 'Apply Carefully') return 'rgba(201,168,76,0.75)'
+  return 'rgba(220,80,80,0.75)'
 }
 
 const css = `
@@ -401,6 +574,43 @@ const css = `
     border-color: rgba(122,184,122,0.25);
   }
   .action-btn--unban:hover:not(:disabled) { background: rgba(122,184,122,0.2); }
+
+  /* Charts */
+  .chart-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+  }
+  .chart-row--2 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .chart-card {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 12px;
+    padding: 16px 12px 12px;
+  }
+  .chart-label {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: rgba(245,240,232,0.35);
+    margin-bottom: 10px;
+  }
+
+  /* Two-column layout */
+  .two-col {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 24px;
+  }
+
+  @media (max-width: 900px) {
+    .chart-row { grid-template-columns: 1fr; }
+    .chart-row--2 { grid-template-columns: 1fr; }
+    .two-col { grid-template-columns: 1fr; }
+  }
 
   @media (max-width: 768px) {
     .adm-stats { grid-template-columns: repeat(2, 1fr); }

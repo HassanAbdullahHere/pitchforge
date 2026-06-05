@@ -31,7 +31,7 @@ PitchForge/
 | Graph checkpointer | `langgraph-checkpoint-postgres` (`AsyncPostgresSaver`) — psycopg3 pool |
 | Migrations | Alembic |
 | Backend | FastAPI |
-| Frontend | React 18 + Vite |
+| Frontend | React 18 + Vite + recharts |
 | Deps | uv (Python), npm (JS) |
 
 ---
@@ -131,14 +131,17 @@ class PitchforgeState(TypedDict):
 - Delete proposal — `DELETE /api/proposals/{id}` (404 if not found, 403 if wrong owner, 204 on success; hard delete); `ProposalDetail` has a Delete button in the Copy/Download action row → glass-morphism confirm modal → navigates to `/proposals` on success, inline red error banner on failure; `ProposalHistory` has a trash icon on card hover (stop-propagation) → same confirm modal → removes card from local state on success, floating toast on failure; action row wraps on mobile
 - Structured logging — `pitchforge/logging_config.py` configures structlog once at FastAPI startup; pretty colored output in dev, JSON (CloudWatch-ready) in prod via `LOG_FORMAT=json` env var; all 8 pipeline nodes (`analyzer`, `retriever`, `scorer`, `generator`, `critic`, `compiler`, `fit_checkpoint`, `human_checkpoint`) migrated from `print()` to `log.info/debug/warning`; `runner.py` binds `thread_id` + `user_id` as structlog contextvars at request start so every node log line in that request carries them automatically; token usage logged at `debug` level, parse errors at `warning`; `collect_job_input()` CLI prints intentionally left as-is
 - Fixed `/health` endpoint — replaced hardcoded `False` fields with real checks: `SELECT 1` for DB connectivity + `SELECT 1 FROM pg_extension WHERE extname = 'vector'` for pgvector; returns HTTP 503 when degraded (load balancers stop routing), 200 when healthy; removed stale `chromadb_connected` and `gemini_reachable` fields; response: `{"status", "db_connected", "pgvector_extension"}`
+- `usage_events` table — `UsageEvent` model: `user_id` FK, `proposal_id` FK (SET NULL on delete), `phase` string, `input_tokens`, `output_tokens`, `cost_usd`, `created_at`; pipeline nodes log token usage here; preserves cost history even after proposal deletion
+- Admin panel — `is_admin` bool column on `User` (Alembic migration `b9bddbbdb453`, `server_default='false'`); set manually in DB; JWT contains no `is_admin` claim — checked fresh from DB on every request via `get_admin_user` dependency (chains off `get_current_user` → 403 if not admin); banned admin gets 401 before admin check; `AdminUserPatch` only exposes `is_active` (no API surface to elevate `is_admin`); self-ban blocked (`user.id == admin.id` → 400)
+  - `GET /api/admin/stats` — aggregate metrics: total users/proposals/cost/today's proposals; avg fit score, avg quality score, avg iterations, finalization rate, total revisions; 14-day time-series for proposals/cost/signups (sparse, frontend zero-fills); fit score histogram (5 buckets); recommendation breakdown; platform breakdown (`COALESCE(platform, 'Unknown')`); iteration distribution
+  - `GET /api/admin/users` — all users with correlated subquery proposal count + cost; ordered by `created_at DESC`
+  - `PATCH /api/admin/users/{user_id}` — ban/unban (`is_active`); self-ban blocked; returns updated `AdminUserItem`
+  - `AdminRoute` component — redirects non-admins to `/`; defense-in-depth only (backend enforces)
+  - Admin page (`/admin`) — two stats rows (8 cards total); 3 trend area charts (proposals/day, cost/day, signups/day, 14-day window zero-filled); 2 distribution bar charts (fit score buckets, recommendation breakdown); 2 breakdown tables (platform, iterations per proposal); existing phase token table + user management table below; `recharts` for all charts; `position: relative; z-index: 1` on `.adm-page` to render above `body::before` green gradient
+  - Admin link in avatar dropdown — conditional on `user.is_admin`; above Profile entry
+  - Banned user login — `google_auth` checks `is_active` before issuing JWT; raises HTTP 403 `detail="account_blocked"`; `AuthContext.login()` parses body and throws typed `"account_blocked"` error; `Landing.jsx` catches it and shows centered red toast (`left:0; right:0; margin:0 auto; width:fit-content` — transform-free centering)
 
 **Next (in order):**
-
-*Data & persistence*
-- `usage_events` table — per-user token/cost tracking (feeds rate limiting + admin) — deferred until admin panel
-
-*Observability*
-- Admin view — `/api/admin/stats`, `is_admin` flag on `User`, protected admin page in frontend
 
 *Tests*
 - Backend: pytest + pytest-asyncio — auth flow, proposal ownership, SSE frame sequence, schema validation

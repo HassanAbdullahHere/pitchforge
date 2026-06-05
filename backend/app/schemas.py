@@ -172,12 +172,49 @@ class AdminPhaseBreakdown(BaseModel):
     total_cost_usd: float
 
 
+class AdminDailyCount(BaseModel):
+    date: str   # "YYYY-MM-DD"
+    count: int
+
+
+class AdminDailyCost(BaseModel):
+    date: str
+    cost_usd: float
+
+
+class AdminBucket(BaseModel):
+    label: str
+    count: int
+
+
+class AdminPlatformBreakdown(BaseModel):
+    platform: str
+    count: int
+
+
+class AdminRecommendationBreakdown(BaseModel):
+    recommendation: str
+    count: int
+
+
 class AdminStatsResponse(BaseModel):
     total_users: int
     total_proposals: int
     total_cost_usd: float
     proposals_today: int
     phase_breakdown: list[AdminPhaseBreakdown]
+    avg_fit_score: Optional[float]
+    avg_quality_score: Optional[float]
+    avg_iterations: Optional[float]
+    finalization_rate: float
+    total_revisions: int
+    daily_proposals: list[AdminDailyCount]
+    daily_cost: list[AdminDailyCost]
+    daily_signups: list[AdminDailyCount]
+    fit_score_dist: list[AdminBucket]
+    recommendation_breakdown: list[AdminRecommendationBreakdown]
+    platform_breakdown: list[AdminPlatformBreakdown]
+    iteration_dist: list[AdminBucket]
 
 
 class AdminUserItem(BaseModel):

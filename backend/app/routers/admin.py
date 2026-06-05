@@ -4,13 +4,18 @@ from datetime import date, datetime, timezone
 from uuid import UUID as PyUUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import func, select
+from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.deps import get_admin_user
 from app.models import Proposal, UsageEvent, User
-from app.schemas import AdminStatsResponse, AdminPhaseBreakdown, AdminUserItem, AdminUserPatch
+from app.schemas import (
+    AdminStatsResponse, AdminPhaseBreakdown,
+    AdminDailyCount, AdminDailyCost, AdminBucket,
+    AdminPlatformBreakdown, AdminRecommendationBreakdown,
+    AdminUserItem, AdminUserPatch,
+)
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -49,12 +54,112 @@ async def admin_stats(
         for row in phase_rows
     ]
 
+    # --- Aggregate metrics ---
+    avg_fit_raw = await db.scalar(select(func.avg(Proposal.fit_score)).where(Proposal.fit_score.isnot(None)))
+    avg_quality_raw = await db.scalar(select(func.avg(Proposal.quality_score)).where(Proposal.quality_score.isnot(None)))
+    avg_iter_raw = await db.scalar(select(func.avg(Proposal.iteration_count)).where(Proposal.iteration_count.isnot(None)))
+    total_all = await db.scalar(select(func.count(Proposal.id))) or 0
+    finalization_rate = (total_proposals / total_all) if total_all > 0 else 0.0
+    total_revisions = await db.scalar(
+        select(func.coalesce(func.sum(Proposal.revision_count), 0))
+    ) or 0
+
+    # --- Daily time-series (last 14 days, sparse — frontend zero-fills) ---
+    daily_prop_rows = await db.execute(text("""
+        SELECT DATE(created_at AT TIME ZONE 'UTC') AS day, COUNT(*)::int AS cnt
+        FROM proposals
+        WHERE created_at >= NOW() - INTERVAL '14 days'
+        GROUP BY day ORDER BY day
+    """))
+    daily_proposals = [AdminDailyCount(date=str(r.day), count=r.cnt) for r in daily_prop_rows]
+
+    daily_cost_rows = await db.execute(text("""
+        SELECT DATE(created_at AT TIME ZONE 'UTC') AS day,
+               ROUND(SUM(cost_usd)::numeric, 6) AS total
+        FROM usage_events
+        WHERE created_at >= NOW() - INTERVAL '14 days'
+        GROUP BY day ORDER BY day
+    """))
+    daily_cost = [AdminDailyCost(date=str(r.day), cost_usd=float(r.total)) for r in daily_cost_rows]
+
+    daily_signup_rows = await db.execute(text("""
+        SELECT DATE(created_at AT TIME ZONE 'UTC') AS day, COUNT(*)::int AS cnt
+        FROM users
+        WHERE created_at >= NOW() - INTERVAL '14 days'
+        GROUP BY day ORDER BY day
+    """))
+    daily_signups = [AdminDailyCount(date=str(r.day), count=r.cnt) for r in daily_signup_rows]
+
+    # --- Distribution charts ---
+    fit_rows = await db.execute(text("""
+        SELECT
+            CASE
+                WHEN fit_score < 20 THEN '0-19'
+                WHEN fit_score < 40 THEN '20-39'
+                WHEN fit_score < 60 THEN '40-59'
+                WHEN fit_score < 80 THEN '60-79'
+                ELSE '80-100'
+            END AS bucket,
+            COUNT(*)::int AS cnt
+        FROM proposals
+        WHERE fit_score IS NOT NULL
+        GROUP BY bucket
+        ORDER BY MIN(fit_score)
+    """))
+    fit_score_dist = [AdminBucket(label=r.bucket, count=r.cnt) for r in fit_rows]
+
+    rec_rows = await db.execute(
+        select(Proposal.recommendation, func.count(Proposal.id).label("count"))
+        .where(Proposal.final_proposal.isnot(None))
+        .where(Proposal.recommendation.isnot(None))
+        .group_by(Proposal.recommendation)
+        .order_by(func.count(Proposal.id).desc())
+    )
+    recommendation_breakdown = [
+        AdminRecommendationBreakdown(recommendation=r.recommendation, count=r.count)
+        for r in rec_rows
+    ]
+
+    platform_rows = await db.execute(text("""
+        SELECT COALESCE(platform, 'Unknown') AS platform, COUNT(*)::int AS count
+        FROM proposals
+        GROUP BY COALESCE(platform, 'Unknown')
+        ORDER BY count DESC
+    """))
+    platform_breakdown = [
+        AdminPlatformBreakdown(platform=r.platform, count=r.count)
+        for r in platform_rows
+    ]
+
+    iter_rows = await db.execute(text("""
+        SELECT
+            CASE WHEN iteration_count >= 3 THEN '3+' ELSE iteration_count::text END AS bucket,
+            COUNT(*)::int AS cnt
+        FROM proposals
+        WHERE iteration_count IS NOT NULL
+        GROUP BY bucket
+        ORDER BY MIN(iteration_count)
+    """))
+    iteration_dist = [AdminBucket(label=r.bucket, count=r.cnt) for r in iter_rows]
+
     return AdminStatsResponse(
         total_users=total_users,
         total_proposals=total_proposals,
         total_cost_usd=total_cost_usd,
         proposals_today=proposals_today,
         phase_breakdown=phase_breakdown,
+        avg_fit_score=float(avg_fit_raw) if avg_fit_raw is not None else None,
+        avg_quality_score=float(avg_quality_raw) if avg_quality_raw is not None else None,
+        avg_iterations=float(avg_iter_raw) if avg_iter_raw is not None else None,
+        finalization_rate=finalization_rate,
+        total_revisions=total_revisions,
+        daily_proposals=daily_proposals,
+        daily_cost=daily_cost,
+        daily_signups=daily_signups,
+        fit_score_dist=fit_score_dist,
+        recommendation_breakdown=recommendation_breakdown,
+        platform_breakdown=platform_breakdown,
+        iteration_dist=iteration_dist,
     )
 
 
