@@ -93,4 +93,5 @@ async def get_me(current_user: User = Depends(get_current_user)) -> UserResponse
         email=current_user.email,
         name=current_user.name,
         avatar_url=current_user.avatar_url,
+        is_admin=current_user.is_admin,
     )

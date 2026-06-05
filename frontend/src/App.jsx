@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import ProtectedRoute from './components/ProtectedRoute'
+import AdminRoute from './components/AdminRoute'
 import Landing from './pages/Landing'
 import JobDetails from './pages/JobDetails'
 import AnalyzePipeline from './pages/AnalyzePipeline'
@@ -8,6 +9,7 @@ import ProposalHistory from './pages/ProposalHistory'
 import ProposalDetail from './pages/ProposalDetail'
 import Profile from './pages/Profile'
 import ProfileForm from './pages/ProfileForm'
+import Admin from './pages/Admin'
 
 export default function App() {
   return (
@@ -21,6 +23,7 @@ export default function App() {
         <Route path="/proposals/:id"     element={<ProtectedRoute><ProposalDetail /></ProtectedRoute>} />
         <Route path="/profile"           element={<ProtectedRoute><Profile /></ProtectedRoute>} />
         <Route path="/profile/edit"      element={<ProtectedRoute><ProfileForm /></ProtectedRoute>} />
+        <Route path="/admin"             element={<AdminRoute><Admin /></AdminRoute>} />
       </Routes>
     </BrowserRouter>
   )

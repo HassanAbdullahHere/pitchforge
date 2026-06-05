@@ -19,6 +19,7 @@ from app.database import AsyncSessionLocal, engine, DATABASE_URL
 from app.routers.proposals import router as proposals_router
 from app.routers.auth import router as auth_router
 from app.routers.profile import router as profile_router
+from app.routers.admin import router as admin_router
 from app.limiter import limiter
 from app.schemas import HealthResponse
 from pitchforge.graph import compile_graph
@@ -93,6 +94,7 @@ app.add_middleware(SecurityHeadersMiddleware)
 app.include_router(proposals_router, prefix="/api")
 app.include_router(auth_router, prefix="/api")
 app.include_router(profile_router, prefix="/api")
+app.include_router(admin_router, prefix="/api")
 
 
 @app.get("/health", response_model=HealthResponse)
