@@ -24,6 +24,12 @@ dependencies = [
     "structlog>=24.0.0",
 ]
 
+[project.optional-dependencies]
+test = [
+    "pytest>=8.2",
+    "pytest-asyncio>=0.23",
+]
+
 [build-system]
 requires = ["setuptools"]
 build-backend = "setuptools.build_meta"
@@ -33,3 +39,8 @@ include = ["app*"]
 
 [tool.uv.sources]
 pitchforge = { path = "../pitchforge", editable = true }
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths   = ["tests"]
+filterwarnings = ["error::pytest.PytestUnraisableExceptionWarning"]
