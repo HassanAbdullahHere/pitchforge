@@ -140,12 +140,14 @@ class PitchforgeState(TypedDict):
   - Admin page (`/admin`) — two stats rows (8 cards total); 3 trend area charts (proposals/day, cost/day, signups/day, 14-day window zero-filled); 2 distribution bar charts (fit score buckets, recommendation breakdown); 2 breakdown tables (platform, iterations per proposal); existing phase token table + user management table below; `recharts` for all charts; `position: relative; z-index: 1` on `.adm-page` to render above `body::before` green gradient
   - Admin link in avatar dropdown — conditional on `user.is_admin`; above Profile entry
   - Banned user login — `google_auth` checks `is_active` before issuing JWT; raises HTTP 403 `detail="account_blocked"`; `AuthContext.login()` parses body and throws typed `"account_blocked"` error; `Landing.jsx` catches it and shows centered red toast (`left:0; right:0; margin:0 auto; width:fit-content` — transform-free centering)
+- Backend test suite — `pytest` + `pytest-asyncio` (`asyncio_mode=auto`); 48 tests, 5.6s; `tests/unit/` (jwt_utils, limiter, schemas — no DB) + `tests/integration/` (auth, proposals, profile, admin, health — real `pitchforge_test` DB); `NullPool` + session rollback for isolation; `_null_lifespan` bypasses LangGraph/AsyncPostgresSaver setup; `app.dependency_overrides[get_db]` injects test session; `profile_runner.save_profile` + `profile_runner.parse_resume` mocked to avoid Gemini calls; run: `cd backend && uv run pytest tests/ -v`; requires `pitchforge_test` DB with pgvector extension
+
+- Frontend test suite — `vitest` + `@testing-library/react` + `jsdom`; 22 tests, ~4s; `src/__tests__/context/` (AuthContext — session restore, login, logout, account_blocked), `src/__tests__/components/` (ProtectedRoute, AdminRoute — loading/redirect/render), `src/__tests__/pages/` (JobDetails — profile-404 redirect, form validation; ProfileForm — file type, file size, resume pre-fill, API error toast); `useAuth` mocked with `vi.mock` for component tests; real `AuthProvider` + mocked `global.fetch` for context tests; `fireEvent.change` on hidden file input for upload tests; run: `cd frontend && npm test`
 
 **Next (in order):**
 
-*Tests*
-- Backend: pytest + pytest-asyncio — auth flow, proposal ownership, SSE frame sequence, schema validation
-- Frontend: Vitest + React Testing Library — auth context, protected routes, form validation
+*CI/CD*
+- GitHub Actions workflow — run backend (pytest) + frontend (vitest) on push/PR
 
 ---
 

@@ -54,6 +54,7 @@ Every skill claim traces back to your retrieved profile. Every AI-slop phrase ge
   - [Security Layers](#security-layers)
   - [Rate Limiting](#rate-limiting)
 - [Getting Started](#getting-started)
+- [Testing](#testing)
 - [Deployment](#deployment)
   - [Environment Variables](#environment-variables)
   - [Production Checklist](#production-checklist)
@@ -478,6 +479,52 @@ Copy `.env.example` to `.env` and populate your values before starting. See [Env
 > **First run:** Sign in via Google — you'll be redirected to `/profile/edit` to set up your profile. The pipeline won't start until a profile exists.
 
 > **Optional — legacy dev seed:** To seed profile chunks from a JSON file instead of the UI, run `cd pitchforge && uv run python setup_rag.py <your_user_uuid>`. Get your UUID from `GET /api/auth/me` after signing in.
+
+---
+
+## Testing
+
+**70 tests total — no mocking of internal business logic, no SQLite shims.**
+
+### Backend (48 tests · pytest + pytest-asyncio)
+
+Runs against a real `pitchforge_test` PostgreSQL database with pgvector. Session-scoped table creation, per-test rollback for isolation, `NullPool` to prevent cross-test connection reuse.
+
+```bash
+# Create the test database once
+docker exec <postgres-container> psql -U pitchforge -c "CREATE DATABASE pitchforge_test;"
+docker exec <postgres-container> psql -U pitchforge -d pitchforge_test -c "CREATE EXTENSION IF NOT EXISTS vector;"
+
+# Run
+cd backend && uv run pytest tests/ -v
+```
+
+| Suite | Tests | Covers |
+|-------|:-----:|--------|
+| `unit/test_jwt_utils` | 4 | Token roundtrip, expiry, tamper detection |
+| `unit/test_limiter` | 5 | IP header priority chain, user key from JWT |
+| `unit/test_schemas` | 8 | Pydantic validation bounds on all request models |
+| `integration/test_auth` | 5 | Google OAuth flow, banned user, `/auth/me` |
+| `integration/test_proposals` | 10 | List/get/delete ownership, revision limit (atomic) |
+| `integration/test_profile` | 10 | GET 404/200, POST save, parse-resume file validation |
+| `integration/test_admin` | 4 | Non-admin 403, stats shape, self-ban, ban/unban |
+| `integration/test_health` | 2 | DB up → 200, DB down → 503 |
+
+### Frontend (22 tests · Vitest + React Testing Library)
+
+jsdom environment. `useAuth` mocked via `vi.mock` for component tests. Real `AuthProvider` with mocked `global.fetch` for context tests. No real network calls.
+
+```bash
+cd frontend && npm test
+```
+
+| Suite | Tests | Covers |
+|-------|:-----:|--------|
+| `context/AuthContext` | 6 | Session restore, invalid token cleared, login, account_blocked, logout |
+| `components/ProtectedRoute` | 3 | Loading suppression, unauthenticated redirect, render children |
+| `components/AdminRoute` | 4 | Loading, no user, non-admin redirect, admin renders |
+| `pages/JobDetails` | 5 | Profile 404 → onboarding redirect, form validation, valid submit navigates |
+| `pages/ProfileForm` | 4 | Wrong file type, file too large, resume pre-fill, API error toast |
 
 ---
 
