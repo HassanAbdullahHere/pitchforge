@@ -496,7 +496,7 @@ docker exec <postgres-container> psql -U pitchforge -c "CREATE DATABASE pitchfor
 docker exec <postgres-container> psql -U pitchforge -d pitchforge_test -c "CREATE EXTENSION IF NOT EXISTS vector;"
 
 # Run
-cd backend && uv run pytest tests/ -v
+cd backend && uv run --extra test pytest tests/ -v
 ```
 
 | Suite | Tests | Covers |
