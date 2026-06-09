@@ -1,0 +1,38 @@
+# Frontend — built separately on Vercel
+frontend/
+
+# Python cache
+**/__pycache__/
+**/*.pyc
+**/*.pyo
+**/*.pyd
+**/.pytest_cache/
+
+# Virtual environments
+**/.venv/
+**/venv/
+
+# Environment files — never bake secrets into the image
+**/.env
+**/.env.*
+!**/.env.example
+
+# Dev/test artifacts
+**/tests/
+**/*.log
+
+# Git
+.git/
+.gitignore
+
+# Docker files themselves
+Dockerfile
+.dockerignore
+
+# Editor
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
