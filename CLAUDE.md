@@ -10,8 +10,11 @@ AI pipeline that takes a job posting and produces a personalized proposal. Score
 PitchForge/
 ├── pitchforge/        # LangGraph core pipeline  → see pitchforge/CLAUDE.md
 ├── backend/           # FastAPI middle layer      → see backend/CLAUDE.md
+│   └── start.sh       # Container entrypoint: alembic upgrade head → uvicorn
 ├── frontend/          # React + Vite UI           → see frontend/CLAUDE.md
-├── docker-compose.yml # PostgreSQL (pgvector) container
+├── Dockerfile         # Multi-stage build: backend/ + pitchforge/ → one image
+├── .dockerignore      # Excludes frontend/, .venv/, .env*, tests/, __pycache__/
+├── docker-compose.yml # Local dev only — PostgreSQL (pgvector) container
 └── .env.example       # Docker Compose env vars
 ```
 
@@ -144,10 +147,100 @@ class PitchforgeState(TypedDict):
 
 - Frontend test suite — `vitest` + `@testing-library/react` + `jsdom`; 22 tests, ~4s; `src/__tests__/context/` (AuthContext — session restore, login, logout, account_blocked), `src/__tests__/components/` (ProtectedRoute, AdminRoute — loading/redirect/render), `src/__tests__/pages/` (JobDetails — profile-404 redirect, form validation; ProfileForm — file type, file size, resume pre-fill, API error toast); `useAuth` mocked with `vi.mock` for component tests; real `AuthProvider` + mocked `global.fetch` for context tests; `fireEvent.change` on hidden file input for upload tests; run: `cd frontend && npm test`
 
+- Docker containerization — `Dockerfile` (multi-stage, repo root), `.dockerignore`, `backend/start.sh` (entrypoint); `main.py` `load_dotenv()` guarded by `APP_ENV != production`; image bundles `backend/` + `pitchforge/` together; `uv sync --frozen --no-dev` in builder stage; runtime stage has no build tools
+
 **Next (in order):**
 
-*CI/CD*
-- GitHub Actions workflow — run backend (pytest) + frontend (vitest) on push/PR
+*Deployment — Manual AWS (in progress)*
+1. Test Docker build locally — `docker build -t pitchforge-backend .` then `docker run` against local DB
+2. Create ECR repository → push image
+3. AWS Console: VPC → subnets → IGW → route tables → security groups → IAM role → Secrets Manager
+4. RDS db.t3.micro PostgreSQL 16 — enable pgvector extension manually after creation
+5. EC2 t2.micro — launch, attach Elastic IP + IAM instance profile
+6. SSH into EC2 — install Docker, pull from ECR, run container, configure nginx + certbot
+7. Vercel — connect `frontend/`, set `VITE_API_URL` + `VITE_GOOGLE_CLIENT_ID`
+
+*Deployment — Automation (after manual works)*
+- GitHub Actions workflow — test → build → push to ECR → deploy to EC2 on every push to main
+- Terraform — IaC for all AWS resources (VPC, EC2, RDS, ECR, Secrets Manager, IAM); state in S3 + DynamoDB lock
+
+---
+
+## Deployment
+
+### Target Infrastructure
+| Layer | Service |
+|-------|---------|
+| Backend container | EC2 t2.micro (free tier) — Docker runs directly, no ECS |
+| Database | RDS db.t3.micro PostgreSQL 16 + pgvector (free tier, Single-AZ) |
+| Container registry | ECR — one repo: `pitchforge-backend` |
+| Secrets | AWS Secrets Manager — `/pitchforge/backend` secret |
+| Frontend | Vercel — React + Vite static build |
+
+### AWS Network Layout
+```
+VPC 10.0.0.0/16
+├── Public Subnet  10.0.1.0/24  (us-east-1a) — EC2 + Elastic IP
+├── Private Subnet 10.0.2.0/24  (us-east-1a) — RDS lives here
+└── Private Subnet 10.0.3.0/24  (us-east-1b) — empty, required by RDS DB Subnet Group
+```
+No NAT Gateway — RDS is fully managed by AWS and does not need outbound internet.
+
+### Security Groups
+- `sg-ec2` — inbound 22 (your IP only), 80, 443 (0.0.0.0/0)
+- `sg-rds` — inbound 5432 from `sg-ec2` only (never exposed to internet)
+
+### Key Decisions
+- **One Docker image** — `backend/` + `pitchforge/` bundled together; pitchforge is a library imported by the backend, not a separate service
+- **Docker on EC2 directly** — not ECS/Fargate; free tier, simpler, same result at this scale
+- **Multi-stage Dockerfile** — Stage 1 (builder): installs uv, runs `uv sync` to build `.venv`; Stage 2 (runtime): copies `.venv` + source only; no build tools in final image
+- **Layer caching** — `pyproject.toml` + `uv.lock` copied before source code so `uv sync` is cached on every normal code push; only re-runs when deps change
+- **`APP_ENV=production`** baked into image — disables `load_dotenv()` in `main.py`
+- **Secrets Manager → `-e` flags** — EC2 startup script pulls secrets from Secrets Manager into shell variables, passes them to `docker run -e`; no plaintext secrets on disk
+- **Migrations at container startup** — `start.sh` runs `alembic upgrade head` (no-op if nothing new) then `exec uvicorn`; `exec` ensures Docker SIGTERM goes directly to uvicorn for clean shutdown
+
+### Container Files
+- `Dockerfile` — repo root; build context includes `backend/` + `pitchforge/`
+- `.dockerignore` — excludes `frontend/`, `.venv/`, `.env*`, `tests/`, `__pycache__/`
+- `backend/start.sh` — container entrypoint: `alembic upgrade head` → `uvicorn`
+
+### Build + Run (Manual)
+```bash
+# Build image (from repo root)
+docker build -t pitchforge-backend .
+
+# Run locally for testing (requires local DB running)
+docker run -d --name backend \
+  -p 8000:8000 \
+  -e DATABASE_URL=postgresql+asyncpg://postgres:password@host.docker.internal:5432/pitchforge \
+  -e GEMINI_API_KEY=... \
+  -e JWT_SECRET_KEY=... \
+  -e GOOGLE_CLIENT_ID=... \
+  -e LOG_FORMAT=json \
+  pitchforge-backend:latest
+
+# On EC2 — pull from ECR and run
+aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin <ecr-url>
+docker pull <ecr-url>/pitchforge-backend:latest
+docker stop backend && docker rm backend
+docker run -d --name backend -p 8000:8000 -e ... pitchforge-backend:latest
+```
+
+### Deployment Order (Manual First)
+```
+1.  VPC + subnets + IGW + route tables
+2.  Security groups (sg-ec2, sg-rds)
+3.  IAM role + instance profile (secretsmanager:GetSecretValue)
+4.  Secrets Manager — create /pitchforge/backend secret
+5.  RDS — create instance, run CREATE EXTENSION vector manually
+6.  ECR — create repository
+7.  Build Docker image locally → push to ECR
+8.  EC2 — launch t2.micro, attach Elastic IP + IAM profile
+9.  SSH in → install Docker → pull from ECR → docker run
+10. nginx + certbot (SSL on port 443 → proxy to 8000)
+11. Alembic runs automatically on first container start
+12. Vercel — connect frontend/, set VITE_API_URL + VITE_GOOGLE_CLIENT_ID
+```
 
 ---
 
@@ -203,7 +296,7 @@ Token expiry: 7 days. `user.is_active = False` bans a user immediately.
 1. Never hardcode credentials, API keys, or URLs — always `os.getenv()` / `os.environ`
 2. Never commit `.env` files — gitignored; `.env.example` has placeholder values only
 3. Never hardcode `localhost` in runtime code — use env vars for service URLs
-4. Secret upgrade path: local `.env` → platform env vars (Render/Railway) → Doppler/Infisical at scale
+4. Secret upgrade path: local `.env` → AWS Secrets Manager (production) — EC2 pulls via IAM role at container start, passes as `-e` flags to `docker run`
 
 ### Database
 5. All schema changes go through Alembic — never raw `ALTER TABLE`

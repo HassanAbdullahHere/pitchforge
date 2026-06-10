@@ -8,6 +8,7 @@ export default function Profile() {
   const { user, authHeaders } = useAuth()
   const [profile, setProfile] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [avatarError, setAvatarError] = useState(false)
 
   useEffect(() => {
     fetch('/api/profile', { headers: authHeaders() })
@@ -52,8 +53,8 @@ export default function Profile() {
             {/* ── Header ── */}
             <div className="profile-header glass-card">
               <div className="profile-avatar">
-                {user?.avatar_url
-                  ? <img src={user.avatar_url} alt={user.name} className="avatar-img" />
+                {user?.avatar_url && !avatarError
+                  ? <img src={user.avatar_url} alt={user.name} className="avatar-img" onError={() => setAvatarError(true)} />
                   : <span className="avatar-initial">{user?.name?.[0]?.toUpperCase()}</span>
                 }
               </div>
