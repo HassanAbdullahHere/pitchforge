@@ -148,20 +148,12 @@ class PitchforgeState(TypedDict):
 - Frontend test suite — `vitest` + `@testing-library/react` + `jsdom`; 22 tests, ~4s; `src/__tests__/context/` (AuthContext — session restore, login, logout, account_blocked), `src/__tests__/components/` (ProtectedRoute, AdminRoute — loading/redirect/render), `src/__tests__/pages/` (JobDetails — profile-404 redirect, form validation; ProfileForm — file type, file size, resume pre-fill, API error toast); `useAuth` mocked with `vi.mock` for component tests; real `AuthProvider` + mocked `global.fetch` for context tests; `fireEvent.change` on hidden file input for upload tests; run: `cd frontend && npm test`
 
 - Docker containerization — `Dockerfile` (multi-stage, repo root), `.dockerignore`, `backend/start.sh` (entrypoint); `main.py` `load_dotenv()` guarded by `APP_ENV != production`; image bundles `backend/` + `pitchforge/` together; `uv sync --frozen --no-dev` in builder stage; runtime stage has no build tools
+- Frontend production API routing — `frontend/src/api.js` exports `API_BASE = import.meta.env.VITE_API_URL ?? ''`; all fetch calls across 10 files prefixed with `API_BASE`; in dev `VITE_API_URL` is unset so `API_BASE` is `''` and Vite proxy still handles `/api/*`; in production `VITE_API_URL=https://api.pitchforge.cloud` so browser calls EC2 directly (no Vercel proxy hop — required for SSE streams which would be cut by Vercel's timeout)
+- Full manual AWS deployment complete — backend live at `https://api.pitchforge.cloud`, frontend live at `https://www.pitchforge.cloud`
 
 **Next (in order):**
 
-*Deployment — Manual AWS (in progress)*
-1. ✅ Test Docker build locally — `docker build -t pitchforge-backend .` then `docker run` against local DB
-2. ✅ Create ECR repository → push image
-3. ✅ AWS Console: VPC → subnets → IGW → route tables → security groups → IAM role → Secrets Manager
-4. ✅ RDS db.t4g.micro PostgreSQL 18 — pgvector already included (no manual enable needed)
-5. ✅ EC2 t3.small — launched, Elastic IP attached, IAM instance profile attached
-6. ✅ SSH into EC2 — installed Docker, pulled from ECR, ran container, configured nginx + certbot; backend live at `https://api.pitchforge.cloud`
-7. Vercel — connect `frontend/`, set `VITE_API_URL` + `VITE_GOOGLE_CLIENT_ID`
-8. Google Console — add `https://pitchforge.cloud` to authorized origins + redirect URIs
-
-*Deployment — Automation (after manual works)*
+*Deployment — Automation*
 - GitHub Actions workflow — test → build → push to ECR → deploy to EC2 on every push to main
 - Terraform — IaC for all AWS resources (VPC, EC2, RDS, ECR, Secrets Manager, IAM); state in S3 + DynamoDB lock
 
@@ -169,16 +161,22 @@ class PitchforgeState(TypedDict):
 
 ## Deployment
 
+### Live URLs
+| Layer | URL | Status |
+|-------|-----|--------|
+| Frontend | `https://www.pitchforge.cloud` | ✅ Live (Vercel) |
+| Backend API | `https://api.pitchforge.cloud` | ✅ Live (EC2) |
+| Domain registrar | Namecheap — `pitchforge.cloud` | `pitchforge.cloud` → 308 → `www.pitchforge.cloud`; `api.pitchforge.cloud` → EC2 |
+
 ### Target Infrastructure
 | Layer | Service |
 |-------|---------|
-| Backend container | EC2 t3.small — Docker runs directly, no ECS; Elastic IP `<ec2-elastic-ip>` |
+| Backend container | EC2 t3.small — Docker runs directly, no ECS |
 | Database | RDS db.t4g.micro PostgreSQL 18 + pgvector (Single-AZ, ap-south-1b) |
-| Container registry | ECR — one repo: `pitchforge-backend` (`<aws-account-id>.dkr.ecr.ap-south-1.amazonaws.com/pitchforge-backend`) |
+| Container registry | ECR — repo: `pitchforge-backend` (ap-south-1) |
 | Secrets | AWS Secrets Manager — `/pitchforge/backend` secret |
-| Frontend | Vercel — React + Vite static build |
+| Frontend | Vercel — React + Vite static build; root dir: `frontend/` |
 | Region | ap-south-1 (Mumbai) |
-| Domain | `pitchforge.cloud` (Namecheap) — `api.pitchforge.cloud` → EC2; `pitchforge.cloud` → Vercel |
 
 ### AWS Network Layout
 ```
@@ -194,14 +192,50 @@ No NAT Gateway — RDS is fully managed by AWS and does not need outbound intern
 - `sg-ec2` — inbound 22 (your IP only), 80, 443 (0.0.0.0/0)
 - `sg-rds` — inbound 5432 from `sg-ec2` only (never exposed to internet)
 
+### Access Summary
+| Resource | Who has access | How |
+|----------|---------------|-----|
+| EC2 | You only | SSH key, port 22 restricted to your IP in sg-ec2 |
+| RDS | EC2 only | sg-rds allows port 5432 from sg-ec2 only; not reachable from internet |
+| ECR | You (local) + EC2 | You push via AWS CLI; EC2 pulls via IAM instance profile |
+| Secrets Manager | EC2 only at runtime | IAM instance profile with `secretsmanager:GetSecretValue` |
+| Vercel | You only | Vercel account (GitHub OAuth) |
+| Google Console | You only | Google account |
+
+### Secrets Manager (`/pitchforge/backend`)
+All production env vars stored here — EC2 pulls them at container start, passes as `-e` flags to `docker run`:
+- `GEMINI_API_KEY`
+- `DATABASE_URL` — `postgresql+asyncpg://...rds.amazonaws.com/pitchforge`
+- `JWT_SECRET_KEY` — 256-bit hex
+- `GOOGLE_CLIENT_ID`
+- `CORS_ORIGINS` — `https://pitchforge.cloud,https://www.pitchforge.cloud`
+- `LOG_FORMAT` — `json`
+- `APP_ENV` — `production`
+
+To update a secret: AWS Console → Secrets Manager → `/pitchforge/backend` → edit → then re-run `~/run-backend.sh` on EC2 to pick up the new values.
+
+### Vercel Configuration
+- Root directory: `frontend/`
+- Build command: `npm run build` (auto-detected)
+- Output: `dist/`
+- Environment variable: `VITE_API_URL=https://api.pitchforge.cloud`
+- Domains: `www.pitchforge.cloud` (production), `pitchforge.cloud` (308 redirect to www)
+- Auto-deploys on every push to `main`
+
+### Google OAuth Configuration
+In Google Cloud Console → APIs & Services → Credentials → OAuth 2.0 Client:
+- **Authorized JavaScript origins:** `https://pitchforge.cloud`, `https://www.pitchforge.cloud`
+- No redirect URIs needed — uses popup flow (`useGoogleLogin` from `@react-oauth/google`)
+
 ### Key Decisions
 - **One Docker image** — `backend/` + `pitchforge/` bundled together; pitchforge is a library imported by the backend, not a separate service
-- **Docker on EC2 directly** — not ECS/Fargate; free tier, simpler, same result at this scale
+- **Docker on EC2 directly** — not ECS/Fargate; simpler, same result at this scale
 - **Multi-stage Dockerfile** — Stage 1 (builder): installs uv, runs `uv sync` to build `.venv`; Stage 2 (runtime): copies `.venv` + source only; no build tools in final image
 - **Layer caching** — `pyproject.toml` + `uv.lock` copied before source code so `uv sync` is cached on every normal code push; only re-runs when deps change
 - **`APP_ENV=production`** baked into image — disables `load_dotenv()` in `main.py`
 - **Secrets Manager → `-e` flags** — EC2 startup script pulls secrets from Secrets Manager into shell variables, passes them to `docker run -e`; no plaintext secrets on disk
 - **Migrations at container startup** — `start.sh` runs `alembic upgrade head` (no-op if nothing new) then `exec uvicorn`; `exec` ensures Docker SIGTERM goes directly to uvicorn for clean shutdown
+- **`VITE_API_URL` not a Vercel rewrite** — frontend fetch calls use `API_BASE` prefix to call EC2 directly; Vercel rewrites were rejected because they timeout on long SSE streams
 
 ### Container Files
 - `Dockerfile` — repo root; build context includes `backend/` + `pitchforge/`
@@ -213,12 +247,71 @@ No NAT Gateway — RDS is fully managed by AWS and does not need outbound intern
 - `/etc/nginx/sites-available/pitchforge` — nginx config: port 80/443 → proxy to localhost:8000; `proxy_buffering off` for SSE; `X-Real-IP` for rate limiting; certbot manages SSL
 - SSL cert: `/etc/letsencrypt/live/api.pitchforge.cloud/` — auto-renews via certbot systemd timer
 
-### Build + Run (Manual)
+### Manual Redeploy Process (until GitHub Actions is set up)
+Frontend redeploys automatically on every push to `main` via Vercel.
+
+Backend requires manual steps after every code change:
 ```bash
-# Build image (from repo root)
+# 1. Build new image (from repo root)
 docker build -t pitchforge-backend .
 
-# Run locally for testing (requires local DB running)
+# 2. Tag and push to ECR
+aws ecr get-login-password --region ap-south-1 | docker login --username AWS --password-stdin <ecr-url>
+docker tag pitchforge-backend:latest <ecr-url>/pitchforge-backend:latest
+docker push <ecr-url>/pitchforge-backend:latest
+
+# 3. SSH into EC2 → pull and restart
+ssh -i your-key.pem ec2-user@<ec2-ip>
+docker pull <ecr-url>/pitchforge-backend:latest
+~/run-backend.sh
+```
+
+### Connecting to RDS (for admin tasks)
+RDS is in a private subnet — only reachable through EC2.
+
+```bash
+# SSH into EC2
+ssh -i your-key.pem ec2-user@<ec2-ip>
+
+# Install psql if needed
+sudo yum install -y postgresql15
+
+# Connect (get host from DATABASE_URL in Secrets Manager)
+psql postgresql://<user>:<password>@<rds-endpoint>:5432/pitchforge
+```
+
+Or use an SSH tunnel for a GUI client (TablePlus, pgAdmin):
+```bash
+ssh -i your-key.pem -L 5433:<rds-endpoint>:5432 ec2-user@<ec2-ip> -N
+# Then connect localhost:5433 in your GUI client
+```
+
+### Admin User Setup
+`is_admin` is never set via API — must be set manually in DB:
+```sql
+UPDATE users SET is_admin = true WHERE email = 'your@email.com';
+```
+
+### Deployment Order (How It Was Done)
+```
+1.  VPC + subnets + IGW + route tables
+2.  Security groups (sg-ec2, sg-rds)
+3.  IAM role + instance profile (secretsmanager:GetSecretValue)
+4.  Secrets Manager — create /pitchforge/backend secret
+5.  RDS — db.t4g.micro PostgreSQL 18 (pgvector included, no CREATE EXTENSION needed)
+6.  ECR — create repository
+7.  Build Docker image locally → push to ECR
+8.  EC2 — launch t3.small, attach Elastic IP + IAM profile
+9.  SSH in → install Docker → pull from ECR → run ~/run-backend.sh
+10. nginx + certbot (SSL on port 443 → proxy to 8000, proxy_buffering off)
+11. Alembic runs automatically on first container start (start.sh)
+12. Vercel — connect frontend/, set VITE_API_URL=https://api.pitchforge.cloud
+13. Google Console — add www.pitchforge.cloud + pitchforge.cloud to authorized origins
+14. Set admin user in RDS via psql through EC2 SSH tunnel
+```
+
+### Local Testing with Docker
+```bash
 docker run -d --name backend \
   -p 8000:8000 \
   -e DATABASE_URL=postgresql+asyncpg://postgres:password@host.docker.internal:5432/pitchforge \
@@ -227,28 +320,6 @@ docker run -d --name backend \
   -e GOOGLE_CLIENT_ID=... \
   -e LOG_FORMAT=json \
   pitchforge-backend:latest
-
-# On EC2 — pull from ECR and run
-aws ecr get-login-password --region ap-south-1 | docker login --username AWS --password-stdin <ecr-url>
-docker pull <ecr-url>/pitchforge-backend:latest
-docker stop backend && docker rm backend
-docker run -d --name backend -p 8000:8000 -e ... pitchforge-backend:latest
-```
-
-### Deployment Order (Manual First)
-```
-1.  VPC + subnets + IGW + route tables
-2.  Security groups (sg-ec2, sg-rds)
-3.  IAM role + instance profile (secretsmanager:GetSecretValue)
-4.  Secrets Manager — create /pitchforge/backend secret
-5.  RDS — create instance, run CREATE EXTENSION vector manually
-6.  ECR — create repository
-7.  Build Docker image locally → push to ECR
-8.  EC2 — launch t2.micro, attach Elastic IP + IAM profile
-9.  SSH in → install Docker → pull from ECR → docker run
-10. nginx + certbot (SSL on port 443 → proxy to 8000)
-11. Alembic runs automatically on first container start
-12. Vercel — connect frontend/, set VITE_API_URL + VITE_GOOGLE_CLIENT_ID
 ```
 
 ---
