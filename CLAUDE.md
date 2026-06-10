@@ -111,7 +111,7 @@ class PitchforgeState(TypedDict):
 - Sanitize error messages in `runner.py` — `logger.exception()` server-side, generic message to frontend
 - Security headers middleware — pure ASGI middleware in `main.py`; X-Frame-Options, X-Content-Type-Options, CSP on all responses
 - Timeout on `httpx.AsyncClient()` — 10s timeout in `auth.py`, returns 504 on `TimeoutException`
-- Prompt injection guard — `pitchforge/guardrail.py` with `check_injection()`; Gemini Flash classifier, `thinking_budget=0`, `max_output_tokens=10`; blocks `stream_analysis` + `stream_revise` before any graph call; fails open on error; emits `status` SSE event immediately so stream opens before check runs
+- Prompt injection guard — `pitchforge/guardrail.py` with `check_injection()`; Gemini Flash classifier, `thinking_budget=0`, `max_output_tokens=10`; blocks `stream_analysis` + `stream_revise` before any graph call; emits `status` SSE event immediately so stream opens before check runs
 - Gemini 503 retry — `.with_retry(retry_if_exception_type=(ServerError,), stop_after_attempt=3, wait_exponential_jitter=True)` on all 5 LLM instances (analyzer, scorer, generator, critic, guardrail)
 - Human revision limit — `MAX_HUMAN_REVISIONS = 2`; `revision_count` column on `Proposal` (Alembic migration `6a1b277087aa`); enforced via atomic `UPDATE ... WHERE revision_count < MAX RETURNING id` in `/revise` router (race-condition-proof — concurrent requests can't both slip through); HTTP 429 if at limit; frontend disables "Request Revision" button at limit with `(2/2)` counter; revision errors restore proposal text inline instead of full error screen
 - Verifying node in AnalyzePipeline — `status` SSE event activates it; transitions to done on first `node_start`

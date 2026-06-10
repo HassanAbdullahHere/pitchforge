@@ -4,7 +4,7 @@
 
 <br/><br/>
 
-![Status](https://img.shields.io/badge/Status-In_Development-yellow?style=flat-square)
+![Status](https://img.shields.io/badge/Status-Live-brightgreen?style=flat-square)
 ![License](https://img.shields.io/badge/License-MIT-green?style=flat-square)
 
 ![Python](https://img.shields.io/badge/Python-3.11+-3776AB?style=flat-square&logo=python&logoColor=white)
@@ -34,8 +34,20 @@ Every skill claim traces back to your retrieved profile. Every AI-slop phrase ge
 
 ---
 
+## Live Demo
+
+| Surface | URL | Notes |
+|---------|-----|-------|
+| Web app | [https://www.pitchforge.cloud](https://www.pitchforge.cloud) | Production frontend on Vercel |
+| API health | [https://api.pitchforge.cloud/health](https://api.pitchforge.cloud/health) | Checks FastAPI, PostgreSQL, and pgvector |
+
+The frontend and backend are deployed separately: Vercel serves the React app, while the API runs behind nginx on an EC2 instance and talks to a private RDS PostgreSQL database.
+
+---
+
 ## Table of Contents
 
+- [Live Demo](#live-demo)
 - [Architecture](#architecture)
 - [The LangGraph Pipeline](#the-langgraph-pipeline)
   - [Node Reference](#node-reference)
@@ -55,23 +67,24 @@ Every skill claim traces back to your retrieved profile. Every AI-slop phrase ge
   - [Rate Limiting](#rate-limiting)
 - [Getting Started](#getting-started)
 - [Testing](#testing)
+- [DevOps Status](#devops-status)
 - [Deployment](#deployment)
-  - [Environment Variables](#environment-variables)
-  - [Production Checklist](#production-checklist)
+  - [Frontend — Vercel](#frontend--vercel)
+  - [DNS — Namecheap](#dns--namecheap)
+  - [AWS](#aws)
+    - [Compute — EC2](#compute--ec2)
+    - [Networking — VPC](#networking--vpc)
+    - [Container Registry — ECR](#container-registry--ecr)
+    - [Secrets — AWS Secrets Manager](#secrets--aws-secrets-manager)
+    - [Database — RDS](#database--rds)
+    - [Docker](#docker)
 - [Token Economics](#token-economics)
 
 ---
 
 ## Architecture
 
-```mermaid
-graph LR
-    A["⚛️ React + Vite\nFrontend"] -->|"SSE token stream"| B["⚡ FastAPI\nBackend"]
-    B -->|"astream_events v2"| C["🔗 LangGraph\n8-node Pipeline"]
-    C <-->|"Checkpoint\nstate persistence"| D[("🐘 PostgreSQL 16\n+ pgvector")]
-    B <-->|"SQLAlchemy async\n+ asyncpg"| D
-    C -->|"Hybrid RAG\nretrieval"| D
-```
+<img src="./docs/core-architecture.png" alt="PitchForge core application architecture" width="100%"/>
 
 Three independent layers. The frontend never sees raw graph state. The backend never calls the graph directly — only `runner.py` does. The database is the single source of truth for application state, vector embeddings, and graph checkpoints.
 
@@ -97,39 +110,7 @@ Three independent layers. The frontend never sees raw graph state. The backend n
 
 Eight nodes. Two human interrupts. One generate → critique loop.
 
-```mermaid
-flowchart TD
-    A(["📄 Job Posting"]) --> B
-
-    B["🔍 Analyzer\nGemini 2.5 Flash · 400 tokens\nParses posting to structured JSON"]
-    B --> C
-
-    C["📚 Retriever\nHybrid RAG\nBM25 + pgvector → RRF → FlashRank"]
-    C --> D
-
-    D["⚖️ Scorer\nGemini 2.5 Flash · 600 tokens\nFit score · Pricing · Skills"]
-    D --> E
-
-    E{"⏸ Fit Checkpoint\nHuman Interrupt #1"}
-    E -->|"fit_score < 40\nor user declines"| Z(["❌ END"])
-    E -->|"User approves"| F
-
-    F["✍️ Generator\nGemini 2.5 Flash · 700 tokens\nStreaming · 200–300 words"]
-    F --> G
-
-    G["🎯 Critic\nGemini 2.5 Flash · 800 tokens\n5 components × 20 pts"]
-    G --> H{Route?}
-
-    H -->|"score ≥ 85\nor iter ≥ 3\nor human revision"| I
-    H -->|"score < 85\nand iter < 3"| F
-
-    I{"⏸ Human Checkpoint\nHuman Interrupt #2"}
-    I -->|"Approved"| J
-    I -->|"Feedback text"| F
-
-    J["📋 Compiler\ndraft → final_proposal"]
-    J --> K(["✅ Final Proposal"])
-```
+<img src="./docs/langgraph-pipeline.png" alt="PitchForge LangGraph pipeline" width="100%"/>
 
 ### Node Reference
 
@@ -474,11 +455,9 @@ cd backend && uv run uvicorn app.main:app --reload
 cd frontend && npm run dev
 ```
 
-Copy `.env.example` to `.env` and populate your values before starting. See [Environment Variables](#environment-variables) for the full reference.
+Copy `.env.example` to `.env` and populate your values before starting.
 
 > **First run:** Sign in via Google — you'll be redirected to `/profile/edit` to set up your profile. The pipeline won't start until a profile exists.
-
-> **Optional — legacy dev seed:** To seed profile chunks from a JSON file instead of the UI, run `cd pitchforge && uv run python setup_rag.py <your_user_uuid>`. Get your UUID from `GET /api/auth/me` after signing in.
 
 ---
 
@@ -528,35 +507,144 @@ cd frontend && npm test
 
 ---
 
+## DevOps Status
+
+PitchForge is live on a cost-conscious AWS setup designed for learning real production operations without jumping straight to managed orchestration.
+
+| Area | Status | Notes |
+|------|:------:|-------|
+| Public frontend | Done | Vercel deployment from `frontend/` |
+| Public API | Done | EC2 + nginx + HTTPS at `api.pitchforge.cloud` |
+| Database isolation | Done | RDS in private subnet; only EC2 security group can reach port 5432 |
+| Containerization | Done | Multi-stage Docker image bundling `backend/` + `pitchforge/` |
+| Registry | Done | Backend image pushed to ECR and pulled by EC2 |
+| Secrets | Done | AWS Secrets Manager; no production `.env` file on host |
+| Migrations | Done | `alembic upgrade head` runs at container startup |
+| Tests | Done | 48 backend + 22 frontend tests |
+| Monitoring | Done | CloudWatch logs and metrics for the backend host/runtime |
+| CI/CD | Next | GitHub Actions: test, build, push to ECR, deploy, health check |
+| Infrastructure as Code | Next | Terraform for VPC, EC2, RDS, ECR, IAM, and Secrets Manager references |
+| Scaling path | Later | ALB, private backend service, ECS/Fargate or autoscaled EC2, Multi-AZ RDS |
+
+Current production posture: suitable for a controlled soft launch and DevOps practice. The next milestone is repeatability: CI/CD, rollback, and infrastructure as code.
+
+---
+
 ## Deployment
 
-### Environment Variables
+### Frontend — Vercel
 
-| File | Variable | Description |
-|------|----------|-------------|
-| `.env` (root) | `DB_USER` | PostgreSQL username |
-| | `DB_PASSWORD` | PostgreSQL password |
-| | `DB_NAME` | Database name |
-| | `DB_PORT` | PostgreSQL port (default: `5432`) |
-| `backend/.env` | `GEMINI_API_KEY` | Google AI Studio API key |
-| | `DATABASE_URL` | asyncpg URL — `postgresql+asyncpg://user:pass@host/db` |
-| | `CORS_ORIGINS` | Comma-separated allowed origins |
-| | `JWT_SECRET_KEY` | 256-bit hex — `openssl rand -hex 32`. Changing this invalidates all sessions. |
-| | `GOOGLE_CLIENT_ID` | OAuth 2.0 client ID from Google Cloud Console |
-| `pitchforge/.env` | `GEMINI_API_KEY` | Same key as backend |
-| | `DATABASE_URL_SYNC` | psycopg2 URL — used by Alembic CLI only |
-| `frontend/.env` | `VITE_GOOGLE_CLIENT_ID` | Same Google OAuth client ID |
+**Vercel · auto-deploys on every push to `main` · root dir: `frontend/`**
 
-### Production Checklist
+- Build: `npm run build` · Output: `dist/`
+- `VITE_API_URL=https://api.pitchforge.cloud` set as a Vercel environment variable
 
-- [ ] Remove `--reload` from uvicorn
-- [ ] Set `LOG_FORMAT=json` — enables structured JSON logs for CloudWatch / Datadog
-- [ ] Set `CORS_ORIGINS` to your production domain only — never `*`
-- [ ] Rotate `JWT_SECRET_KEY` with a fresh value: `openssl rand -hex 32`
-- [ ] Set `proxy_set_header X-Real-IP $remote_addr` in nginx — required for accurate rate limiting
-- [ ] Verify `GET /health` returns HTTP 200 before routing traffic — load balancers receive 503 when DB is degraded
+**Decision — frontend fetches EC2 directly, not via Vercel rewrites**  
+Vercel rewrites buffer the full response before forwarding. SSE token streams would be cut mid-generation. `API_BASE` prefix in `api.js` sends every request straight to EC2, bypassing Vercel entirely.
 
-> Docker + cloud deployment guide (AWS / Render) coming soon.
+---
+
+### DNS — Namecheap
+
+**Domain: `pitchforge.cloud` · Registrar: Namecheap**
+
+- `pitchforge.cloud` → 308 permanent redirect → `www.pitchforge.cloud`
+- `api.pitchforge.cloud` → A record → EC2 Elastic IP
+
+---
+
+### AWS
+
+<img src="./docs/architecture.png" alt="PitchForge production AWS architecture" width="100%"/>
+
+---
+
+#### Compute — EC2
+
+**t3.small · ap-south-1a · Docker runs directly — no ECS or Fargate**
+
+- Elastic IP pinned to the instance — DNS never changes on restart
+- nginx on 443 → reverse-proxy to `localhost:8000`; `proxy_buffering off` keeps SSE alive end-to-end
+- certbot / Let's Encrypt SSL · auto-renews via systemd timer
+- Security group: SSH restricted to your IP only · 80 + 443 open to the world
+
+**Decision — EC2 + Docker directly, not ECS/Fargate**  
+ECS adds task definitions, load balancers, and cluster overhead. At this scale one container on one instance is the entire workload — the simpler path has the same operational result.
+
+---
+
+#### Networking — VPC
+
+**10.0.0.0/16 · ap-south-1 · EC2 in public subnet, RDS in private subnet — isolated by design**
+
+```
+VPC 10.0.0.0/16  (pitchforge-vpc)
+├── Public Subnet  10.0.0.0/20   ap-south-1a  — EC2 + Elastic IP
+└── Private Subnet 10.0.144.0/20 ap-south-1b  — RDS (isolated)
+```
+
+- RDS port 5432 is open only from `sg-ec2` — never from the internet
+
+**Decision — no NAT Gateway**  
+RDS is fully managed by AWS and needs no outbound internet access. Skipping the NAT Gateway eliminates ~$32/month of fixed cost with no operational downside.
+
+---
+
+#### Container Registry — ECR
+
+**ap-south-1 · repo: `pitchforge-backend`**
+
+- Local machine pushes images via AWS CLI after every build
+- EC2 pulls at container start — always runs the last pushed image, no manual file transfers
+
+**Decision — IAM instance profile, no stored credentials**  
+The EC2 instance profile grants ECR pull permissions. No AWS access keys are stored on the instance or inside the image — the instance itself is the credential.
+
+---
+
+#### Secrets — AWS Secrets Manager
+
+**Secret: `/pitchforge/backend` · 7 production env vars · zero plaintext on disk**
+
+Stores: `GEMINI_API_KEY`, `DATABASE_URL`, `JWT_SECRET_KEY`, `GOOGLE_CLIENT_ID`, `CORS_ORIGINS`, `LOG_FORMAT`, `APP_ENV`
+
+- EC2 startup script fetches the secret via AWS SDK and passes each value as a `-e` flag to `docker run` — secrets exist only in memory at runtime
+- To rotate any value: update in Secrets Manager → re-run `~/run-backend.sh` on EC2. No image rebuild needed.
+
+---
+
+#### Database — RDS
+
+**db.t4g.micro · PostgreSQL 18 · ap-south-1b · pgvector pre-installed**
+
+- pgvector extension is bundled by AWS — no `CREATE EXTENSION` step needed
+- Alembic migrations run automatically at container startup via `start.sh`
+
+**Decision — private subnet + security group, two isolation layers**  
+RDS has no public IP. `sg-rds` allows port 5432 from `sg-ec2` only. A misconfigured security group alone cannot expose the database — the subnet placement is a second independent barrier.
+
+---
+
+#### Docker
+
+**Multi-stage image · `backend/` + `pitchforge/` in one container · entrypoint: `start.sh`**
+
+**Decision — one image, not two services**
+`pitchforge/` is a library imported by the backend, not a separate process. Shipping them together eliminates network hops between services, removes version skew risk, and keeps the deployment a single `docker run`.
+
+**Decision — multi-stage build**
+- Stage 1 (builder): installs `uv`, runs `uv sync --frozen --no-dev` to build `.venv` inside the image
+- Stage 2 (runtime): copies `.venv` + source only — no `uv`, no build tools, no compiler in the final image
+- Result: smaller attack surface and a leaner image
+
+**Decision — layer caching on deps**
+`pyproject.toml` and `uv.lock` are `COPY`ed before any source code. Docker caches the `uv sync` layer — it only reruns when dependencies actually change. Normal code pushes skip the install entirely.
+
+**Decision — `APP_ENV=production` baked into the image**
+`main.py` calls `load_dotenv()` only when `APP_ENV != production`. Baking the flag in at build time means the container never looks for a `.env` file on the host — secrets come exclusively from `-e` flags passed at runtime.
+
+**Decision — `exec uvicorn` in `start.sh`**
+`start.sh` runs `alembic upgrade head` (no-op if nothing is new), then calls `exec uvicorn` — not `uvicorn`. `exec` replaces the shell process, so Docker's `SIGTERM` lands directly on uvicorn for a clean graceful shutdown with no zombie shell in between.
 
 ---
 
