@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useState } from 'react'
+import { API_BASE } from '../api'
 
 const AuthContext = createContext(null)
 
@@ -15,7 +16,7 @@ export function AuthProvider({ children }) {
       setLoading(false)
       return
     }
-    fetch('/api/auth/me', {
+    fetch(`${API_BASE}/api/auth/me`, {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then(r => (r.ok ? r.json() : Promise.reject(r.status)))
@@ -29,7 +30,7 @@ export function AuthProvider({ children }) {
    * Exchanges the Google token for our JWT, stores it, fetches user profile.
    */
   async function login(googleAccessToken) {
-    const res = await fetch('/api/auth/google', {
+    const res = await fetch(`${API_BASE}/api/auth/google`, {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
       body:    JSON.stringify({ access_token: googleAccessToken }),
@@ -42,7 +43,7 @@ export function AuthProvider({ children }) {
     const { access_token } = await res.json()
     localStorage.setItem(TOKEN_KEY, access_token)
 
-    const me = await fetch('/api/auth/me', {
+    const me = await fetch(`${API_BASE}/api/auth/me`, {
       headers: { Authorization: `Bearer ${access_token}` },
     })
     if (!me.ok) throw new Error('Failed to fetch user')

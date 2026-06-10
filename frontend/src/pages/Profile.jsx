@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Logo from '../components/Logo'
 import { useAuth } from '../context/AuthContext'
+import { API_BASE } from '../api'
 
 export default function Profile() {
   const navigate = useNavigate()
@@ -11,7 +12,7 @@ export default function Profile() {
   const [avatarError, setAvatarError] = useState(false)
 
   useEffect(() => {
-    fetch('/api/profile', { headers: authHeaders() })
+    fetch(`${API_BASE}/api/profile`, { headers: authHeaders() })
       .then(r => {
         if (r.status === 404) { navigate('/profile/edit?onboarding=true', { replace: true }); return null }
         if (!r.ok) throw new Error('Failed to load profile')

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Logo from '../components/Logo'
 import { useAuth } from '../context/AuthContext'
+import { API_BASE } from '../api'
 
 function Wheel({ options, value, onChange }) {
   const [rolling, setRolling] = useState(null) // 'up' | 'down'
@@ -47,7 +48,7 @@ export default function JobDetails() {
   const [profileChecked, setProfileChecked] = useState(false)
 
   useEffect(() => {
-    fetch('/api/profile', { headers: authHeaders() })
+    fetch(`${API_BASE}/api/profile`, { headers: authHeaders() })
       .then(r => {
         if (r.status === 404) navigate('/profile/edit?onboarding=true', { replace: true })
         else setProfileChecked(true)

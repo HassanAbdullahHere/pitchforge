@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import Logo from '../components/Logo'
 import { useAuth } from '../context/AuthContext'
+import { API_BASE } from '../api'
 
 const NODES = [
   { key: 'generator',        label: 'Drafting',   sub: 'proposal' },
@@ -149,7 +150,7 @@ export default function GenerateProposal() {
 
   useEffect(() => {
     if (!threadId) { navigate('/new', { replace: true }); return }
-    startStream('/api/proposal/generate', { thread_id: threadId, should_apply: true })
+    startStream(`${API_BASE}/api/proposal/generate`, { thread_id: threadId, should_apply: true })
     return () => ctrlRef.current?.abort()
   }, [])
 
@@ -166,13 +167,13 @@ export default function GenerateProposal() {
     setProposalText('')
     setStatusText('Applying revision…')
     setFeedbackOpen(false)
-    startStream('/api/proposal/revise', { thread_id: threadId, instruction })
+    startStream(`${API_BASE}/api/proposal/revise`, { thread_id: threadId, instruction })
   }
 
   const doFinalize = async () => {
     setPhase('finalizing')
     try {
-      const res = await fetch('/api/proposal/finalize', {
+      const res = await fetch(`${API_BASE}/api/proposal/finalize`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...authHeaders() },
         body: JSON.stringify({ thread_id: threadId }),

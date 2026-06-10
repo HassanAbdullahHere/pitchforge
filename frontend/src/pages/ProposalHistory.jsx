@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Logo from '../components/Logo'
 import { useAuth } from '../context/AuthContext'
+import { API_BASE } from '../api'
 
 function relativeTime(dateStr) {
   const diff = Date.now() - new Date(dateStr).getTime()
@@ -49,7 +50,7 @@ export default function ProposalHistory() {
     if (!confirmDeleteId) return
     setDeleting(true)
     try {
-      const res = await fetch(`/api/proposals/${confirmDeleteId}`, {
+      const res = await fetch(`${API_BASE}/api/proposals/${confirmDeleteId}`, {
         method: 'DELETE',
         headers: authHeaders(),
       })
@@ -66,7 +67,7 @@ export default function ProposalHistory() {
 
   useEffect(() => {
     let cancelled = false
-    fetch('/api/proposals', { headers: authHeaders() })
+    fetch(`${API_BASE}/api/proposals`, { headers: authHeaders() })
       .then(r => {
         if (!r.ok) throw new Error(`Server returned ${r.status}`)
         return r.json()

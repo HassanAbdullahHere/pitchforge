@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import Logo from '../components/Logo'
 import { useAuth } from '../context/AuthContext'
+import { API_BASE } from '../api'
 
 const NODES = [
   { key: 'verifying',      label: 'Verifying',  sub: 'request security' },
@@ -44,7 +45,7 @@ export default function AnalyzePipeline() {
           platform: form.platform,
         }
 
-        const res = await fetch('/api/proposal/analyze', {
+        const res = await fetch(`${API_BASE}/api/proposal/analyze`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', ...authHeaders() },
           body: JSON.stringify(payload),

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useGoogleLogin } from '@react-oauth/google'
 import Logo from '../components/Logo'
 import { useAuth } from '../context/AuthContext'
+import { API_BASE } from '../api'
 
 const METRICS = [
   { label: 'Avg Fit Score', value: '82', sub: 'out of 100' },
@@ -52,7 +53,7 @@ export default function Landing() {
 
   useEffect(() => {
     if (!menuOpen || !user) return
-    fetch('/api/proposal/usage', { headers: authHeaders() })
+    fetch(`${API_BASE}/api/proposal/usage`, { headers: authHeaders() })
       .then(r => r.ok ? r.json() : null)
       .then(data => { if (data) setUsage(data) })
       .catch(() => {})

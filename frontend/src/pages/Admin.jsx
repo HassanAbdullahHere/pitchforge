@@ -6,6 +6,7 @@ import {
 } from 'recharts'
 import Logo from '../components/Logo'
 import { useAuth } from '../context/AuthContext'
+import { API_BASE } from '../api'
 
 export default function Admin() {
   const navigate = useNavigate()
@@ -21,8 +22,8 @@ export default function Admin() {
     async function load() {
       try {
         const [sRes, uRes] = await Promise.all([
-          fetch('/api/admin/stats', { headers: authHeaders() }),
-          fetch('/api/admin/users', { headers: authHeaders() }),
+          fetch(`${API_BASE}/api/admin/stats`, { headers: authHeaders() }),
+          fetch(`${API_BASE}/api/admin/users`, { headers: authHeaders() }),
         ])
         if (!sRes.ok || !uRes.ok) throw new Error('Failed to load admin data')
         const [s, u] = await Promise.all([sRes.json(), uRes.json()])
@@ -40,7 +41,7 @@ export default function Admin() {
   async function toggleBan(u) {
     setPatching(u.id)
     try {
-      const res = await fetch(`/api/admin/users/${u.id}`, {
+      const res = await fetch(`${API_BASE}/api/admin/users/${u.id}`, {
         method: 'PATCH',
         headers: { ...authHeaders(), 'Content-Type': 'application/json' },
         body: JSON.stringify({ is_active: !u.is_active }),

@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import Logo from '../components/Logo'
 import { useAuth } from '../context/AuthContext'
+import { API_BASE } from '../api'
 
 const EMPTY_PROJECT = { name: '', description: '', tech: [], outcome: '' }
 const EMPTY_RATES   = { hourly_min: 0, hourly_max: 0, fixed_min: 0 }
@@ -49,7 +50,7 @@ export default function ProfileForm() {
 
   // Always fetch existing profile — pre-fills in edit mode, no-op on 404 in onboarding
   useEffect(() => {
-    fetch('/api/profile', { headers: authHeaders() })
+    fetch(`${API_BASE}/api/profile`, { headers: authHeaders() })
       .then(r => r.ok ? r.json() : null)
       .then(data => {
         if (data) setForm({
@@ -123,7 +124,7 @@ export default function ProfileForm() {
     try {
       const fd = new FormData()
       fd.append('file', file)
-      const r = await fetch('/api/profile/parse-resume', { method: 'POST', headers: authHeaders(), body: fd })
+      const r = await fetch(`${API_BASE}/api/profile/parse-resume`, { method: 'POST', headers: authHeaders(), body: fd })
       if (!r.ok) {
         if (r.status === 429) { setToast('Daily resume autofill limit reached. Try again tomorrow.'); return }
         const data = await r.json().catch(() => ({}))
@@ -168,7 +169,7 @@ export default function ProfileForm() {
         niches:     form.niches,
         rates:      form.rates,
       }
-      const r = await fetch('/api/profile', {
+      const r = await fetch(`${API_BASE}/api/profile`, {
         method: 'POST',
         headers: { ...authHeaders(), 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
