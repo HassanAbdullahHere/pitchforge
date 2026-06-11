@@ -140,6 +140,9 @@ jobs:
     runs-on: ubuntu-latest
     needs: security-scan
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    permissions:
+      id-token: write   # required for OIDC JWT generation
+      contents: read
 
     steps:
       - name: Checkout
