@@ -7,6 +7,7 @@
 ![Status](https://img.shields.io/badge/Status-Live-brightgreen?style=flat-square)
 ![License](https://img.shields.io/badge/License-MIT-green?style=flat-square)
 
+**Production-grade AI proposal intelligence platform built with LangGraph, hybrid RAG, PostgreSQL/pgvector, AWS, CI/CD, and CloudWatch observability.**
 
 </div>
 
@@ -14,11 +15,13 @@
 
 ## What is PitchForge
 
-Most freelance proposals get ignored. Not because the freelancer is underqualified — because the proposal reads like everyone else's.
+PitchForge is a production-deployed AI system for generating evidence-backed freelance proposals. The product use case is proposal writing; the engineering focus is AI orchestration, retrieval, streaming UX, secure multi-user backend design, and real cloud operations.
 
-PitchForge takes a job posting, scores your fit against your actual profile using hybrid RAG retrieval, and runs an automated generate → critique loop until the proposal clears an 85/100 quality threshold. Then it hands the result to you for final approval.
+Given a job posting, PitchForge scores user-job fit against the user's saved profile using hybrid RAG, runs a LangGraph generate → critique loop until the draft clears an 85/100 quality threshold, streams progress and tokens to the frontend over SSE, and persists the final approved proposal with token usage, cost, and quality metadata.
 
-Every skill claim traces back to your retrieved profile. Every AI-slop phrase gets penalized by name.
+The system is deployed end to end: Vercel frontend, FastAPI backend on EC2 behind nginx, private RDS PostgreSQL with pgvector, AWS Secrets Manager, ECR, GitHub Actions CI/CD through OIDC + SSM, and CloudWatch logs, dashboards, and alarms.
+
+This is not a prompt wrapper. The core is a stateful AI workflow with human checkpoints, profile-scoped retrieval, prompt-injection guardrails, rate limits, admin observability, usage economics, and production deployment automation.
 
 ---
 
