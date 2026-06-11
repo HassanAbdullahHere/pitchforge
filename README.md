@@ -7,18 +7,6 @@
 ![Status](https://img.shields.io/badge/Status-Live-brightgreen?style=flat-square)
 ![License](https://img.shields.io/badge/License-MIT-green?style=flat-square)
 
-![Python](https://img.shields.io/badge/Python-3.11+-3776AB?style=flat-square&logo=python&logoColor=white)
-![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-009688?style=flat-square&logo=fastapi&logoColor=white)
-![React](https://img.shields.io/badge/React-18-61DAFB?style=flat-square&logo=react&logoColor=black)
-![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1?style=flat-square&logo=postgresql&logoColor=white)
-![Gemini](https://img.shields.io/badge/Gemini-2.5_Flash-4285F4?style=flat-square&logo=google&logoColor=white)
-
-![LangGraph](https://img.shields.io/badge/LangGraph-Pipeline-FF6B35?style=flat-square)
-![pgvector](https://img.shields.io/badge/pgvector-Hybrid_RAG-336791?style=flat-square)
-![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?style=flat-square&logo=docker&logoColor=white)
-![Google OAuth](https://img.shields.io/badge/Google-OAuth_2.0-EA4335?style=flat-square&logo=google&logoColor=white)
-![uv](https://img.shields.io/badge/uv-Package_Manager-DE5FE9?style=flat-square)
-![JWT](https://img.shields.io/badge/JWT-HS256-000000?style=flat-square&logo=jsonwebtokens&logoColor=white)
 
 </div>
 
@@ -71,13 +59,14 @@ The frontend and backend are deployed separately: Vercel serves the React app, w
 - [Deployment](#deployment)
   - [Frontend — Vercel](#frontend--vercel)
   - [DNS — Namecheap](#dns--namecheap)
+  - [Docker](#docker)
   - [AWS](#aws)
     - [Compute — EC2](#compute--ec2)
     - [Networking — VPC](#networking--vpc)
     - [Container Registry — ECR](#container-registry--ecr)
     - [Secrets — AWS Secrets Manager](#secrets--aws-secrets-manager)
     - [Database — RDS](#database--rds)
-    - [Docker](#docker)
+    - [Observability — CloudWatch](#observability--cloudwatch)
 - [Token Economics](#token-economics)
 
 ---
@@ -553,6 +542,29 @@ Vercel rewrites buffer the full response before forwarding. SSE token streams wo
 
 ---
 
+### Docker
+
+**Multi-stage image · `backend/` + `pitchforge/` in one container · entrypoint: `start.sh`**
+
+**Decision — one image, not two services**
+`pitchforge/` is a library imported by the backend, not a separate process. Shipping them together eliminates network hops between services, removes version skew risk, and keeps the deployment a single `docker run`.
+
+**Decision — multi-stage build**
+- Stage 1 (builder): installs `uv`, runs `uv sync --frozen --no-dev` to build `.venv` inside the image
+- Stage 2 (runtime): copies `.venv` + source only — no `uv`, no build tools, no compiler in the final image
+- Result: smaller attack surface and a leaner image
+
+**Decision — layer caching on deps**
+`pyproject.toml` and `uv.lock` are `COPY`ed before any source code. Docker caches the `uv sync` layer — it only reruns when dependencies actually change. Normal code pushes skip the install entirely.
+
+**Decision — `APP_ENV=production` baked into the image**
+`main.py` calls `load_dotenv()` only when `APP_ENV != production`. Baking the flag in at build time means the container never looks for a `.env` file on the host — secrets come exclusively from `-e` flags passed at runtime.
+
+**Decision — `exec uvicorn` in `start.sh`**
+`start.sh` runs `alembic upgrade head` (no-op if nothing is new), then calls `exec uvicorn` — not `uvicorn`. `exec` replaces the shell process, so Docker's `SIGTERM` lands directly on uvicorn for a clean graceful shutdown with no zombie shell in between.
+
+---
+
 ### AWS
 
 <img src="./docs/architecture.png" alt="PitchForge production AWS architecture" width="100%"/>
@@ -625,26 +637,27 @@ RDS has no public IP. `sg-rds` allows port 5432 from `sg-ec2` only. A misconfigu
 
 ---
 
-#### Docker
+#### Observability — CloudWatch
 
-**Multi-stage image · `backend/` + `pitchforge/` in one container · entrypoint: `start.sh`**
+**CloudWatch Logs · Log Insights · Custom Dashboard · ap-south-1**
 
-**Decision — one image, not two services**
-`pitchforge/` is a library imported by the backend, not a separate process. Shipping them together eliminates network hops between services, removes version skew risk, and keeps the deployment a single `docker run`.
+Container stdout is routed to CloudWatch via the Docker `awslogs` log driver. All application events are emitted as structured JSON by `structlog` (`LOG_FORMAT=json`), making every log line directly queryable in Log Insights.
 
-**Decision — multi-stage build**
-- Stage 1 (builder): installs `uv`, runs `uv sync --frozen --no-dev` to build `.venv` inside the image
-- Stage 2 (runtime): copies `.venv` + source only — no `uv`, no build tools, no compiler in the final image
-- Result: smaller attack surface and a leaner image
+<img src="docs/CloudWatch_dashboard.png" alt="PitchForge CloudWatch observability dashboard" width="100%"/>
 
-**Decision — layer caching on deps**
-`pyproject.toml` and `uv.lock` are `COPY`ed before any source code. Docker caches the `uv sync` layer — it only reruns when dependencies actually change. Normal code pushes skip the install entirely.
+**What the dashboard shows:**
 
-**Decision — `APP_ENV=production` baked into the image**
-`main.py` calls `load_dotenv()` only when `APP_ENV != production`. Baking the flag in at build time means the container never looks for a `.env` file on the host — secrets come exclusively from `-e` flags passed at runtime.
+| Widget | Signal | Why it matters |
+|--------|--------|---------------|
+| CPU Utilization (gauge) | Saturation | Confirms EC2 is not resource-constrained under load |
+| Network In / Out (gauge) | Traffic | Real-time bytes in/out — spikes correlate with pipeline runs |
+| CPU Over Time (line chart) | Saturation trend | CPU spike at pipeline execution time is visible and expected |
+| Network I/O (line chart) | Traffic trend | NetworkIn + NetworkOut on one chart — divergence indicates one-sided issues |
+| Error Trend (bar chart) | Errors | Hourly error count from `level = "error"` log lines — empty means healthy |
+| Pipeline Activity (table) | Traffic + correctness | Live feed of node events with `thread_id` and `user_id` — confirms the graph is executing correctly end-to-end |
 
-**Decision — `exec uvicorn` in `start.sh`**
-`start.sh` runs `alembic upgrade head` (no-op if nothing is new), then calls `exec uvicorn` — not `uvicorn`. `exec` replaces the shell process, so Docker's `SIGTERM` lands directly on uvicorn for a clean graceful shutdown with no zombie shell in between.
+**Decision — structured logs over metric filters**  
+The existing `structlog` JSON output (`thread_id`, `user_id`, `event`, `level` on every line) gives full Log Insights queryability with zero code changes. Metric filters were considered but skipped — the admin panel already surfaces business-level metrics (proposals/day, cost, scores), so CloudWatch covers the infrastructure and runtime layer only.
 
 ---
 

@@ -150,6 +150,7 @@ class PitchforgeState(TypedDict):
 - Docker containerization — `Dockerfile` (multi-stage, repo root), `.dockerignore`, `backend/start.sh` (entrypoint); `main.py` `load_dotenv()` guarded by `APP_ENV != production`; image bundles `backend/` + `pitchforge/` together; `uv sync --frozen --no-dev` in builder stage; runtime stage has no build tools
 - Frontend production API routing — `frontend/src/api.js` exports `API_BASE = import.meta.env.VITE_API_URL ?? ''`; all fetch calls across 10 files prefixed with `API_BASE`; in dev `VITE_API_URL` is unset so `API_BASE` is `''` and Vite proxy still handles `/api/*`; in production `VITE_API_URL=https://api.pitchforge.cloud` so browser calls EC2 directly (no Vercel proxy hop — required for SSE streams which would be cut by Vercel's timeout)
 - Full manual AWS deployment complete — backend live at `https://api.pitchforge.cloud`, frontend live at `https://www.pitchforge.cloud`
+- CloudWatch observability — Docker `awslogs` driver routes container stdout to `/pitchforge/backend` log group; structured JSON logs (structlog, `LOG_FORMAT=json`) queryable via Log Insights; custom dashboard: CPU gauge, NetworkIn/Out gauges, CPU over time (line), Network I/O (line), error trend (bar), pipeline activity (table); `CloudWatchLogsFullAccess` attached to EC2 IAM role; no metric filters — admin panel covers business metrics, CloudWatch covers infrastructure + runtime layer
 
 **Next (in order):**
 
