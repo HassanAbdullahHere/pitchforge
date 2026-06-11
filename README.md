@@ -57,6 +57,7 @@ The frontend and backend are deployed separately: Vercel serves the React app, w
 - [Testing](#testing)
 - [DevOps Status](#devops-status)
 - [Deployment](#deployment)
+  - [CI/CD — GitHub Actions](#cicd--github-actions)
   - [Frontend — Vercel](#frontend--vercel)
   - [DNS — Namecheap](#dns--namecheap)
   - [Docker](#docker)
@@ -86,7 +87,7 @@ Three independent layers. The frontend never sees raw graph state. The backend n
 | Vector store | pgvector — `profile_chunks` table |
 | Retrieval | Hybrid BM25 + pgvector → RRF fusion → FlashRank re-ranking |
 | LLM wrapper | LangChain Google GenAI |
-| Database | PostgreSQL 16 via Docker |
+| Database | PostgreSQL + pgvector (Docker locally, RDS in production) |
 | ORM | SQLAlchemy 2.0 async + asyncpg |
 | Graph checkpointer | `langgraph-checkpoint-postgres` (`AsyncPostgresSaver`) |
 | Migrations | Alembic |
@@ -512,22 +513,53 @@ PitchForge is live on a cost-conscious AWS setup designed for learning real prod
 | Migrations | Done | `alembic upgrade head` runs at container startup |
 | Tests | Done | 48 backend + 22 frontend tests |
 | Monitoring | Done | CloudWatch logs, metrics dashboard, and 6 alarms (EC2 + RDS + billing) |
-| CI/CD | Next | GitHub Actions: test, build, push to ECR, deploy, health check |
+| CI/CD | Done | GitHub Actions: parallel tests → security scan → backend deploy → frontend deploy |
 | Infrastructure as Code | Next | Terraform for VPC, EC2, RDS, ECR, IAM, and Secrets Manager references |
 | Scaling path | Later | ALB, private backend service, ECS/Fargate or autoscaled EC2, Multi-AZ RDS |
 
-Current production posture: suitable for a controlled soft launch and DevOps practice. The next milestone is repeatability: CI/CD, rollback, and infrastructure as code.
+Current production posture: suitable for a controlled soft launch with a fully automated deployment pipeline. The next milestone is infrastructure as code.
 
 ---
 
 ## Deployment
 
+### CI/CD — GitHub Actions
+
+**`.github/workflows/ci-cd.yml` · triggers on every push and PR to `main`**
+
+Every push to `main` runs the full pipeline automatically. Frontend never goes live before the backend is confirmed healthy.
+
+<img src="./docs/cicd-pipeline.png" alt="PitchForge CI/CD pipeline" width="100%"/>
+
+**Jobs:**
+
+| Job | Runs on | What it does |
+|-----|---------|-------------|
+| `test-backend` | Ubuntu VM | Spins up `pgvector/pgvector:pg16` service container · installs deps via `uv sync --frozen --extra test` (cached) · runs all 48 pytest tests against a real DB |
+| `test-frontend` | Ubuntu VM (parallel) | Installs deps via `npm ci` (cached) · runs all 22 Vitest tests |
+| `security-scan` | Ubuntu VM | Bandit (Python SAST) · npm audit · Trivy filesystem CVE scan — Bandit fails on HIGH findings; npm audit and Trivy fail on CRITICAL dependency/CVE findings |
+| `deploy-backend` | Ubuntu VM | Authenticates with AWS via OIDC (no stored keys) · builds Docker image · pushes to ECR · sends SSM command to EC2 to stop old container, pull new image, and restart |
+| `deploy-frontend` | Ubuntu VM | Polls `GET /health` every 10s (up to 5 min) until new backend is serving · triggers Vercel Deploy Hook |
+
+**Deploy jobs are gated to `main` push only** via `if: github.ref == 'refs/heads/main' && github.event_name == 'push'` — test and security jobs run on PRs too, deploys never do.
+
+**AWS authentication — OIDC, not access keys**
+
+The IAM role `github-actions-pitchforge` has a trust policy scoped to `repo:hassanabdullahhere/pitchforge:ref:refs/heads/main`. GitHub Actions exchanges a short-lived JWT for 15-minute AWS credentials — no static keys stored anywhere. The role has ECR push permissions and SSM send-command permission scoped to the production EC2 instance.
+
+**Frontend sync guarantee**
+
+Vercel auto-deploy is disabled via an Ignored Build Step (`exit 0`). The `deploy-frontend` job triggers Vercel only after `/health` returns `"status": "ok"` — guaranteeing the new backend is serving before the new frontend goes live. A breaking API change can never reach users on the old frontend.
+
+---
+
 ### Frontend — Vercel
 
-**Vercel · auto-deploys on every push to `main` · root dir: `frontend/`**
+**Vercel · deployed only via GitHub Actions Deploy Hook · root dir: `frontend/`**
 
 - Build: `npm run build` · Output: `dist/`
 - `VITE_API_URL=https://api.pitchforge.cloud` set as a Vercel environment variable
+- Ignored Build Step set to `exit 0` — git-triggered auto-deploys are disabled; only the Deploy Hook (triggered from CI/CD) creates production deployments
 
 **Decision — frontend fetches EC2 directly, not via Vercel rewrites**  
 Vercel rewrites buffer the full response before forwarding. SSE token streams would be cut mid-generation. `API_BASE` prefix in `api.js` sends every request straight to EC2, bypassing Vercel entirely.
@@ -607,11 +639,11 @@ RDS is fully managed by AWS and needs no outbound internet access. Skipping the 
 
 **ap-south-1 · repo: `pitchforge-backend`**
 
-- Local machine pushes images via AWS CLI after every build
-- EC2 pulls at container start — always runs the last pushed image, no manual file transfers
+- GitHub Actions builds and pushes the image on every merge to `main` via OIDC authentication — no manual steps, no stored AWS keys
+- EC2 pulls the new image via SSM command — the instance profile grants ECR pull permissions
 
-**Decision — IAM instance profile, no stored credentials**  
-The EC2 instance profile grants ECR pull permissions. No AWS access keys are stored on the instance or inside the image — the instance itself is the credential.
+**Decision — OIDC for push, instance profile for pull**  
+GitHub Actions assumes an IAM role via OIDC (short-lived token, scoped to this repo and branch) to push. EC2 uses its instance profile to pull. No long-lived AWS credentials exist anywhere in the pipeline.
 
 ---
 

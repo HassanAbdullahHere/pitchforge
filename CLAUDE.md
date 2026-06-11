@@ -152,11 +152,11 @@ class PitchforgeState(TypedDict):
 - Full manual AWS deployment complete — backend live at `https://api.pitchforge.cloud`, frontend live at `https://www.pitchforge.cloud`
 - CloudWatch observability — Docker `awslogs` driver routes container stdout to `/pitchforge/backend` log group; structured JSON logs (structlog, `LOG_FORMAT=json`) queryable via Log Insights; custom dashboard: CPU gauge, NetworkIn/Out gauges, CPU over time (line), Network I/O (line), error trend (bar), pipeline activity (table); `CloudWatchLogsFullAccess` attached to EC2 IAM role; no metric filters — admin panel covers business metrics, CloudWatch covers infrastructure + runtime layer
 - CloudWatch alarms — SNS topic `pitchforge-alerts` (ap-south-1) + `pitchforge-billing-alerts` (us-east-1) both subscribed to `hassanabdullahhere01@gmail.com`; 6 alarms: EC2 CPU > 80% (5 min), EC2 StatusCheckFailed >= 1, RDS CPU > 80% (5 min), RDS FreeStorageSpace < 1 GB, RDS FreeableMemory < 100 MB (threshold lowered from 256 MB — db.t4g.micro uses ~850 MB normally due to shared_buffers + pgvector caching), Billing EstimatedCharges > $30/month (us-east-1)
+- GitHub Actions CI/CD — `.github/workflows/ci-cd.yml`; 5 jobs: `test-backend` (pytest + real pgvector/pgvector:pg16 service container + uv cache) + `test-frontend` (vitest + npm cache) run in parallel → `security-scan` (Bandit SAST, npm audit, Trivy filesystem CVE scan — hard fail on HIGH/CRITICAL only) → `deploy-backend` (OIDC auth → ECR push → SSM send-command to EC2: stop old container, pull new image, run `~/run-backend.sh`) → `deploy-frontend` (poll `/health` every 10s up to 5 min → trigger Vercel Deploy Hook); deploy jobs gated to `main` push only via `if:` condition; Vercel auto-deploy disabled via `exit 0` Ignored Build Step so frontend never goes live before backend is healthy
 
 **Next (in order):**
 
 *Deployment — Automation*
-- GitHub Actions workflow — test → build → push to ECR → deploy to EC2 on every push to main
 - Terraform — IaC for all AWS resources (VPC, EC2, RDS, ECR, Secrets Manager, IAM); state in S3 + DynamoDB lock
 
 ---
@@ -199,7 +199,7 @@ No NAT Gateway — RDS is fully managed by AWS and does not need outbound intern
 |----------|---------------|-----|
 | EC2 | You only | SSH key, port 22 restricted to your IP in sg-ec2 |
 | RDS | EC2 only | sg-rds allows port 5432 from sg-ec2 only; not reachable from internet |
-| ECR | You (local) + EC2 | You push via AWS CLI; EC2 pulls via IAM instance profile |
+| ECR | GitHub Actions + EC2 | GitHub Actions pushes via OIDC role; EC2 pulls via IAM instance profile |
 | Secrets Manager | EC2 only at runtime | IAM instance profile with `secretsmanager:GetSecretValue` |
 | Vercel | You only | Vercel account (GitHub OAuth) |
 | Google Console | You only | Google account |
@@ -222,7 +222,7 @@ To update a secret: AWS Console → Secrets Manager → `/pitchforge/backend` �
 - Output: `dist/`
 - Environment variable: `VITE_API_URL=https://api.pitchforge.cloud`
 - Domains: `www.pitchforge.cloud` (production), `pitchforge.cloud` (308 redirect to www)
-- Auto-deploys on every push to `main`
+- Auto-deploy disabled — Ignored Build Step set to `exit 0`; deployments triggered only via Deploy Hook from GitHub Actions after backend is healthy
 
 ### Google OAuth Configuration
 In Google Cloud Console → APIs & Services → Credentials → OAuth 2.0 Client:
@@ -249,24 +249,31 @@ In Google Cloud Console → APIs & Services → Credentials → OAuth 2.0 Client
 - `/etc/nginx/sites-available/pitchforge` — nginx config: port 80/443 → proxy to localhost:8000; `proxy_buffering off` for SSE; `X-Real-IP` for rate limiting; certbot manages SSL
 - SSL cert: `/etc/letsencrypt/live/api.pitchforge.cloud/` — auto-renews via certbot systemd timer
 
-### Manual Redeploy Process (until GitHub Actions is set up)
-Frontend redeploys automatically on every push to `main` via Vercel.
+### Redeploy Process
+Every push to `main` triggers the full CI/CD pipeline automatically — no manual steps needed.
 
-Backend requires manual steps after every code change:
-```bash
-# 1. Build new image (from repo root)
-docker build -t pitchforge-backend .
-
-# 2. Tag and push to ECR
-aws ecr get-login-password --region ap-south-1 | docker login --username AWS --password-stdin <ecr-url>
-docker tag pitchforge-backend:latest <ecr-url>/pitchforge-backend:latest
-docker push <ecr-url>/pitchforge-backend:latest
-
-# 3. SSH into EC2 → pull and restart
-ssh -i your-key.pem ec2-user@<ec2-ip>
-docker pull <ecr-url>/pitchforge-backend:latest
-~/run-backend.sh
 ```
+push to main
+     │
+test-backend + test-frontend (parallel VMs)
+     │
+security-scan (Bandit + npm audit + Trivy)
+     │
+deploy-backend (OIDC → ECR push → SSM → EC2 restarts)
+     │
+deploy-frontend (poll /health → Vercel Deploy Hook)
+```
+
+**GitHub Actions secrets required:**
+| Secret | Value |
+|--------|-------|
+| `AWS_ROLE_ARN` | `arn:aws:iam::623859664281:role/github-actions-pitchforge` |
+| `EC2_INSTANCE_ID` | `i-076f95af1acff48eb` |
+| `VERCEL_DEPLOY_HOOK` | Vercel deploy hook URL (Vercel → Settings → Git → Deploy Hooks) |
+
+**IAM role `github-actions-pitchforge`:**
+- Trust policy: scoped to `repo:hassanabdullahhere/pitchforge:ref:refs/heads/main`
+- Permissions: `AmazonEC2ContainerRegistryPowerUser` + inline policy for `ssm:SendCommand` (scoped to instance + document) + `ssm:GetCommandInvocation` (resource `*`)
 
 ### Connecting to RDS (for admin tasks)
 RDS is in a private subnet — only reachable through EC2.
