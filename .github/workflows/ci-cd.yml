@@ -1,0 +1,77 @@
+name: CI/CD
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  # ── Backend tests ─────────────────────────────────────────────────────────
+  # Runs on its own VM. Spins up a real Postgres+pgvector container so
+  # integration tests hit an actual database — no mocks.
+  test-backend:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: pitchforge
+          POSTGRES_PASSWORD: pitchforge_dev
+          POSTGRES_DB: pitchforge_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U pitchforge"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # pgvector image ships with the extension but it must be explicitly enabled
+      # per database. Base conftest.py uses Base.metadata.create_all (not Alembic),
+      # so this is the only setup needed before pytest runs.
+      - name: Enable pgvector extension
+        run: psql postgresql://pitchforge:pitchforge_dev@localhost:5432/pitchforge_test -c "CREATE EXTENSION IF NOT EXISTS vector;"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v4
+
+      # uv resolves pitchforge as a local path dep (../pitchforge) — works because
+      # the full monorepo is checked out.
+      - name: Install dependencies
+        working-directory: backend
+        run: uv sync --frozen
+
+      - name: Run tests
+        working-directory: backend
+        run: uv run pytest tests/ -v
+
+  # ── Frontend tests ────────────────────────────────────────────────────────
+  # Runs on its own VM in parallel with test-backend.
+  # No external services needed — vitest mocks all fetch calls.
+  test-frontend:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Run tests
+        working-directory: frontend
+        run: npm test
