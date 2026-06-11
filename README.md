@@ -67,6 +67,7 @@ The frontend and backend are deployed separately: Vercel serves the React app, w
     - [Secrets — AWS Secrets Manager](#secrets--aws-secrets-manager)
     - [Database — RDS](#database--rds)
     - [Observability — CloudWatch](#observability--cloudwatch)
+    - [Alarms — CloudWatch](#alarms--cloudwatch)
 - [Token Economics](#token-economics)
 
 ---
@@ -510,7 +511,7 @@ PitchForge is live on a cost-conscious AWS setup designed for learning real prod
 | Secrets | Done | AWS Secrets Manager; no production `.env` file on host |
 | Migrations | Done | `alembic upgrade head` runs at container startup |
 | Tests | Done | 48 backend + 22 frontend tests |
-| Monitoring | Done | CloudWatch logs and metrics for the backend host/runtime |
+| Monitoring | Done | CloudWatch logs, metrics dashboard, and 6 alarms (EC2 + RDS + billing) |
 | CI/CD | Next | GitHub Actions: test, build, push to ECR, deploy, health check |
 | Infrastructure as Code | Next | Terraform for VPC, EC2, RDS, ECR, IAM, and Secrets Manager references |
 | Scaling path | Later | ALB, private backend service, ECS/Fargate or autoscaled EC2, Multi-AZ RDS |
@@ -658,6 +659,23 @@ Container stdout is routed to CloudWatch via the Docker `awslogs` log driver. Al
 
 **Decision — structured logs over metric filters**  
 The existing `structlog` JSON output (`thread_id`, `user_id`, `event`, `level` on every line) gives full Log Insights queryability with zero code changes. Metric filters were considered but skipped — the admin panel already surfaces business-level metrics (proposals/day, cost, scores), so CloudWatch covers the infrastructure and runtime layer only.
+
+---
+
+#### Alarms — CloudWatch
+
+**6 alarms · SNS email notifications · ap-south-1 (+ us-east-1 for billing)**
+
+| Alarm | Threshold | Why |
+|-------|-----------|-----|
+| EC2 CPU high | > 80% for 5 min | t3.small burns burst credits fast under sustained load |
+| EC2 StatusCheckFailed | ≥ 1 | Catches hung instance or underlying hardware failure |
+| RDS CPU high | > 80% for 5 min | db.t4g.micro has limited compute headroom |
+| RDS FreeStorageSpace | < 1 GB | Disk full = total outage |
+| RDS FreeableMemory | < 100 MB | db.t4g.micro has 1 GB RAM; pgvector + shared_buffers consume ~850 MB normally — 100 MB is the real danger zone |
+| Billing EstimatedCharges | > $30 / month | Catches runaway Gemini calls or accidental resource leaks |
+
+All alerts route to an SNS topic subscribed to the operator email. The billing alarm lives in `us-east-1` (AWS requirement); all others are in `ap-south-1`.
 
 ---
 
