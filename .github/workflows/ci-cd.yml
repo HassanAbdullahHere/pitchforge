@@ -77,3 +77,58 @@ jobs:
       - name: Run tests
         working-directory: frontend
         run: npm test
+
+  # ── Security scan ─────────────────────────────────────────────────────────
+  # Runs on its own VM after both test jobs pass.
+  # No secrets involved — safe to run on PRs too.
+  # Rule: hard fail on CRITICAL/HIGH only, report and warn on everything else.
+  security-scan:
+    runs-on: ubuntu-latest
+    needs: [test-backend, test-frontend]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # ── Bandit (Python SAST) ───────────────────────────────────────────────
+      - name: Install Bandit
+        run: pip install bandit
+
+      # Show all findings as a warning — never blocks the pipeline
+      - name: Bandit report (all severities)
+        run: bandit -r backend/app pitchforge/ -f text || true
+
+      # Hard fail if any HIGH severity issue found (-lll = HIGH only)
+      # Bandit's highest level is HIGH — this is our critical threshold
+      - name: Bandit fail on HIGH severity
+        run: bandit -r backend/app pitchforge/ -lll
+
+      # ── npm audit (JS dependency CVEs) ────────────────────────────────────
+      # Show all vulnerability levels as a warning
+      - name: npm audit report (all severities)
+        working-directory: frontend
+        run: npm audit || true
+
+      # Hard fail on critical CVEs only
+      - name: npm audit fail on critical
+        working-directory: frontend
+        run: npm audit --audit-level=critical
+
+      # ── Trivy (filesystem CVE scan — Python + JS deps) ────────────────────
+      # Show HIGH, MEDIUM, LOW findings — never blocks
+      - name: Trivy report (HIGH, MEDIUM, LOW)
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: fs
+          scan-ref: .
+          severity: HIGH,MEDIUM,LOW
+          exit-code: '0'
+
+      # Hard fail on CRITICAL CVEs only
+      - name: Trivy fail on CRITICAL
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: fs
+          scan-ref: .
+          severity: CRITICAL
+          exit-code: '1'
