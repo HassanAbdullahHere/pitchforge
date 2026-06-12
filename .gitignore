@@ -219,3 +219,5 @@ __marimo__/
 
 .chromadb
 pitchforge/chromadb/
+.vercel
+.env*
