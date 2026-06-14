@@ -221,3 +221,5 @@ __marimo__/
 pitchforge/chromadb/
 .vercel
 .env*
+
+product-video/

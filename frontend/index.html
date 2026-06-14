@@ -78,7 +78,7 @@
       pointer-events: none;
       z-index: 0;
       filter: blur(80px);
-      mix-blend-mode: screen;
+      will-change: transform;
     }
     .orb-1 {
       width: 520px; height: 520px;
@@ -115,6 +115,10 @@
     }
     @media (prefers-reduced-motion: reduce) {
       .orb { animation: none !important; }
+    }
+    @media (hover: none) {
+      .orb { animation: none !important; filter: blur(40px); }
+      body::before { animation: none !important; }
     }
   </style>
   </body>

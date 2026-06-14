@@ -1,6 +1,9 @@
 # Frontend — built separately on Vercel
 frontend/
 
+# Product video source and rendered media are not needed in backend images
+product-video/
+
 # Python cache
 **/__pycache__/
 **/*.pyc
