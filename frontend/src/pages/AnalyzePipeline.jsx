@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
+import { AnimatePresence, motion } from 'framer-motion'
 import Logo from '../components/Logo'
 import { useAuth } from '../context/AuthContext'
 import { API_BASE } from '../api'
@@ -122,12 +123,12 @@ export default function AnalyzePipeline() {
     return () => cancelAnimationFrame(rafId)
   }, [fitData])
 
-  const scoreColor = s => s >= 70 ? '#7ab87a' : s >= 40 ? '#d4a855' : '#c0392b'
+  const scoreColor = s => s >= 70 ? '#5f8f68' : s >= 40 ? '#b88745' : '#b9574f'
   const badgeStyle = s => s >= 70
-    ? { background: 'rgba(122,184,122,0.18)', color: 'rgba(25,105,25,0.95)',  border: '1px solid rgba(122,184,122,0.3)' }
+    ? { background: 'rgba(95,143,104,0.14)', color: '#5f8f68', border: '1px solid rgba(95,143,104,0.30)' }
     : s >= 40
-    ? { background: 'rgba(212,168,85,0.15)',  color: 'rgba(135,82,0,0.95)',   border: '1px solid rgba(212,168,85,0.3)' }
-    : { background: 'rgba(192,57,43,0.12)',   color: 'rgba(170,30,20,0.95)',  border: '1px solid rgba(192,57,43,0.3)' }
+    ? { background: 'rgba(184,135,69,0.14)', color: '#b88745', border: '1px solid rgba(184,135,69,0.28)' }
+    : { background: 'rgba(185,87,79,0.12)', color: '#b9574f', border: '1px solid rgba(185,87,79,0.28)' }
 
   return (
     <>
@@ -149,11 +150,16 @@ export default function AnalyzePipeline() {
         </nav>
 
         <main className="ap-main">
+          <AnimatePresence mode="wait">
 
           {/* ══ STREAMING ══ */}
           {phase === 'streaming' && (
-            <div className="center-wrap">
-              <div className="dark-card pipeline-card anim" style={{ '--delay': '0ms' }}>
+            <motion.div className="center-wrap" key="streaming"
+              initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.96, y: -10 }}
+              transition={{ duration: 0.28, ease: [0.2, 0.8, 0.2, 1] }}
+            >
+              <div className="dark-card pipeline-card">
                 <div className="card-eyebrow">
                   <span className="eyebrow-dot" />
                   Pipeline Running
@@ -184,13 +190,17 @@ export default function AnalyzePipeline() {
 
                 <p className="pipeline-status">{statusText}</p>
               </div>
-            </div>
+            </motion.div>
           )}
 
           {/* ══ RESULT ══ */}
           {phase === 'result' && fitData && (
-            <div className="center-wrap">
-              <div className="light-card result-card anim" style={{ '--delay': '0ms' }}>
+            <motion.div className="center-wrap" key="result"
+              initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ type: 'spring', stiffness: 200, damping: 24, delay: 0.04 }}
+            >
+              <div className="light-card result-card">
 
                 {/* Header */}
                 <div className="result-header">
@@ -263,20 +273,25 @@ export default function AnalyzePipeline() {
                   </button>
                 </div>
               </div>
-            </div>
+            </motion.div>
           )}
 
           {/* ══ ERROR ══ */}
           {phase === 'error' && (
-            <div className="center-wrap">
-              <div className="dark-card error-card anim" style={{ '--delay': '0ms' }}>
-                <p className="error-icon">⚠</p>
+            <motion.div className="center-wrap" key="error"
+              initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.28 }}
+            >
+              <div className="dark-card error-card" role="alert">
+                <svg className="error-icon" width="32" height="32" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M16 3L29 27H3L16 3Z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round"/><path d="M16 13v6M16 23v1" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>
                 <p className="error-msg">{errorMsg || 'Pipeline failed. Please try again.'}</p>
                 <button className="btn-secondary" onClick={() => navigate('/new')}>← Try Again</button>
               </div>
-            </div>
+            </motion.div>
           )}
 
+          </AnimatePresence>
         </main>
       </div>
     </>
@@ -285,16 +300,18 @@ export default function AnalyzePipeline() {
 
 const css = `
   :root {
-    --text-dark:       rgba(30,36,25,0.85);
-    --text-muted:      rgba(30,36,25,0.45);
-    --text-light:      rgba(255,255,255,0.88);
-    --text-light-muted:rgba(255,255,255,0.4);
+    --text-dark:       rgba(43,40,34,0.85);
+    --text-muted:      rgba(43,40,34,0.45);
+    --text-light:      rgba(248,246,238,0.92);
+    --text-light-muted:rgba(248,246,238,0.58);
     --glass-light:     rgba(255,255,255,0.68);
     --glass-light-b:   rgba(255,255,255,0.82);
-    --glass-dark:      rgba(22,26,20,0.75);
+    --glass-dark:      rgba(14,14,26,0.86);
     --glass-dark-b:    rgba(255,255,255,0.09);
-    --accent:          #7ab87a;
-    --accent-bg:       rgba(122,184,122,0.15);
+    --accent:          #7B6BE3;
+    --accent-bg:       rgba(123,107,227,0.12);
+    --accent-warm:     #c9a84c;
+    --accent-warm-bg:  rgba(201,168,76,0.12);
     --font:            'Instrument Sans', sans-serif;
   }
 
@@ -312,6 +329,7 @@ const css = `
   .page {
     position: relative;
     min-height: 100vh;
+    min-height: 100dvh;
     z-index: 1;
     display: flex;
     flex-direction: column;
@@ -333,7 +351,7 @@ const css = `
     font-family: var(--font);
     font-size: 13px;
     font-weight: 500;
-    color: rgba(30,36,25,0.6);
+    color: rgba(43,40,34,0.6);
     letter-spacing: -0.01em;
   }
   .status-dot {
@@ -350,7 +368,7 @@ const css = `
     font-weight: 500;
     letter-spacing: 0.04em;
     text-transform: uppercase;
-    color: rgba(30,36,25,0.6);
+    color: rgba(43,40,34,0.6);
     background: rgba(255,255,255,0.55);
     backdrop-filter: blur(8px);
     border: 1px solid rgba(255,255,255,0.75);
@@ -377,25 +395,25 @@ const css = `
   /* ── Buttons ── */
   .btn-primary {
     border-radius: 100px;
-    background: rgba(26,31,22,0.88);
-    color: rgba(255,255,255,0.92);
+    background: var(--accent-warm);
+    color: #1a1500;
     border: none;
     padding: 12px 24px;
     font-family: var(--font);
     font-size: 14px;
-    font-weight: 500;
+    font-weight: 600;
     cursor: pointer;
-    transition: transform 200ms;
+    transition: transform 200ms, background 200ms, box-shadow 200ms;
     letter-spacing: -0.01em;
   }
-  .btn-primary:hover { transform: scale(1.02); }
+  .btn-primary:hover { background: #d4b55c; box-shadow: 0 4px 20px rgba(201,168,76,0.28); transform: translateY(-1px); }
 
   .btn-secondary {
     border-radius: 100px;
     background: rgba(255,255,255,0.55);
     backdrop-filter: blur(8px);
     border: 1px solid rgba(255,255,255,0.75);
-    color: rgba(30,36,25,0.8);
+    color: rgba(43,40,34,0.8);
     padding: 12px 24px;
     font-family: var(--font);
     font-size: 14px;
@@ -413,6 +431,7 @@ const css = `
     background: var(--glass-dark);
     backdrop-filter: blur(24px);
     border: 1px solid var(--glass-dark-b);
+    box-shadow: 0 22px 70px rgba(0,0,0,0.30);
     border-radius: 20px;
     padding: 32px 36px;
     display: flex;
@@ -463,7 +482,7 @@ const css = `
     border-radius: 12px;
     transition: background 300ms;
   }
-  .node-row--active { background: rgba(122,184,122,0.06); }
+  .node-row--active { background: rgba(123,107,227,0.08); }
   .node-row--done   { background: rgba(255,255,255,0.02); }
   .node-row--idle   { background: transparent; }
 
@@ -484,7 +503,7 @@ const css = `
   }
   .node-circle--active {
     border: 1.5px solid var(--accent);
-    background: rgba(122,184,122,0.1);
+    background: rgba(123,107,227,0.12);
   }
   .node-circle--active::after {
     content: '';
@@ -497,7 +516,7 @@ const css = `
   }
   .node-circle--done {
     border: 1.5px solid var(--accent);
-    background: rgba(122,184,122,0.18);
+    background: rgba(123,107,227,0.18);
   }
 
   .nc-check {
@@ -567,14 +586,14 @@ const css = `
     border: 1px solid rgba(255,255,255,0.08);
   }
   .node-badge--active {
-    color: var(--accent);
-    background: rgba(122,184,122,0.12);
-    border: 1px solid rgba(122,184,122,0.25);
+    color: rgba(226,222,248,0.88);
+    background: rgba(123,107,227,0.14);
+    border: 1px solid rgba(123,107,227,0.28);
   }
   .node-badge--done {
-    color: rgba(122,184,122,0.7);
-    background: rgba(122,184,122,0.08);
-    border: 1px solid rgba(122,184,122,0.15);
+    color: rgba(226,222,248,0.66);
+    background: rgba(123,107,227,0.08);
+    border: 1px solid rgba(123,107,227,0.15);
   }
 
   .pipeline-status {
@@ -672,8 +691,8 @@ const css = `
     align-items: center;
     justify-content: space-between;
     padding: 16px 0;
-    border-top: 1px solid rgba(30,36,25,0.08);
-    border-bottom: 1px solid rgba(30,36,25,0.08);
+    border-top: 1px solid rgba(43,40,34,0.08);
+    border-bottom: 1px solid rgba(43,40,34,0.08);
   }
   .price-label {
     font-family: var(--font);
@@ -705,8 +724,8 @@ const css = `
     letter-spacing: 0.06em;
     text-transform: uppercase;
   }
-  .skills-heading--match { color: rgba(28,110,28,0.9); }
-  .skills-heading--miss  { color: rgba(30,36,25,0.65); }
+  .skills-heading--match { color: rgba(110,98,210,0.90); }
+  .skills-heading--miss  { color: rgba(43,40,34,0.65); }
 
   .skills-list { display: flex; flex-wrap: wrap; gap: 6px; }
   .skill-tag {
@@ -718,14 +737,14 @@ const css = `
     border-radius: 100px;
   }
   .skill-tag--match {
-    background: rgba(122,184,122,0.15);
-    color: rgba(60,140,60,0.9);
-    border: 1px solid rgba(122,184,122,0.25);
+    background: rgba(123,107,227,0.12);
+    color: rgba(110,98,210,0.95);
+    border: 1px solid rgba(123,107,227,0.24);
   }
   .skill-tag--miss {
     background: rgba(255,255,255,0.35);
-    color: rgba(30,36,25,0.6);
-    border: 1px solid rgba(30,36,25,0.12);
+    color: rgba(43,40,34,0.6);
+    border: 1px solid rgba(43,40,34,0.12);
   }
   .skills-empty {
     font-family: var(--font);
@@ -764,6 +783,15 @@ const css = `
   }
 
   /* ── Mobile ── */
+  .nav-status {
+    color: rgba(245,240,232,0.72);
+  }
+  .nav-badge-pill {
+    color: rgba(245,240,232,0.66);
+    background: rgba(255,255,255,0.08);
+    border-color: rgba(255,255,255,0.14);
+  }
+
   @media (max-width: 640px) {
     .nav { padding: 16px 20px; }
 
@@ -778,5 +806,13 @@ const css = `
 
     .result-actions { flex-direction: column-reverse; align-items: stretch; }
     .btn-secondary, .btn-primary { text-align: center; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.001ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.001ms !important;
+    }
   }
 `

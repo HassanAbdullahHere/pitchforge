@@ -130,7 +130,7 @@ export default function Admin() {
                         <XAxis dataKey="date" tick={{ fontSize: 9, fill: 'rgba(245,240,232,0.35)' }} tickLine={false} axisLine={false} tickFormatter={d => d.slice(5)} interval="preserveStartEnd" />
                         <YAxis tick={{ fontSize: 9, fill: 'rgba(245,240,232,0.35)' }} tickLine={false} axisLine={false} allowDecimals={false} width={20} />
                         <Tooltip content={<ChartTip />} />
-                        <Area type="monotone" dataKey="count" stroke="#7ab87a" fill="rgba(122,184,122,0.1)" strokeWidth={1.5} dot={false} />
+                        <Area type="monotone" dataKey="count" stroke="#8B7DE8" fill="rgba(123,107,227,0.10)" strokeWidth={1.5} dot={false} />
                       </AreaChart>
                     </ResponsiveContainer>
                   </div>
@@ -345,7 +345,7 @@ function fillDays(sparse, key, days = 14) {
 }
 
 function recColor(rec) {
-  if (rec === 'Strong Apply') return 'rgba(122,184,122,0.75)'
+  if (rec === 'Strong Apply') return 'rgba(126,146,119,0.75)'
   if (rec === 'Apply Carefully') return 'rgba(201,168,76,0.75)'
   return 'rgba(220,80,80,0.75)'
 }
@@ -357,6 +357,7 @@ const css = `
     position: relative;
     z-index: 1;
     min-height: 100vh;
+    min-height: 100dvh;
     background: #0a0908;
     color: #f5f0e8;
     font-family: 'Instrument Sans', sans-serif;
@@ -540,9 +541,9 @@ const css = `
     font-weight: 600;
   }
   .status-active {
-    background: rgba(122,184,122,0.12);
+    background: rgba(126,146,119,0.12);
     color: rgba(50,180,50,0.9);
-    border: 1px solid rgba(122,184,122,0.2);
+    border: 1px solid rgba(126,146,119,0.2);
   }
   .status-banned {
     background: rgba(220,80,80,0.1);
@@ -570,11 +571,11 @@ const css = `
   }
   .action-btn--ban:hover:not(:disabled) { background: rgba(220,80,80,0.2); }
   .action-btn--unban {
-    background: rgba(122,184,122,0.12);
+    background: rgba(126,146,119,0.12);
     color: rgba(50,180,50,0.9);
-    border-color: rgba(122,184,122,0.25);
+    border-color: rgba(126,146,119,0.25);
   }
-  .action-btn--unban:hover:not(:disabled) { background: rgba(122,184,122,0.2); }
+  .action-btn--unban:hover:not(:disabled) { background: rgba(126,146,119,0.2); }
 
   /* Charts */
   .chart-row {

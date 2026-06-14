@@ -23,10 +23,10 @@ function formatDate(dateStr) {
 }
 
 const scoreColor = s =>
-  s >= 70 ? 'rgba(40,120,40,0.9)' : s >= 50 ? 'rgba(160,110,10,0.9)' : 'rgba(180,50,50,0.9)'
+  s >= 70 ? '#5f8f68' : s >= 50 ? '#b88745' : '#b9574f'
 
 const recStyle = r => {
-  if (r === 'Strong Apply')    return { background: 'rgba(122,184,122,0.12)', color: 'rgba(40,120,40,0.9)',   border: '1px solid rgba(122,184,122,0.22)' }
+  if (r === 'Strong Apply')    return { background: 'rgba(201,168,76,0.12)', color: '#a07c20', border: '1px solid rgba(201,168,76,0.28)' }
   if (r === 'Apply Carefully') return { background: 'rgba(212,168,85,0.12)',  color: 'rgba(160,110,10,0.9)',  border: '1px solid rgba(212,168,85,0.28)' }
   return                              { background: 'rgba(210,70,70,0.09)',   color: 'rgba(180,50,50,0.9)',   border: '1px solid rgba(210,70,70,0.2)' }
 }
@@ -44,16 +44,23 @@ export default function ProposalDetail() {
   const [deleteError, setDeleteError] = useState(null)
 
   useEffect(() => {
-    let cancelled = false
-    fetch(`${API_BASE}/api/proposals/${id}`, { headers: authHeaders() })
+    const controller = new AbortController()
+    fetch(`${API_BASE}/api/proposals/${id}`, { headers: authHeaders(), signal: controller.signal })
       .then(r => {
         if (!r.ok) throw new Error(r.status === 404 ? 'Proposal not found' : `Server returned ${r.status}`)
         return r.json()
       })
-      .then(data => { if (!cancelled) { setProposal(data); setLoading(false) } })
-      .catch(err  => { if (!cancelled) { setError(err.message); setLoading(false) } })
-    return () => { cancelled = true }
+      .then(data => { setProposal(data); setLoading(false) })
+      .catch(err  => { if (err.name !== 'AbortError') { setError(err.message); setLoading(false) } })
+    return () => controller.abort()
   }, [id])
+
+  useEffect(() => {
+    if (deleteState !== 'confirm') return
+    const handler = (e) => { if (e.key === 'Escape') setDeleteState('idle') }
+    document.addEventListener('keydown', handler)
+    return () => document.removeEventListener('keydown', handler)
+  }, [deleteState])
 
   const copy = () => {
     navigator.clipboard.writeText(proposal.final_proposal).then(() => {
@@ -126,7 +133,7 @@ export default function ProposalDetail() {
 
           {/* Error */}
           {!loading && error && (
-            <div className="pd-empty">
+            <div className="pd-empty" role="alert">
               <p className="pd-empty-icon">⚠</p>
               <p className="pd-empty-title">{error}</p>
               <button className="btn-secondary" style={{ marginTop: '16px' }}
@@ -183,7 +190,7 @@ export default function ProposalDetail() {
                   )}
                   {proposal.iteration_count != null && (
                     <div className="pd-score-item">
-                      <span className="pd-score-num" style={{ color: 'rgba(30,36,25,0.65)' }}>
+                      <span className="pd-score-num" style={{ color: 'rgba(43,40,34,0.65)' }}>
                         {proposal.iteration_count}
                       </span>
                       <span className="pd-score-label">Iterations</span>
@@ -312,10 +319,12 @@ export default function ProposalDetail() {
 
 const css = `
   :root {
-    --text-dark:        rgba(30,36,25,0.88);
-    --text-muted:       rgba(30,36,25,0.45);
+    --text-dark:        rgba(43,40,34,0.88);
+    --text-muted:       rgba(43,40,34,0.45);
     --glass-light:      rgba(226,225,222,0.78);
     --glass-light-b:    rgba(212,210,208,0.92);
+    --accent-warm:      #c9a84c;
+    --accent-warm-bg:   rgba(201,168,76,0.12);
     --font:             'Instrument Sans', sans-serif;
   }
 
@@ -330,6 +339,7 @@ const css = `
 
   .pd-page {
     min-height: 100vh;
+    min-height: 100dvh;
     display: flex;
     flex-direction: column;
     position: relative;
@@ -351,7 +361,7 @@ const css = `
     color: var(--text-dark);
     background: rgba(255,255,255,0.5);
     backdrop-filter: blur(8px);
-    border: 1px solid rgba(30,36,25,0.1);
+    border: 1px solid rgba(43,40,34,0.1);
     border-radius: 100px;
     cursor: pointer;
     padding: 9px 18px;
@@ -368,27 +378,27 @@ const css = `
   /* ── Buttons ── */
   .btn-primary {
     border-radius: 100px;
-    background: rgba(26,31,22,0.88);
-    color: rgba(255,255,255,0.92);
+    background: var(--accent-warm);
+    color: #1a1500;
     border: none;
     padding: 12px 24px;
     font-family: var(--font);
     font-size: 14px;
-    font-weight: 500;
+    font-weight: 600;
     cursor: pointer;
-    transition: transform 200ms, box-shadow 200ms;
+    transition: transform 200ms, background 200ms, box-shadow 200ms;
     letter-spacing: -0.01em;
     white-space: nowrap;
   }
-  .btn-primary:hover  { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,0,0,0.2); }
-  .btn-primary:active { transform: translateY(0); box-shadow: none; }
+  .btn-primary:hover  { background: #d4b55c; box-shadow: 0 4px 20px rgba(201,168,76,0.28); transform: translateY(-2px); }
+  .btn-primary:active { background: var(--accent-warm); transform: translateY(0); box-shadow: none; }
 
   .btn-secondary {
     border-radius: 100px;
     background: rgba(255,255,255,0.55);
     backdrop-filter: blur(8px);
     border: 1px solid rgba(255,255,255,0.75);
-    color: rgba(30,36,25,0.8);
+    color: rgba(43,40,34,0.8);
     padding: 9px 18px;
     font-family: var(--font);
     font-size: 13px;
@@ -436,13 +446,13 @@ const css = `
     gap: 8px;
     text-align: center;
   }
-  .pd-empty-icon  { font-size: 26px; color: var(--text-muted); margin: 0 0 8px; }
+  .pd-empty-icon  { font-size: 26px; color: rgba(245,240,232,0.66); margin: 0 0 8px; }
   .pd-empty-title {
     font-family: var(--font);
     font-size: 17px;
     font-weight: 600;
     letter-spacing: -0.02em;
-    color: var(--text-dark);
+    color: rgba(255,253,246,0.96);
     margin: 0;
   }
 
@@ -484,9 +494,9 @@ const css = `
     letter-spacing: 0.02em;
   }
   .pd-badge--platform {
-    background: rgba(30,36,25,0.06);
-    color: rgba(30,36,25,0.55);
-    border: 1px solid rgba(30,36,25,0.10);
+    background: rgba(43,40,34,0.06);
+    color: rgba(43,40,34,0.55);
+    border: 1px solid rgba(43,40,34,0.10);
   }
   .pd-pill {
     font-family: var(--font);
@@ -496,14 +506,14 @@ const css = `
     text-transform: uppercase;
     border-radius: 100px;
     padding: 3px 10px;
-    background: rgba(30,36,25,0.06);
-    color: rgba(30,36,25,0.45);
-    border: 1px solid rgba(30,36,25,0.08);
+    background: rgba(43,40,34,0.06);
+    color: rgba(43,40,34,0.45);
+    border: 1px solid rgba(43,40,34,0.08);
   }
   .pd-pill--done {
-    background: rgba(100,170,100,0.1);
-    color: rgba(40,120,40,0.9);
-    border: 1px solid rgba(100,170,100,0.22);
+    background: rgba(99,116,94,0.10);
+    color: rgba(54,66,51,0.95);
+    border: 1px solid rgba(99,116,94,0.22);
   }
   .pd-time {
     font-family: var(--font);
@@ -531,9 +541,9 @@ const css = `
     font-weight: 500;
     padding: 3px 10px;
     border-radius: 100px;
-    background: rgba(30,36,25,0.04);
-    color: rgba(30,36,25,0.5);
-    border: 1px solid rgba(30,36,25,0.08);
+    background: rgba(43,40,34,0.04);
+    color: rgba(43,40,34,0.5);
+    border: 1px solid rgba(43,40,34,0.08);
   }
 
   /* ── Scores card ── */
@@ -552,7 +562,7 @@ const css = `
     align-items: center;
     gap: 5px;
     padding: 20px 16px;
-    border-right: 1px solid rgba(30,36,25,0.07);
+    border-right: 1px solid rgba(43,40,34,0.07);
   }
   .pd-score-item:last-child { border-right: none; }
   .pd-score-num {
@@ -600,7 +610,7 @@ const css = `
     padding: 20px 24px;
   }
   .pd-skill-col:first-child:not(:last-child) {
-    border-right: 1px solid rgba(30,36,25,0.07);
+    border-right: 1px solid rgba(43,40,34,0.07);
   }
   .pd-skill-heading {
     font-family: var(--font);
@@ -613,7 +623,7 @@ const css = `
     align-items: center;
     gap: 6px;
   }
-  .pd-skill-heading--match { color: rgba(40,120,40,0.85); }
+  .pd-skill-heading--match { color: rgba(54,66,51,0.86); }
   .pd-skill-heading--miss  { color: rgba(210,80,80,0.8); }
   .pd-skill-count {
     font-family: var(--font);
@@ -621,7 +631,7 @@ const css = `
     font-weight: 500;
     border-radius: 100px;
     padding: 1px 7px;
-    background: rgba(30,36,25,0.06);
+    background: rgba(43,40,34,0.06);
     color: var(--text-muted);
     letter-spacing: 0;
     text-transform: none;
@@ -642,9 +652,9 @@ const css = `
     padding: 5px 11px;
   }
   .pd-skill-chip--match {
-    background: rgba(100,180,100,0.1);
-    color: rgba(40,115,40,0.9);
-    border: 1px solid rgba(100,180,100,0.18);
+    background: rgba(99,116,94,0.10);
+    color: rgba(54,66,51,0.95);
+    border: 1px solid rgba(99,116,94,0.18);
   }
   .pd-skill-chip--miss {
     background: rgba(210,80,80,0.08);
@@ -659,7 +669,7 @@ const css = `
     align-items: center;
     justify-content: space-between;
     padding: 18px 24px;
-    border-bottom: 1px solid rgba(30,36,25,0.07);
+    border-bottom: 1px solid rgba(43,40,34,0.07);
     flex-shrink: 0;
   }
   .pd-section-label {
@@ -783,9 +793,17 @@ const css = `
     .pd-score-item { min-width: 90px; padding: 16px 12px; }
     .pd-score-num  { font-size: 26px; }
     .pd-skills-card { grid-template-columns: 1fr; }
-    .pd-skill-col:first-child:not(:last-child) { border-right: none; border-bottom: 1px solid rgba(30,36,25,0.07); }
+    .pd-skill-col:first-child:not(:last-child) { border-right: none; border-bottom: 1px solid rgba(43,40,34,0.07); }
     .pd-proposal-header { padding: 14px 18px; flex-wrap: wrap; gap: 10px; }
     .pd-proposal-body   { padding: 18px 18px 22px; }
     .pd-copy-btn { padding: 7px 13px; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.001ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.001ms !important;
+    }
   }
 `

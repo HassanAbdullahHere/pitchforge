@@ -283,16 +283,18 @@ export default function JobDetails() {
 
 const css = `
   :root {
-    --text-dark:       rgba(30,36,25,0.85);
-    --text-muted:      rgba(30,36,25,0.45);
+    --text-dark:       rgba(43,40,34,0.85);
+    --text-muted:      rgba(43,40,34,0.45);
     --text-light:      rgba(255,255,255,0.88);
     --text-light-muted:rgba(255,255,255,0.4);
     --glass-light:     rgba(226,225,222,0.76);
     --glass-light-b:   rgba(212,210,208,0.90);
-    --glass-dark:      rgba(22,26,20,0.75);
+    --glass-dark:      rgba(14,14,26,0.86);
     --glass-dark-b:    rgba(255,255,255,0.09);
-    --accent:          #7ab87a;
-    --accent-bg:       rgba(122,184,122,0.15);
+    --accent:          #7B6BE3;
+    --accent-bg:       rgba(123,107,227,0.10);
+    --accent-warm:     #c9a84c;
+    --accent-warm-bg:  rgba(201,168,76,0.12);
     --font:            'Instrument Sans', sans-serif;
   }
 
@@ -318,6 +320,7 @@ const css = `
   .page {
     position: relative;
     min-height: 100vh;
+    min-height: 100dvh;
     z-index: 1;
     display: flex;
     flex-direction: column;
@@ -340,7 +343,7 @@ const css = `
   .nav-link {
     font-family: var(--font);
     font-size: 14px;
-    color: rgba(30,36,25,0.65);
+    color: rgba(43,40,34,0.65);
     text-decoration: none;
     transition: color 200ms;
   }
@@ -349,25 +352,25 @@ const css = `
   /* ── Buttons ── */
   .btn-primary {
     border-radius: 100px;
-    background: rgba(26,31,22,0.88);
-    color: rgba(255,255,255,0.92);
+    background: var(--accent-warm);
+    color: #1a1500;
     border: none;
     padding: 12px 24px;
     font-family: var(--font);
     font-size: 14px;
-    font-weight: 500;
+    font-weight: 600;
     cursor: pointer;
-    transition: transform 200ms;
+    transition: transform 200ms, background 200ms, box-shadow 200ms;
     letter-spacing: -0.01em;
   }
-  .btn-primary:hover { transform: scale(1.02); }
+  .btn-primary:hover { background: #d4b55c; box-shadow: 0 4px 20px rgba(201,168,76,0.28); transform: translateY(-1px); }
 
   .btn-secondary {
     border-radius: 100px;
     background: rgba(255,255,255,0.55);
     backdrop-filter: blur(8px);
     border: 1px solid rgba(255,255,255,0.75);
-    color: rgba(30,36,25,0.8);
+    color: rgba(43,40,34,0.8);
     padding: 12px 24px;
     font-family: var(--font);
     font-size: 14px;
@@ -404,7 +407,7 @@ const css = `
     font-weight: 500;
     letter-spacing: 0.04em;
     text-transform: uppercase;
-    color: rgba(30,36,25,0.6);
+    color: rgba(43,40,34,0.6);
     width: fit-content;
   }
   .page-title {
@@ -468,7 +471,7 @@ const css = `
 
   .card-divider {
     width: 1px;
-    background: rgba(30,36,25,0.07);
+    background: rgba(43,40,34,0.07);
     flex-shrink: 0;
   }
 
@@ -501,20 +504,20 @@ const css = `
 
   .field-input {
     background: rgba(255,255,255,0.7);
-    border: 1px solid rgba(30,36,25,0.1);
+    border: 1px solid rgba(43,40,34,0.1);
     border-radius: 10px;
     padding: 11px 14px;
     font-family: var(--font);
     font-size: 14px;
     font-weight: 400;
     letter-spacing: -0.01em;
-    color: rgba(30,36,25,0.8);
+    color: rgba(43,40,34,0.8);
     outline: none;
     transition: border-color 200ms;
     width: 100%;
   }
-  .field-input::placeholder { color: rgba(30,36,25,0.3); }
-  .field-input:focus { border-color: rgba(122,184,122,0.5); box-shadow: 0 0 0 3px rgba(122,184,122,0.1); }
+  .field-input::placeholder { color: rgba(43,40,34,0.3); }
+  .field-input:focus { border-color: rgba(123,107,227,0.45); box-shadow: 0 0 0 3px rgba(123,107,227,0.10); }
 
   .field--error .field-input,
   .field--error .field-textarea {
@@ -537,8 +540,8 @@ const css = `
   .pill-opt {
     border-radius: 100px;
     background: rgba(255,255,255,0.6);
-    border: 1px solid rgba(30,36,25,0.1);
-    color: rgba(30,36,25,0.65);
+    border: 1px solid rgba(43,40,34,0.1);
+    color: rgba(43,40,34,0.65);
     padding: 7px 14px;
     font-family: var(--font);
     font-size: 13px;
@@ -547,9 +550,9 @@ const css = `
     cursor: pointer;
     transition: all 200ms;
   }
-  .pill-opt:hover { border-color: rgba(30,36,25,0.2); color: var(--text-dark); }
+  .pill-opt:hover { border-color: rgba(43,40,34,0.2); color: var(--text-dark); }
   .pill-opt--active {
-    background: rgba(26,31,22,0.88);
+    background: rgba(14,14,26,0.88);
     border-color: transparent;
     color: rgba(255,255,255,0.92);
   }
@@ -577,7 +580,7 @@ const css = `
     flex-shrink: 0;
     width: 78px;
     background: rgba(255,255,255,0.7);
-    border: 1px solid rgba(30,36,25,0.1);
+    border: 1px solid rgba(43,40,34,0.1);
     border-radius: 10px;
     overflow: hidden;
   }
@@ -585,14 +588,16 @@ const css = `
     background: transparent;
     border: none;
     cursor: pointer;
-    color: rgba(30,36,25,0.3);
+    color: rgba(43,40,34,0.3);
     font-size: 8px;
     line-height: 1;
-    padding: 5px 0;
+    padding: 8px 0;
+    min-height: 44px;
     width: 100%;
     transition: color 150ms, background 150ms;
+    touch-action: none;
   }
-  .wheel-btn:hover { color: var(--text-dark); background: rgba(30,36,25,0.04); }
+  .wheel-btn:hover { color: var(--text-dark); background: rgba(43,40,34,0.04); }
 
   .wheel-track {
     overflow: hidden;
@@ -601,9 +606,9 @@ const css = `
     display: flex;
     align-items: center;
     justify-content: center;
-    border-top: 1px solid rgba(30,36,25,0.07);
-    border-bottom: 1px solid rgba(30,36,25,0.07);
-    background: rgba(122,184,122,0.08);
+    border-top: 1px solid rgba(43,40,34,0.07);
+    border-bottom: 1px solid rgba(43,40,34,0.07);
+    background: rgba(123,107,227,0.08);
   }
   .wheel-val {
     font-family: var(--font);
@@ -611,7 +616,7 @@ const css = `
     font-weight: 500;
     letter-spacing: 0.04em;
     text-transform: uppercase;
-    color: rgba(30,36,25,0.7);
+    color: rgba(43,40,34,0.7);
     white-space: nowrap;
   }
 
@@ -655,9 +660,9 @@ const css = `
     font-weight: 500;
     letter-spacing: 0.04em;
     text-transform: uppercase;
-    color: rgba(30,36,25,0.45);
+    color: rgba(43,40,34,0.45);
     background: transparent;
-    border: 1px solid rgba(30,36,25,0.1);
+    border: 1px solid rgba(43,40,34,0.1);
     border-radius: 100px;
     padding: 3px 10px;
     cursor: pointer;
@@ -668,7 +673,7 @@ const css = `
   .field-textarea {
     flex: 1;
     background: rgba(255,255,255,0.7);
-    border: 1px solid rgba(30,36,25,0.1);
+    border: 1px solid rgba(43,40,34,0.1);
     border-radius: 12px;
     padding: 14px 16px;
     font-family: var(--font);
@@ -676,17 +681,17 @@ const css = `
     font-weight: 400;
     letter-spacing: -0.01em;
     line-height: 1.7;
-    color: rgba(30,36,25,0.8);
+    color: rgba(43,40,34,0.8);
     outline: none;
     resize: vertical;
     min-height: 360px;
     transition: border-color 200ms;
     width: 100%;
   }
-  .field-textarea::placeholder { color: rgba(30,36,25,0.3); line-height: 1.7; }
+  .field-textarea::placeholder { color: rgba(43,40,34,0.3); line-height: 1.7; }
   .field-textarea:focus {
-    border-color: rgba(122,184,122,0.5);
-    box-shadow: 0 0 0 3px rgba(122,184,122,0.1);
+    border-color: rgba(123,107,227,0.45);
+    box-shadow: 0 0 0 3px rgba(123,107,227,0.10);
   }
 
   /* ── Button rows ── */
@@ -695,6 +700,23 @@ const css = `
     align-items: center;
     gap: 10px;
     margin-top: auto;
+  }
+  .nav-link {
+    color: rgba(245,240,232,0.70);
+  }
+  .nav-link:hover {
+    color: rgba(255,255,255,0.94);
+  }
+  .page-header .badge-pill {
+    color: rgba(245,240,232,0.64);
+    background: rgba(255,255,255,0.08);
+    border-color: rgba(255,255,255,0.14);
+  }
+  .page-header .page-title {
+    color: rgba(255,253,246,0.96);
+  }
+  .page-header .page-sub {
+    color: rgba(245,240,232,0.70);
   }
   .btn-row--mobile { display: none; }
 
@@ -719,5 +741,13 @@ const css = `
     .btn-row--desktop { display: none; }
     .btn-row--mobile { display: flex; }
     .btn-row--mobile .btn-primary { flex: 1; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.001ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.001ms !important;
+    }
   }
 `

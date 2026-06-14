@@ -528,7 +528,7 @@ Current production posture: suitable for a controlled soft launch with a fully a
 
 ### CI/CD — GitHub Actions
 
-**`.github/workflows/ci-cd.yml` · triggers on every push and PR to `main`**
+**`.github/workflows/ci-cd.yml` · triggers on every push and PR to `main` (doc-only changes skipped via `paths-ignore`)**
 
 Every push to `main` runs the full pipeline automatically. Frontend never goes live before the backend is confirmed healthy.
 
@@ -542,7 +542,7 @@ Every push to `main` runs the full pipeline automatically. Frontend never goes l
 | `test-frontend` | Ubuntu VM (parallel) | Installs deps via `npm ci` (cached) · runs all 22 Vitest tests |
 | `security-scan` | Ubuntu VM | Bandit (Python SAST) · npm audit · Trivy filesystem CVE scan — Bandit fails on HIGH findings; npm audit and Trivy fail on CRITICAL dependency/CVE findings |
 | `deploy-backend` | Ubuntu VM | Authenticates with AWS via OIDC (no stored keys) · builds Docker image · pushes to ECR · sends SSM command to EC2 to stop old container, pull new image, and restart |
-| `deploy-frontend` | Ubuntu VM | Polls `GET /health` every 10s (up to 5 min) until new backend is serving · triggers Vercel Deploy Hook |
+| `deploy-frontend` | Ubuntu VM | Polls `GET /health` every 10s (up to 5 min) until new backend is serving · deploys via Vercel CLI (`vercel deploy --prod`) |
 
 **Deploy jobs are gated to `main` push only** via `if: github.ref == 'refs/heads/main' && github.event_name == 'push'` — test and security jobs run on PRs too, deploys never do.
 
@@ -552,17 +552,18 @@ The IAM role `github-actions-pitchforge` has a trust policy scoped to `repo:hass
 
 **Frontend sync guarantee**
 
-Vercel auto-deploy is disabled via an Ignored Build Step (`exit 0`). The `deploy-frontend` job triggers Vercel only after `/health` returns `"status": "ok"` — guaranteeing the new backend is serving before the new frontend goes live. A breaking API change can never reach users on the old frontend.
+Vercel auto-deploy is disabled via an Ignored Build Step (`exit 0`). The `deploy-frontend` job deploys via Vercel CLI only after `/health` returns `"status": "ok"` — guaranteeing the new backend is serving before the new frontend goes live. A breaking API change can never reach users on the old frontend. The CLI approach bypasses the Ignored Build Step entirely (which was found to also cancel deploy-hook-triggered builds).
 
 ---
 
 ### Frontend — Vercel
 
-**Vercel · deployed only via GitHub Actions Deploy Hook · root dir: `frontend/`**
+**Vercel · deployed only via Vercel CLI from GitHub Actions · root dir: `frontend/`**
 
 - Build: `npm run build` · Output: `dist/`
 - `VITE_API_URL=https://api.pitchforge.cloud` set as a Vercel environment variable
-- Ignored Build Step set to `exit 0` — git-triggered auto-deploys are disabled; only the Deploy Hook (triggered from CI/CD) creates production deployments
+- Ignored Build Step set to `exit 0` — git-triggered auto-deploys are disabled; all production deployments are triggered by `vercel deploy --prod` from GitHub Actions after the backend is confirmed healthy
+- SPA routing: `vercel.json` catch-all rewrite (`/(.*) → /index.html`) so hard refresh on any React Router route works correctly
 
 **Decision — frontend fetches EC2 directly, not via Vercel rewrites**  
 Vercel rewrites buffer the full response before forwarding. SSE token streams would be cut mid-generation. `API_BASE` prefix in `api.js` sends every request straight to EC2, bypassing Vercel entirely.

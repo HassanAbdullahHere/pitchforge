@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
+import { AnimatePresence, motion } from 'framer-motion'
 import Logo from '../components/Logo'
 import { useAuth } from '../context/AuthContext'
 import { API_BASE } from '../api'
@@ -80,6 +81,7 @@ export default function GenerateProposal() {
   const savedProposalRef = useRef('')
   const savedQualityRef  = useRef(null)
   const isRevisionRef    = useRef(false)
+
   useEffect(() => {
     if (draftRef.current) {
       draftRef.current.scrollTop = draftRef.current.scrollHeight
@@ -233,12 +235,12 @@ export default function GenerateProposal() {
     URL.revokeObjectURL(url)
   }
 
-  const qualityColor = s => s >= 70 ? '#7ab87a' : s >= 40 ? '#d4a855' : '#e74c3c'
+  const qualityColor = s => s >= 70 ? '#5f8f68' : s >= 40 ? '#b88745' : '#b9574f'
   const qualityBadgeStyle = s => s >= 70
-    ? { background: 'rgba(122,184,122,0.15)', color: 'rgba(160,220,160,0.85)', border: '1px solid rgba(122,184,122,0.2)' }
+    ? { background: 'rgba(95,143,104,0.14)', color: '#78a980', border: '1px solid rgba(95,143,104,0.30)' }
     : s >= 40
-    ? { background: 'rgba(212,168,85,0.12)', color: 'rgba(212,168,85,0.9)', border: '1px solid rgba(212,168,85,0.25)' }
-    : { background: 'rgba(192,57,43,0.12)', color: '#e74c3c', border: '1px solid rgba(192,57,43,0.3)' }
+    ? { background: 'rgba(184,135,69,0.14)', color: '#c79a58', border: '1px solid rgba(184,135,69,0.28)' }
+    : { background: 'rgba(185,87,79,0.12)', color: '#c66a62', border: '1px solid rgba(185,87,79,0.28)' }
   const qualityLabel = s => s >= 70 ? 'High Quality' : s >= 40 ? 'Good Draft' : 'Needs Work'
 
   return (
@@ -269,10 +271,15 @@ export default function GenerateProposal() {
         </nav>
 
         <main className="gp-main">
+          <AnimatePresence mode="wait">
 
           {/* ══ GENERATING ══ */}
           {phase === 'generating' && (
-            <div className="two-col anim" style={{ '--delay': '0ms' }}>
+            <motion.div className="two-col" key="generating"
+              initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.97, y: -8 }}
+              transition={{ duration: 0.28, ease: [0.2, 0.8, 0.2, 1] }}
+            >
 
               {/* Dark card — pipeline */}
               <div className="dark-card pipeline-col">
@@ -321,20 +328,25 @@ export default function GenerateProposal() {
                   }
                 </div>
               </div>
-            </div>
+            </motion.div>
           )}
 
           {/* ══ REVIEWING / REVISING ══ */}
           {(phase === 'reviewing' || phase === 'revising') && (
+            <motion.div className="phase-fill" key="reviewing"
+              initial={{ opacity: 0, y: 22 }} animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ type: 'spring', stiffness: 200, damping: 24, delay: 0.04 }}
+            >
             <>
               {revisionError && (
-                <div className="revision-error-banner">
-                  <span>⚠ {revisionError}</span>
+                <div className="revision-error-banner" role="alert">
+                  <span><svg width="14" height="14" viewBox="0 0 32 32" fill="none" aria-hidden="true" style={{verticalAlign:'middle',marginRight:6}}><path d="M16 3L29 27H3L16 3Z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round"/><path d="M16 13v6M16 23v1" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>{revisionError}</span>
                   <button className="revision-error-dismiss" onClick={() => setRevisionError(null)}>✕</button>
                 </div>
               )}
 
-            <div className="two-col anim" style={{ '--delay': '0ms' }}>
+            <div className="two-col">
 
               {/* Light card — proposal text */}
               <div className="light-card proposal-col">
@@ -364,7 +376,7 @@ export default function GenerateProposal() {
                       onClick={() => setPhase('revising')}
                       disabled={revisionCount >= MAX_REVISIONS}
                     >
-                      ✎ Request Revision {revisionCount > 0 && `(${revisionCount}/${MAX_REVISIONS})`}
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" aria-hidden="true" style={{verticalAlign:'middle',marginRight:5}}><path d="M16.862 4.487l2.651 2.651L7 19.651H4.349V17L16.862 4.487Z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg> Request Revision {revisionCount > 0 && `(${revisionCount}/${MAX_REVISIONS})`}
                     </button>
                   </div>
                 )}
@@ -461,21 +473,30 @@ export default function GenerateProposal() {
               </div>
             </div>
             </>
+            </motion.div>
           )}
 
           {/* ══ FINALIZING ══ */}
           {phase === 'finalizing' && (
-            <div className="center-wrap anim" style={{ '--delay': '0ms' }}>
+            <motion.div className="center-wrap" key="finalizing"
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+            >
               <div className="dark-card finalizing-card">
                 <div className="fin-spinner" />
                 <p className="fin-text">Compiling your proposal…</p>
               </div>
-            </div>
+            </motion.div>
           )}
 
           {/* ══ FINAL ══ */}
           {phase === 'final' && (
-            <div className="final-layout anim" style={{ '--delay': '0ms' }}>
+            <motion.div className="final-layout" key="final"
+              initial={{ opacity: 0, scale: 0.97, y: 18 }} animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+              transition={{ type: 'spring', stiffness: 180, damping: 22 }}
+            >
 
               {/* Meta row */}
               {(form?.title || fitData?.suggested_price || quality) && (
@@ -530,20 +551,25 @@ export default function GenerateProposal() {
                   </button>
                 </div>
               </div>
-            </div>
+            </motion.div>
           )}
 
           {/* ══ ERROR ══ */}
           {phase === 'error' && (
-            <div className="center-wrap anim" style={{ '--delay': '0ms' }}>
-              <div className="dark-card error-card">
-                <p className="error-icon">⚠</p>
+            <motion.div className="center-wrap" key="error"
+              initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.26 }}
+            >
+              <div className="dark-card error-card" role="alert">
+                <svg className="error-icon" width="32" height="32" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M16 3L29 27H3L16 3Z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round"/><path d="M16 13v6M16 23v1" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>
                 <p className="error-msg">{errorMsg || 'Something went wrong. Please try again.'}</p>
                 <button className="btn-secondary" onClick={() => navigate('/new')}>← Try Again</button>
               </div>
-            </div>
+            </motion.div>
           )}
 
+          </AnimatePresence>
         </main>
       </div>
     </>
@@ -552,16 +578,18 @@ export default function GenerateProposal() {
 
 const css = `
   :root {
-    --text-dark:       rgba(30,36,25,0.85);
-    --text-muted:      rgba(30,36,25,0.45);
-    --text-light:      rgba(255,255,255,0.88);
-    --text-light-muted:rgba(255,255,255,0.4);
+    --text-dark:       rgba(43,40,34,0.85);
+    --text-muted:      rgba(43,40,34,0.45);
+    --text-light:      rgba(248,246,238,0.92);
+    --text-light-muted:rgba(248,246,238,0.58);
     --glass-light:     rgba(226,225,222,0.76);
     --glass-light-b:   rgba(212,210,208,0.90);
-    --glass-dark:      rgba(22,26,20,0.75);
+    --glass-dark:      rgba(14,14,26,0.86);
     --glass-dark-b:    rgba(255,255,255,0.09);
-    --accent:          #7ab87a;
-    --accent-bg:       rgba(122,184,122,0.15);
+    --accent:          #7B6BE3;
+    --accent-bg:       rgba(123,107,227,0.12);
+    --accent-warm:     #c9a84c;
+    --accent-warm-bg:  rgba(201,168,76,0.12);
     --font:            'Instrument Sans', sans-serif;
   }
 
@@ -579,7 +607,9 @@ const css = `
   .page {
     position: relative;
     min-height: 100vh;
+    min-height: 100dvh;
     height: 100vh;
+    height: 100dvh;
     z-index: 1;
     display: flex;
     flex-direction: column;
@@ -603,7 +633,7 @@ const css = `
     font-family: var(--font);
     font-size: 13px;
     font-weight: 500;
-    color: rgba(30,36,25,0.6);
+    color: rgba(43,40,34,0.6);
   }
   .status-dot {
     width: 8px; height: 8px;
@@ -618,7 +648,7 @@ const css = `
     font-weight: 500;
     letter-spacing: 0.04em;
     text-transform: uppercase;
-    color: rgba(30,36,25,0.5);
+    color: rgba(43,40,34,0.5);
     background: rgba(255,255,255,0.55);
     backdrop-filter: blur(8px);
     border: 1px solid rgba(255,255,255,0.75);
@@ -629,21 +659,21 @@ const css = `
   /* ── Buttons ── */
   .btn-primary {
     border-radius: 100px;
-    background: rgba(26,31,22,0.88);
-    color: rgba(255,255,255,0.92);
+    background: var(--accent-warm);
+    color: #1a1500;
     border: none;
     padding: 12px 24px;
     font-family: var(--font);
     font-size: 14px;
-    font-weight: 500;
+    font-weight: 600;
     cursor: pointer;
-    transition: transform 200ms;
+    transition: transform 200ms, background 200ms, box-shadow 200ms;
     letter-spacing: -0.01em;
     white-space: nowrap;
     will-change: transform;
   }
-  .btn-primary:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,0,0,0.22); }
-  .btn-primary:active:not(:disabled) { transform: translateY(0); box-shadow: none; }
+  .btn-primary:hover:not(:disabled) { background: #d4b55c; box-shadow: 0 4px 20px rgba(201,168,76,0.28); transform: translateY(-2px); }
+  .btn-primary:active:not(:disabled) { background: var(--accent-warm); transform: translateY(0); box-shadow: none; }
   .btn-primary:disabled { opacity: 0.38; cursor: not-allowed; }
 
   .btn-secondary {
@@ -651,7 +681,7 @@ const css = `
     background: rgba(255,255,255,0.55);
     backdrop-filter: blur(8px);
     border: 1px solid rgba(255,255,255,0.75);
-    color: rgba(30,36,25,0.8);
+    color: rgba(43,40,34,0.8);
     padding: 12px 24px;
     font-family: var(--font);
     font-size: 14px;
@@ -675,6 +705,15 @@ const css = `
     gap: 10px;
   }
 
+  .phase-fill {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    width: 100%;
+  }
+
   /* ── Two column layout ── */
   .two-col {
     display: flex;
@@ -690,6 +729,7 @@ const css = `
     background: var(--glass-dark);
     backdrop-filter: blur(24px);
     border: 1px solid var(--glass-dark-b);
+    box-shadow: 0 22px 70px rgba(0,0,0,0.30);
     border-radius: 20px;
     padding: 28px 28px;
     display: flex;
@@ -779,7 +819,7 @@ const css = `
     border-radius: 12px;
     transition: background 300ms;
   }
-  .node-row--active { background: rgba(122,184,122,0.06); }
+  .node-row--active { background: rgba(123,107,227,0.08); }
   .node-row--done   { background: rgba(255,255,255,0.02); }
   .node-row--idle   {}
 
@@ -796,7 +836,7 @@ const css = `
   .node-circle--idle   { border: 1.5px solid rgba(255,255,255,0.1); background: transparent; }
   .node-circle--active {
     border: 1.5px solid var(--accent);
-    background: rgba(122,184,122,0.1);
+    background: rgba(123,107,227,0.10);
   }
   .node-circle--active::after {
     content: '';
@@ -806,7 +846,7 @@ const css = `
     opacity: 0.3;
     animation: pulse-ring 1.5s ease-out infinite;
   }
-  .node-circle--done { border: 1.5px solid var(--accent); background: rgba(122,184,122,0.18); }
+  .node-circle--done { border: 1.5px solid var(--accent); background: rgba(123,107,227,0.18); }
 
   .nc-check { font-size: 13px; color: var(--accent); font-weight: 600; }
   .nc-idle  { width: 6px; height: 6px; border-radius: 50%; background: rgba(255,255,255,0.15); }
@@ -854,8 +894,8 @@ const css = `
     white-space: nowrap;
   }
   .node-badge--idle   { color: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.08); }
-  .node-badge--active { color: var(--accent); background: rgba(122,184,122,0.12); border: 1px solid rgba(122,184,122,0.25); }
-  .node-badge--done   { color: rgba(122,184,122,0.7); background: rgba(122,184,122,0.08); border: 1px solid rgba(122,184,122,0.15); }
+  .node-badge--active { color: rgba(230,226,250,0.88); background: rgba(123,107,227,0.14); border: 1px solid rgba(123,107,227,0.28); }
+  .node-badge--done   { color: rgba(230,226,250,0.66); background: rgba(123,107,227,0.08); border: 1px solid rgba(123,107,227,0.16); }
 
   .pipeline-status {
     font-family: var(--font);
@@ -882,13 +922,13 @@ const css = `
     flex: 1;
     overflow-y: auto;
     border-radius: 12px;
-    border: 1px solid rgba(30,36,25,0.06);
+    border: 1px solid rgba(43,40,34,0.06);
     background: rgba(255,255,255,0.3);
     padding: 20px 22px;
   }
   .draft-scroll::-webkit-scrollbar { width: 3px; }
   .draft-scroll::-webkit-scrollbar-track { background: transparent; }
-  .draft-scroll::-webkit-scrollbar-thumb { background: rgba(30,36,25,0.12); border-radius: 2px; }
+  .draft-scroll::-webkit-scrollbar-thumb { background: rgba(43,40,34,0.12); border-radius: 2px; }
 
   .draft-text {
     font-family: var(--font);
@@ -903,7 +943,7 @@ const css = `
   .draft-cursor {
     display: inline-block;
     width: 2px; height: 1em;
-    background: rgba(30,36,25,0.6);
+    background: rgba(43,40,34,0.6);
     margin-left: 2px;
     vertical-align: text-bottom;
     animation: cursor-blink 0.9s ease-in-out infinite;
@@ -954,13 +994,13 @@ const css = `
     min-height: 0;
     overflow-y: auto;
     border-radius: 12px;
-    border: 1px solid rgba(30,36,25,0.08);
+    border: 1px solid rgba(43,40,34,0.08);
     background: rgba(255,255,255,0.62);
     padding: 20px 22px;
   }
   .proposal-scroll::-webkit-scrollbar { width: 3px; }
   .proposal-scroll::-webkit-scrollbar-track { background: transparent; }
-  .proposal-scroll::-webkit-scrollbar-thumb { background: rgba(30,36,25,0.12); border-radius: 2px; }
+  .proposal-scroll::-webkit-scrollbar-thumb { background: rgba(43,40,34,0.12); border-radius: 2px; }
 
   .proposal-text {
     font-family: var(--font);
@@ -996,7 +1036,7 @@ const css = `
     padding: 16px;
     background: rgba(255,255,255,0.4);
     border-radius: 12px;
-    border: 1px solid rgba(30,36,25,0.08);
+    border: 1px solid rgba(43,40,34,0.08);
     animation: fadeUp 300ms ease both;
   }
   .revise-label {
@@ -1011,7 +1051,7 @@ const css = `
     width: 100%;
     resize: vertical;
     background: rgba(255,255,255,0.7);
-    border: 1px solid rgba(30,36,25,0.1);
+    border: 1px solid rgba(43,40,34,0.1);
     border-radius: 10px;
     padding: 11px 14px;
     font-family: var(--font);
@@ -1019,12 +1059,12 @@ const css = `
     font-weight: 400;
     letter-spacing: -0.01em;
     line-height: 1.6;
-    color: rgba(30,36,25,0.8);
+    color: rgba(43,40,34,0.8);
     outline: none;
     transition: border-color 200ms;
   }
-  .revision-input::placeholder { color: rgba(30,36,25,0.3); }
-  .revision-input:focus { border-color: rgba(122,184,122,0.5); }
+  .revision-input::placeholder { color: rgba(43,40,34,0.3); }
+  .revision-input:focus { border-color: rgba(126,146,119,0.5); }
 
   .rev-actions {
     display: flex;
@@ -1118,8 +1158,8 @@ const css = `
     flex-shrink: 0;
   }
   .node-circle-sm--idle   { border: 1px solid rgba(255,255,255,0.1); }
-  .node-circle-sm--active { border: 1px solid var(--accent); background: rgba(122,184,122,0.1); }
-  .node-circle-sm--done   { border: 1px solid var(--accent); background: rgba(122,184,122,0.15); }
+  .node-circle-sm--active { border: 1px solid var(--accent); background: rgba(126,146,119,0.1); }
+  .node-circle-sm--done   { border: 1px solid var(--accent); background: rgba(126,146,119,0.15); }
   .nc-check-sm { font-size: 10px; color: var(--accent); font-weight: 600; }
   .nc-active-sm {
     width: 6px; height: 6px; border-radius: 50%;
@@ -1180,7 +1220,7 @@ const css = `
   .fin-spinner {
     width: 40px; height: 40px;
     border-radius: 50%;
-    border: 2px solid rgba(122,184,122,0.15);
+    border: 2px solid rgba(126,146,119,0.15);
     border-top-color: var(--accent);
     animation: spin 1s linear infinite;
   }
@@ -1267,13 +1307,13 @@ const css = `
     flex: 1;
     overflow-y: auto;
     border-radius: 12px;
-    border: 1px solid rgba(30,36,25,0.06);
+    border: 1px solid rgba(43,40,34,0.06);
     background: rgba(255,255,255,0.3);
     padding: 20px 22px;
     max-height: 52vh;
   }
   .final-scroll::-webkit-scrollbar { width: 3px; }
-  .final-scroll::-webkit-scrollbar-thumb { background: rgba(30,36,25,0.12); border-radius: 2px; }
+  .final-scroll::-webkit-scrollbar-thumb { background: rgba(43,40,34,0.12); border-radius: 2px; }
 
   .final-actions {
     display: flex;
@@ -1331,6 +1371,15 @@ const css = `
     line-height: 1.6;
   }
 
+  .nav-status {
+    color: rgba(245,240,232,0.72);
+  }
+  .nav-label {
+    color: rgba(245,240,232,0.66);
+    background: rgba(255,255,255,0.08);
+    border-color: rgba(255,255,255,0.14);
+  }
+
   /* ── Mobile ── */
   @media (max-width: 768px) {
     /* Let the page grow and scroll instead of clipping to 100vh */
@@ -1370,5 +1419,13 @@ const css = `
     .rev-actions { flex-direction: column-reverse; align-items: stretch; }
 
     .avatar-menu { right: -8px; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.001ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.001ms !important;
+    }
   }
 `

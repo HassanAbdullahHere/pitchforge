@@ -152,7 +152,8 @@ class PitchforgeState(TypedDict):
 - Full manual AWS deployment complete — backend live at `https://api.pitchforge.cloud`, frontend live at `https://www.pitchforge.cloud`
 - CloudWatch observability — Docker `awslogs` driver routes container stdout to `/pitchforge/backend` log group; structured JSON logs (structlog, `LOG_FORMAT=json`) queryable via Log Insights; custom dashboard: CPU gauge, NetworkIn/Out gauges, CPU over time (line), Network I/O (line), error trend (bar), pipeline activity (table); `CloudWatchLogsFullAccess` attached to EC2 IAM role; no metric filters — admin panel covers business metrics, CloudWatch covers infrastructure + runtime layer
 - CloudWatch alarms — SNS topic `pitchforge-alerts` (ap-south-1) + `pitchforge-billing-alerts` (us-east-1) both subscribed to `hassanabdullahhere01@gmail.com`; 6 alarms: EC2 CPU > 80% (5 min), EC2 StatusCheckFailed >= 1, RDS CPU > 80% (5 min), RDS FreeStorageSpace < 1 GB, RDS FreeableMemory < 100 MB (threshold lowered from 256 MB — db.t4g.micro uses ~850 MB normally due to shared_buffers + pgvector caching), Billing EstimatedCharges > $30/month (us-east-1)
-- GitHub Actions CI/CD — `.github/workflows/ci-cd.yml`; 5 jobs: `test-backend` (pytest + real pgvector/pgvector:pg16 service container + uv cache) + `test-frontend` (vitest + npm cache) run in parallel → `security-scan` (Bandit SAST, npm audit, Trivy filesystem CVE scan — hard fail on HIGH/CRITICAL only) → `deploy-backend` (OIDC auth → ECR push → SSM send-command to EC2: stop old container, pull new image, run `~/run-backend.sh`) → `deploy-frontend` (poll `/health` every 10s up to 5 min → trigger Vercel Deploy Hook); deploy jobs gated to `main` push only via `if:` condition; Vercel auto-deploy disabled via `exit 0` Ignored Build Step so frontend never goes live before backend is healthy
+- GitHub Actions CI/CD — `.github/workflows/ci-cd.yml`; 5 jobs: `test-backend` (pytest + real pgvector/pgvector:pg16 service container + uv cache) + `test-frontend` (vitest + npm cache) run in parallel → `security-scan` (Bandit SAST, npm audit, Trivy filesystem CVE scan — hard fail on HIGH/CRITICAL only) → `deploy-backend` (OIDC auth → ECR push → SSM send-command to EC2: stop old container, pull new image, run `~/run-backend.sh`) → `deploy-frontend` (poll `/health` every 10s up to 5 min → `vercel deploy --prod` via Vercel CLI); deploy jobs gated to `main` push only via `if:` condition; `paths-ignore: ['**.md', 'docs/**']` skips pipeline on doc-only pushes; Vercel auto-deploy disabled via `exit 0` Ignored Build Step — deploy hook approach abandoned because Ignored Build Step also canceled hook-triggered builds; Vercel CLI bypasses it entirely
+- SPA routing fix — `frontend/vercel.json` with catch-all rewrite `/(.*) → /index.html`; hard refresh or direct URL on any React Router route (e.g. `/profile`, `/proposals/:id`) no longer returns Vercel 404
 
 **Next (in order):**
 
@@ -222,7 +223,7 @@ To update a secret: AWS Console → Secrets Manager → `/pitchforge/backend` �
 - Output: `dist/`
 - Environment variable: `VITE_API_URL=https://api.pitchforge.cloud`
 - Domains: `www.pitchforge.cloud` (production), `pitchforge.cloud` (308 redirect to www)
-- Auto-deploy disabled — Ignored Build Step set to `exit 0`; deployments triggered only via Deploy Hook from GitHub Actions after backend is healthy
+- Auto-deploy disabled — Ignored Build Step set to `exit 0`; deployments triggered only via Vercel CLI (`vercel deploy --prod`) from GitHub Actions after backend is healthy — deploy hook approach was abandoned because Ignored Build Step also canceled hook-triggered builds
 
 ### Google OAuth Configuration
 In Google Cloud Console → APIs & Services → Credentials → OAuth 2.0 Client:
@@ -261,15 +262,17 @@ security-scan (Bandit + npm audit + Trivy)
      │
 deploy-backend (OIDC → ECR push → SSM → EC2 restarts)
      │
-deploy-frontend (poll /health → Vercel Deploy Hook)
+deploy-frontend (poll /health → Vercel CLI deploy)
 ```
 
 **GitHub Actions secrets required:**
 | Secret | Value |
 |--------|-------|
-| `AWS_ROLE_ARN` | `arn:aws:iam::623859664281:role/github-actions-pitchforge` |
-| `EC2_INSTANCE_ID` | `i-076f95af1acff48eb` |
-| `VERCEL_DEPLOY_HOOK` | Vercel deploy hook URL (Vercel → Settings → Git → Deploy Hooks) |
+| `AWS_ROLE_ARN` | ARN of the `github-actions-pitchforge` IAM role (AWS Console → IAM → Roles) |
+| `EC2_INSTANCE_ID` | EC2 instance ID (AWS Console → EC2 → Instances) |
+| `VERCEL_TOKEN` | Vercel → Settings → Tokens → Create |
+| `VERCEL_ORG_ID` | `.vercel/repo.json` → `projects[0].orgId` |
+| `VERCEL_PROJECT_ID` | `.vercel/repo.json` → `projects[0].id` |
 
 **IAM role `github-actions-pitchforge`:**
 - Trust policy: scoped to `repo:hassanabdullahhere/pitchforge:ref:refs/heads/main`

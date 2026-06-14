@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>PitchForge</title>
-    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg width='28' height='28' viewBox='0 0 28 28' fill='none' xmlns='http://www.w3.org/2000/svg'><rect width='28' height='28' rx='10' fill='%231a1f16'/><polyline points='5,20 10,15 15,17 20,9' stroke='rgba(255,255,255,0.85)' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round' fill='none'/><circle cx='20' cy='9' r='2.2' fill='%237ab87a'/></svg>" />
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg width='28' height='28' viewBox='0 0 28 28' fill='none' xmlns='http://www.w3.org/2000/svg'><rect width='28' height='28' rx='10' fill='%231a1f16'/><polyline points='5,20 10,15 15,17 20,9' stroke='rgba(255,255,255,0.85)' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round' fill='none'/><circle cx='20' cy='9' r='2.2' fill='%23c9a84c'/></svg>" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -38,10 +38,10 @@
           the fold where there is no text.
         */
         background:
-          radial-gradient(ellipse 90% 60% at 50% 0%,   rgba(215,224,208,1.00) 0%, transparent 52%),
-          radial-gradient(ellipse 60% 50% at 10% 100%, rgba(72, 90, 66,0.82)  0%, transparent 48%),
-          radial-gradient(ellipse 60% 50% at 90% 100%, rgba(55, 72, 50,0.78)  0%, transparent 48%),
-          linear-gradient(168deg, #d2dac8 0%, #aab89e 20%, #7d9470 42%, #536049 65%, #3a4732 100%);
+          radial-gradient(ellipse 70% 50% at 50% -5%,  rgba(70, 50, 180,0.12) 0%, transparent 60%),
+          radial-gradient(ellipse 50% 40% at 10% 100%, rgba(40, 25, 130,0.08) 0%, transparent 52%),
+          radial-gradient(ellipse 50% 40% at 90% 100%, rgba(20, 55, 110,0.08) 0%, transparent 52%),
+          linear-gradient(168deg, #0d0d16 0%, #0a0a12 28%, #080810 52%, #060609 76%, #040406 100%);
         background-size: 200% 200%;
         background-position: 20% 25%;
         animation: bgShift 22s ease-in-out infinite;
@@ -57,9 +57,9 @@
         pointer-events: none;
         background: linear-gradient(
           to bottom,
-          rgba(218,225,212,0.38) 0%,
-          rgba(218,225,212,0.18) 40%,
-          transparent            70%
+          rgba(100,85,220,0.06) 0%,
+          rgba(50,40,140,0.04) 40%,
+          transparent           70%
         );
       }
     </style>
@@ -67,5 +67,55 @@
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
+  <!-- Ambient orbs — fixed behind all content, pointer-events none -->
+  <div class="orb orb-1" aria-hidden="true"></div>
+  <div class="orb orb-2" aria-hidden="true"></div>
+  <div class="orb orb-3" aria-hidden="true"></div>
+  <style>
+    .orb {
+      position: fixed;
+      border-radius: 50%;
+      pointer-events: none;
+      z-index: 0;
+      filter: blur(80px);
+      mix-blend-mode: screen;
+    }
+    .orb-1 {
+      width: 520px; height: 520px;
+      background: radial-gradient(circle, rgba(100,70,220,0.22) 0%, transparent 70%);
+      top: -120px; left: -100px;
+      animation: orbDrift1 18s ease-in-out infinite;
+    }
+    .orb-2 {
+      width: 400px; height: 400px;
+      background: radial-gradient(circle, rgba(201,168,76,0.20) 0%, transparent 70%);
+      top: 30%; right: -80px;
+      animation: orbDrift2 26s ease-in-out infinite;
+    }
+    .orb-3 {
+      width: 460px; height: 460px;
+      background: radial-gradient(circle, rgba(28,100,140,0.20) 0%, transparent 70%);
+      bottom: -100px; left: 35%;
+      animation: orbDrift3 34s ease-in-out infinite;
+    }
+    @keyframes orbDrift1 {
+      0%,100% { transform: translate(0,0) scale(1); }
+      33%      { transform: translate(60px,80px) scale(1.08); }
+      66%      { transform: translate(-40px,50px) scale(0.94); }
+    }
+    @keyframes orbDrift2 {
+      0%,100% { transform: translate(0,0) scale(1); }
+      40%      { transform: translate(-70px,-60px) scale(1.12); }
+      70%      { transform: translate(30px,40px) scale(0.9); }
+    }
+    @keyframes orbDrift3 {
+      0%,100% { transform: translate(0,0) scale(1); }
+      30%      { transform: translate(50px,-70px) scale(1.06); }
+      65%      { transform: translate(-60px,30px) scale(0.96); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .orb { animation: none !important; }
+    }
+  </style>
   </body>
 </html>

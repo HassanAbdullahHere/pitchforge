@@ -17,15 +17,15 @@ function relativeTime(dateStr) {
   return `${mo}mo ago`
 }
 
-const scoreColor  = s => s >= 70 ? '#7ab87a' : s >= 50 ? '#d4a855' : '#e07070'
+const scoreColor  = s => s >= 70 ? '#5f8f68' : s >= 50 ? '#b88745' : '#b9574f'
 const scoreBg     = s => s >= 70
-  ? { background: 'rgba(122,184,122,0.12)', color: 'rgba(50,130,50,0.9)',   border: '1px solid rgba(122,184,122,0.2)' }
+  ? { background: 'rgba(95,143,104,0.14)', color: '#5f8f68',              border: '1px solid rgba(95,143,104,0.30)' }
   : s >= 50
-  ? { background: 'rgba(212,168,85,0.12)',  color: 'rgba(170,120,20,0.9)',  border: '1px solid rgba(212,168,85,0.25)' }
-  : { background: 'rgba(220,80,80,0.1)',    color: 'rgba(180,50,50,0.9)',   border: '1px solid rgba(220,80,80,0.2)' }
+  ? { background: 'rgba(184,135,69,0.14)',  color: '#b88745',              border: '1px solid rgba(184,135,69,0.28)' }
+  : { background: 'rgba(185,87,79,0.12)',   color: '#b9574f',              border: '1px solid rgba(185,87,79,0.28)' }
 
 const recColor = r => {
-  if (r === 'Strong Apply')     return { background: 'rgba(122,184,122,0.1)',  color: 'rgba(50,130,50,0.9)',   border: '1px solid rgba(122,184,122,0.18)' }
+  if (r === 'Strong Apply')     return { background: 'rgba(201,168,76,0.12)', color: '#a07c20', border: '1px solid rgba(201,168,76,0.28)' }
   if (r === 'Apply Carefully')  return { background: 'rgba(212,168,85,0.1)',   color: 'rgba(170,120,20,0.9)',  border: '1px solid rgba(212,168,85,0.2)' }
   return                               { background: 'rgba(220,80,80,0.08)',   color: 'rgba(180,50,50,0.85)',  border: '1px solid rgba(220,80,80,0.15)' }
 }
@@ -66,16 +66,23 @@ export default function ProposalHistory() {
   }
 
   useEffect(() => {
-    let cancelled = false
-    fetch(`${API_BASE}/api/proposals`, { headers: authHeaders() })
+    const controller = new AbortController()
+    fetch(`${API_BASE}/api/proposals`, { headers: authHeaders(), signal: controller.signal })
       .then(r => {
         if (!r.ok) throw new Error(`Server returned ${r.status}`)
         return r.json()
       })
-      .then(data => { if (!cancelled) { setProposals(data); setLoading(false) } })
-      .catch(err => { if (!cancelled) { setError(err.message); setLoading(false) } })
-    return () => { cancelled = true }
+      .then(data => { setProposals(data); setLoading(false) })
+      .catch(err => { if (err.name !== 'AbortError') { setError(err.message); setLoading(false) } })
+    return () => controller.abort()
   }, [])
+
+  useEffect(() => {
+    if (!confirmDeleteId) return
+    const handler = (e) => { if (e.key === 'Escape' && !deleting) setConfirmDeleteId(null) }
+    document.addEventListener('keydown', handler)
+    return () => document.removeEventListener('keydown', handler)
+  }, [confirmDeleteId, deleting])
 
   return (
     <>
@@ -233,15 +240,17 @@ export default function ProposalHistory() {
 
 const css = `
   :root {
-    --text-dark:        rgba(30,36,25,0.85);
-    --text-muted:       rgba(30,36,25,0.45);
+    --text-dark:        rgba(43,40,34,0.85);
+    --text-muted:       rgba(43,40,34,0.45);
     --text-light:       rgba(255,255,255,0.88);
     --text-light-muted: rgba(255,255,255,0.4);
     --glass-light:      rgba(226,225,222,0.76);
     --glass-light-b:    rgba(212,210,208,0.90);
-    --glass-dark:       rgba(22,26,20,0.75);
+    --glass-dark:       rgba(12,12,22,0.78);
     --glass-dark-b:     rgba(255,255,255,0.09);
-    --accent:           #7ab87a;
+    --accent:           #7B6BE3;
+    --accent-warm:      #c9a84c;
+    --accent-warm-bg:   rgba(201,168,76,0.12);
     --font:             'Instrument Sans', sans-serif;
   }
 
@@ -256,6 +265,7 @@ const css = `
 
   .ph-page {
     min-height: 100vh;
+    min-height: 100dvh;
     display: flex;
     flex-direction: column;
     z-index: 1;
@@ -274,27 +284,27 @@ const css = `
   /* ── Buttons ── */
   .btn-primary {
     border-radius: 100px;
-    background: rgba(26,31,22,0.88);
-    color: rgba(255,255,255,0.92);
+    background: var(--accent-warm);
+    color: #1a1500;
     border: none;
     padding: 12px 24px;
     font-family: var(--font);
     font-size: 14px;
-    font-weight: 500;
+    font-weight: 600;
     cursor: pointer;
-    transition: transform 200ms, box-shadow 200ms;
+    transition: transform 200ms, background 200ms, box-shadow 200ms;
     letter-spacing: -0.01em;
     white-space: nowrap;
   }
-  .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,0,0,0.22); }
-  .btn-primary:active { transform: translateY(0); box-shadow: none; }
+  .btn-primary:hover { background: #d4b55c; box-shadow: 0 4px 20px rgba(201,168,76,0.28); transform: translateY(-2px); }
+  .btn-primary:active { background: var(--accent-warm); transform: translateY(0); box-shadow: none; }
 
   .btn-secondary {
     border-radius: 100px;
     background: rgba(255,255,255,0.55);
     backdrop-filter: blur(8px);
     border: 1px solid rgba(255,255,255,0.75);
-    color: rgba(30,36,25,0.8);
+    color: rgba(43,40,34,0.8);
     padding: 10px 20px;
     font-family: var(--font);
     font-size: 13px;
@@ -427,14 +437,14 @@ const css = `
     text-transform: uppercase;
     border-radius: 100px;
     padding: 3px 10px;
-    background: rgba(30,36,25,0.06);
-    color: rgba(30,36,25,0.45);
-    border: 1px solid rgba(30,36,25,0.08);
+    background: rgba(43,40,34,0.06);
+    color: rgba(43,40,34,0.45);
+    border: 1px solid rgba(43,40,34,0.08);
   }
   .ph-status-pill--done {
-    background: rgba(122,184,122,0.1);
-    color: rgba(40,120,40,0.9);
-    border: 1px solid rgba(122,184,122,0.2);
+    background: rgba(123,107,227,0.10);
+    color: rgba(110,98,210,0.95);
+    border: 1px solid rgba(123,107,227,0.20);
   }
 
   .ph-time {
@@ -473,9 +483,9 @@ const css = `
     white-space: nowrap;
   }
   .ph-badge--platform {
-    background: rgba(30,36,25,0.05);
-    color: rgba(30,36,25,0.55);
-    border: 1px solid rgba(30,36,25,0.1);
+    background: rgba(43,40,34,0.05);
+    color: rgba(43,40,34,0.55);
+    border: 1px solid rgba(43,40,34,0.1);
   }
 
   .ph-quality-row {
@@ -483,7 +493,7 @@ const css = `
     align-items: center;
     justify-content: space-between;
     padding-top: 8px;
-    border-top: 1px solid rgba(30,36,25,0.06);
+    border-top: 1px solid rgba(43,40,34,0.06);
   }
   .ph-quality-label {
     font-family: var(--font);
@@ -516,12 +526,12 @@ const css = `
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 26px;
-    height: 26px;
-    border-radius: 6px;
+    width: 44px;
+    height: 44px;
+    border-radius: 10px;
     border: none;
     background: transparent;
-    color: rgba(30,36,25,0.3);
+    color: rgba(43,40,34,0.3);
     cursor: pointer;
     opacity: 0;
     transition: opacity 180ms, background 180ms, color 180ms;
@@ -533,6 +543,11 @@ const css = `
     color: rgba(200,50,50,0.85);
   }
   .ph-delete-btn:active { transform: scale(0.93); }
+  /* Always show delete on touch devices (hover never fires) */
+  @media (hover: none) {
+    .ph-delete-btn { opacity: 1; }
+    .ph-view-hint  { opacity: 1; }
+  }
 
   /* ── Confirm modal ── */
   .ph-modal-overlay {
@@ -600,7 +615,7 @@ const css = `
     bottom: 28px;
     left: 50%;
     transform: translateX(-50%);
-    background: rgba(22,26,20,0.92);
+    background: rgba(12,12,24,0.92);
     color: rgba(255,255,255,0.88);
     font-family: var(--font);
     font-size: 13px;
@@ -613,10 +628,28 @@ const css = `
     white-space: nowrap;
   }
 
+  .ph-header .ph-title,
+  .ph-empty .ph-empty-text {
+    color: rgba(255,253,246,0.96);
+  }
+  .ph-header .ph-count,
+  .ph-empty .ph-empty-sub,
+  .ph-empty .ph-empty-icon {
+    color: rgba(245,240,232,0.66);
+  }
+
   /* ── Mobile ── */
   @media (max-width: 640px) {
     .ph-nav  { padding: 16px 20px; }
     .ph-main { padding: 8px 20px 40px; }
     .ph-grid { grid-template-columns: 1fr; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.001ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.001ms !important;
+    }
   }
 `
