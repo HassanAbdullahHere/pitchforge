@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app.deps import get_current_user
 from app.limiter import limiter
-from app.models import Proposal, User
+from app.models import Proposal, UsageEvent, User
 from app.schemas import (
     FinalizeRequest,
     GenerateRequest,
@@ -53,9 +53,10 @@ async def get_usage(
 ):
     today_start = datetime.combine(date.today(), datetime.min.time()).replace(tzinfo=timezone.utc)
     count = await db.scalar(
-        select(func.count(Proposal.id)).where(
-            Proposal.user_id == current_user.id,
-            Proposal.created_at >= today_start,
+        select(func.count(UsageEvent.id)).where(
+            UsageEvent.user_id == current_user.id,
+            UsageEvent.phase == "analysis",
+            UsageEvent.created_at >= today_start,
         )
     )
     return UsageResponse(used=count or 0, limit=7)
@@ -101,9 +102,10 @@ async def analyze(
 ):
     today_start = datetime.combine(date.today(), datetime.min.time()).replace(tzinfo=timezone.utc)
     count = await db.scalar(
-        select(func.count(Proposal.id)).where(
-            Proposal.user_id == current_user.id,
-            Proposal.created_at >= today_start,
+        select(func.count(UsageEvent.id)).where(
+            UsageEvent.user_id == current_user.id,
+            UsageEvent.phase == "analysis",
+            UsageEvent.created_at >= today_start,
         )
     )
     if count >= 7:

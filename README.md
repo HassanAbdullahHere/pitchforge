@@ -546,7 +546,7 @@ PitchForge is live on a cost-conscious AWS setup designed for learning real prod
 | Migrations | Done | `alembic upgrade head` runs at container startup |
 | Tests | Done | 48 backend + 22 frontend tests |
 | Monitoring | Done | CloudWatch logs, metrics dashboard, and 6 alarms (EC2 + RDS + billing) |
-| CI/CD | Done | GitHub Actions: parallel tests → security scan → backend deploy → frontend deploy |
+| CI/CD | Done | GitHub Actions: path-filtered changes detection → parallel tests (backend/frontend only when relevant files changed) → security scan → backend deploy → frontend deploy |
 | Infrastructure as Code | Next | Terraform for VPC, EC2, RDS, ECR, IAM, and Secrets Manager references |
 | Scaling path | Later | ALB, private backend service, ECS/Fargate or autoscaled EC2, Multi-AZ RDS |
 
@@ -558,21 +558,22 @@ Current production posture: suitable for a controlled soft launch with a fully a
 
 ### CI/CD — GitHub Actions
 
-**`.github/workflows/ci-cd.yml` · triggers on every push and PR to `main` (doc-only changes skipped via `paths-ignore`)**
+**`.github/workflows/ci-cd.yml` · triggers on every push and PR to `main` (doc-only changes skipped via `paths-ignore`) · path-based skipping: backend and frontend jobs only run when relevant files change**
 
-Every push to `main` runs the full pipeline automatically. Frontend never goes live before the backend is confirmed healthy.
+Every push to `main` runs only the jobs relevant to what changed. Frontend never goes live before the backend is confirmed healthy.
 
 <img src="./docs/cicd-pipeline.png" alt="PitchForge CI/CD pipeline" width="100%"/>
 
 **Jobs:**
 
-| Job | Runs on | What it does |
-|-----|---------|-------------|
-| `test-backend` | Ubuntu VM | Spins up `pgvector/pgvector:pg16` service container · installs deps via `uv sync --frozen --extra test` (cached) · runs all 48 pytest tests against a real DB |
-| `test-frontend` | Ubuntu VM (parallel) | Installs deps via `npm ci` (cached) · runs all 22 Vitest tests |
-| `security-scan` | Ubuntu VM | Bandit (Python SAST) · npm audit · Trivy filesystem CVE scan — Bandit fails on HIGH findings; npm audit and Trivy fail on CRITICAL dependency/CVE findings |
-| `deploy-backend` | Ubuntu VM | Authenticates with AWS via OIDC (no stored keys) · builds Docker image · pushes to ECR · sends SSM command to EC2 to stop old container, pull new image, and restart |
-| `deploy-frontend` | Ubuntu VM | Polls `GET /health` every 10s (up to 5 min) until new backend is serving · deploys via Vercel CLI (`vercel deploy --prod`) |
+| Job | Condition | What it does |
+|-----|-----------|-------------|
+| `changes` | Always | Uses `dorny/paths-filter@v3` to detect which directories changed. Outputs `backend` bool (`backend/**`, `pitchforge/**`, `Dockerfile`, `.dockerignore`) and `frontend` bool (`frontend/**`). Every downstream job reads these to decide whether to run or skip. |
+| `test-backend` | `backend == true` | Spins up `pgvector/pgvector:pg16` service container · installs deps via `uv sync --frozen --extra test` (cached) · runs all 48 pytest tests against a real DB |
+| `test-frontend` | `frontend == true` | Installs deps via `npm ci` (cached) · runs all 22 Vitest tests · runs in parallel with `test-backend` |
+| `security-scan` | Either side changed; both tests passed or skipped | Uses `always()` so a skipped test job doesn't block it — but bails if a test job actually failed. Bandit (Python SAST) · npm audit · Trivy filesystem CVE scan — Bandit fails on HIGH; npm audit and Trivy fail on CRITICAL. |
+| `deploy-backend` | `backend == true` + `security-scan` passed + main push | Authenticates with AWS via OIDC (no stored keys) · builds Docker image · saves current `latest` as `previous` tag (instant rollback) · pushes new image to ECR · sends SSM command to EC2: ECR login → pull → stop+rm old container → restart via `~/run-backend.sh` |
+| `deploy-frontend` | `frontend == true` + (`deploy-backend` succeeded or skipped) + main push | Polls `GET /health` every 10s up to 5 min — **only** when backend was also deployed this run (skipped otherwise). Deploys via Vercel CLI (`vercel deploy --prod`). |
 
 **Deploy jobs are gated to `main` push only** via `if: github.ref == 'refs/heads/main' && github.event_name == 'push'` — test and security jobs run on PRs too, deploys never do.
 
@@ -674,6 +675,7 @@ RDS is fully managed by AWS and needs no outbound internet access. Skipping the 
 **ap-south-1 · repo: `pitchforge-backend`**
 
 - GitHub Actions builds and pushes the image on every merge to `main` via OIDC authentication — no manual steps, no stored AWS keys
+- Two tags are maintained: `latest` (current production image) and `previous` (the image that was `latest` before this push). The deploy step promotes `latest` → `previous` before overwriting it, so rolling back is a single `docker pull :previous` + restart — no rebuild needed.
 - EC2 pulls the new image via SSM command — the instance profile grants ECR pull permissions
 
 **Decision — OIDC for push, instance profile for pull**  
