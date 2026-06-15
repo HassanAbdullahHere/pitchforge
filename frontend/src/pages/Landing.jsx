@@ -98,7 +98,7 @@ export default function Landing() {
   const [menuOpen,       setMenuOpen]       = useState(false)
   const [menuClosing,    setMenuClosing]    = useState(false)
   const [mobileNavOpen,  setMobileNavOpen]  = useState(false)
-  const [usage,          setUsage]          = useState(null)
+  const [usage,          setUsage]          = useState({ used: 0, limit: 1 })
   const [avatarError,    setAvatarError]    = useState(false)
   const [avatarLoaded,   setAvatarLoaded]   = useState(false)
   const [loginError,     setLoginError]     = useState(null)
@@ -955,7 +955,7 @@ const css = `
   .usage-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 7px; }
   .usage-label, .usage-count { color: var(--faint); font-size: 11px; font-weight: 700; text-transform: uppercase; }
   .usage-track { height: 4px; overflow: hidden; background: rgba(244,241,232,0.10); border-radius: 999px; }
-  .usage-fill  { height: 100%; border-radius: inherit; }
+  .usage-fill  { height: 100%; border-radius: inherit; transition: width 500ms ease, background 500ms ease; }
 
   /* ── hero ────────────────────────────────────────────────────────── */
   .hero {
