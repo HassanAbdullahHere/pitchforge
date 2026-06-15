@@ -6,6 +6,24 @@
 
 ![Status](https://img.shields.io/badge/Status-Live-brightgreen?style=flat-square)
 ![License](https://img.shields.io/badge/License-MIT-green?style=flat-square)
+![CI/CD](https://img.shields.io/badge/CI%2FCD-Passing-brightgreen?style=flat-square&logo=githubactions&logoColor=white)
+
+<br/>
+
+![LangGraph](https://img.shields.io/badge/LangGraph-1C3C3C?style=flat-square&logo=langchain&logoColor=white)
+![Gemini](https://img.shields.io/badge/Gemini_2.5_Flash-4285F4?style=flat-square&logo=googlegemini&logoColor=white)
+![FastAPI](https://img.shields.io/badge/FastAPI-009688?style=flat-square&logo=fastapi&logoColor=white)
+![React](https://img.shields.io/badge/React_18-61DAFB?style=flat-square&logo=react&logoColor=black)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL+pgvector-4169E1?style=flat-square&logo=postgresql&logoColor=white)
+![Python](https://img.shields.io/badge/Python-3776AB?style=flat-square&logo=python&logoColor=white)
+
+<br/>
+
+![Docker](https://img.shields.io/badge/Docker-2496ED?style=flat-square&logo=docker&logoColor=white)
+![AWS](https://img.shields.io/badge/AWS-232F3E?style=flat-square&logo=amazonwebservices&logoColor=white)
+![GitHub Actions](https://img.shields.io/badge/GitHub_Actions-2088FF?style=flat-square&logo=githubactions&logoColor=white)
+![Vercel](https://img.shields.io/badge/Vercel-000000?style=flat-square&logo=vercel&logoColor=white)
+![Terraform](https://img.shields.io/badge/Terraform-7B42BC?style=flat-square&logo=terraform&logoColor=white)
 
 **Production-grade AI proposal intelligence platform built with LangGraph, hybrid RAG, PostgreSQL/pgvector, AWS, CI/CD, and CloudWatch observability.**
 
@@ -26,6 +44,18 @@ This is not a prompt wrapper. The core is a stateful AI workflow with human chec
 ---
 
 ## Live Demo
+
+<div align="center">
+
+[![▶ Click to watch the full walkthrough](https://img.shields.io/badge/▶%20Click%20to%20watch%20the%20full%20walkthrough-22c55e?style=for-the-badge)](https://youtu.be/a-EiW3MEHIw)
+
+[![Watch the PitchForge demo on YouTube](https://img.youtube.com/vi/a-EiW3MEHIw/maxresdefault.jpg)](https://youtu.be/a-EiW3MEHIw)
+
+</div>
+
+---
+
+**Live URLs**
 
 | Surface | URL | Notes |
 |---------|-----|-------|

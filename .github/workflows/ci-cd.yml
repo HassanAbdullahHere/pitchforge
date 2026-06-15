@@ -123,7 +123,7 @@ jobs:
       # ── Trivy (filesystem CVE scan — Python + JS deps) ────────────────────
       # Show HIGH, MEDIUM, LOW findings — never blocks
       - name: Trivy report (HIGH, MEDIUM, LOW)
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           scan-type: fs
           scan-ref: .
@@ -132,7 +132,7 @@ jobs:
 
       # Hard fail on CRITICAL CVEs only
       - name: Trivy fail on CRITICAL
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           scan-type: fs
           scan-ref: .
@@ -167,9 +167,20 @@ jobs:
       - name: Build and push image to ECR
         run: |
           ECR_REGISTRY=623859664281.dkr.ecr.ap-south-1.amazonaws.com
-          IMAGE=$ECR_REGISTRY/pitchforge-backend:latest
-          docker build -t $IMAGE .
-          docker push $IMAGE
+          REPO=$ECR_REGISTRY/pitchforge-backend
+          SHORT_SHA=${GITHUB_SHA::7}
+
+          # Promote current latest → previous before overwriting (enables instant rollback)
+          docker pull $REPO:latest && \
+            docker tag $REPO:latest $REPO:previous && \
+            docker push $REPO:previous || true
+
+          # Build once, tag with immutable SHA + floating latest
+          docker build -t $REPO:$SHORT_SHA -t $REPO:latest .
+          docker push $REPO:$SHORT_SHA
+          docker push $REPO:latest
+
+          echo "Pushed $REPO:$SHORT_SHA and $REPO:latest"
 
       # SSM sends a shell script to EC2 without opening port 22.
       # EC2 agent picks it up, runs it, reports back exit code.
@@ -180,10 +191,10 @@ jobs:
             --document-name AWS-RunShellScript \
             --region ap-south-1 \
             --parameters 'commands=[
-              "docker stop backend || true",
-              "docker rm backend || true",
               "aws ecr get-login-password --region ap-south-1 | docker login --username AWS --password-stdin 623859664281.dkr.ecr.ap-south-1.amazonaws.com",
               "docker pull 623859664281.dkr.ecr.ap-south-1.amazonaws.com/pitchforge-backend:latest",
+              "docker stop backend || true",
+              "docker rm backend || true",
               "bash /home/ubuntu/run-backend.sh"
             ]' \
             --query 'Command.CommandId' \
