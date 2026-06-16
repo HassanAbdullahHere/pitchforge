@@ -211,8 +211,6 @@ export default function Landing() {
   // hero score counter
   useEffect(() => {
     if (!introComplete) return
-    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-    if (reduceMotion) { setHeroScore(90); return }
     const duration = 1100; const start = performance.now(); let frameId
     function tick(now) {
       const t = Math.min((now - start) / duration, 1)
@@ -224,14 +222,13 @@ export default function Landing() {
   }, [introComplete])
 
   function handleHeroMove(e) {
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
     const rect = heroRef.current?.getBoundingClientRect(); if (!rect) return
     panMouseX.set((e.clientX - rect.left - rect.width  / 2) * 0.06)
     panMouseY.set((e.clientY - rect.top  - rect.height / 2) * 0.06)
   }
   function handleHeroLeave()  { panMouseX.set(0); panMouseY.set(0) }
   function handlePanelMove(e) {
-    if (window.matchMedia('(hover: none), (prefers-reduced-motion: reduce)').matches) return
+    if (window.matchMedia('(hover: none)').matches) return
     const rect = e.currentTarget.getBoundingClientRect()
     tiltX.set(-((e.clientY - rect.top  - rect.height / 2) / (rect.height / 2)) * 7)
     tiltY.set( ((e.clientX - rect.left - rect.width  / 2) / (rect.width  / 2)) * 10)
@@ -1570,13 +1567,6 @@ const css = `
   }
 
   @media (prefers-reduced-motion: reduce) {
-    *, *::before, *::after {
-      animation-duration: 0.001ms !important;
-      animation-iteration-count: 1 !important;
-      scroll-behavior: auto !important;
-      transition-duration: 0.001ms !important;
-    }
-    .intro-overlay { display: none; }
     .grad-text { animation: none !important; -webkit-text-fill-color: #9b8ee8; }
   }
 
